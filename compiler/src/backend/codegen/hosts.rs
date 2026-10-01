@@ -265,6 +265,12 @@ pub fn boundary(ty: &Type) -> Boundary {
       "List" => Boundary::List(Box::new(boundary(&args[0]))),
       _ => Boundary::Plain,
     },
+    Type::Con { name, args } if args.len() == 2 && bare(name) == "Result" => {
+      Boundary::Result(
+        Box::new(boundary(&args[1])),
+        Box::new(boundary(&args[0])),
+      )
+    }
     _ => Boundary::Plain,
   }
 }

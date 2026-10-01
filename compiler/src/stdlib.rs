@@ -36,6 +36,11 @@ pub const MODULES: &[StdModule] = &[
     files: &[("bindings/Dom.js", include_str!("../../std/bindings/Dom.js"))],
   },
   StdModule {
+    name: "Fs",
+    source: include_str!("../../std/Fs.px"),
+    files: &[("bindings/Fs.js", include_str!("../../std/bindings/Fs.js"))],
+  },
+  StdModule {
     name: "Http",
     source: include_str!("../../std/Http.px"),
     files: &[],
@@ -64,6 +69,11 @@ pub const MODULES: &[StdModule] = &[
   StdModule {
     name: "Option",
     source: include_str!("../../std/Option.px"),
+    files: &[],
+  },
+  StdModule {
+    name: "Path",
+    source: include_str!("../../std/Path.px"),
     files: &[],
   },
   StdModule {

@@ -1,0 +1,32 @@
+module Fs
+
+uses
+  Std.List
+  Std.Result
+
+hosts
+  Node
+
+types
+  FsError = { code: String, path: String, message: String } derive(Show)
+
+effects
+  Fs in Node {
+    read(path: String) -> Result<FsError, String>
+    write(path: String, text: String) -> Result<FsError, {}>
+    append(path: String, text: String) -> Result<FsError, {}>
+    exists(path: String) -> Bool
+    is_dir(path: String) -> Bool
+    mkdir_all(path: String) -> Result<FsError, {}>
+    list(path: String) -> Result<FsError, List<String>>
+    walk(path: String) -> Result<FsError, List<String>>
+    remove(path: String) -> Result<FsError, {}>
+    remove_all(path: String) -> Result<FsError, {}>
+  }
+
+binds
+  Fs in Node = "./bindings/Fs.js"
+
+exports
+  Node
+  Fs

@@ -86,6 +86,12 @@ code, `output` captures `{ code, stdout, stderr }`, and a command that can't be
 started gives 127. `Process.inherit() |> Process.in_dir("sub") |>
 Process.with_env("NAME", "value")` adjusts where and with what it runs.
 
+`Std.Fs` reads and writes text files. Operations that can fail return
+`Result<FsError, _>`, where `FsError` is `{ code, path, message }` and `code` is
+Node's (`ENOENT`, `EEXIST`, …). `Fs.list` and `Fs.walk` return sorted names.
+`Std.Path` (`join`, `dirname`, `basename`, `extension`, `normalize`,
+`relative`) is pure Polar and works on any host.
+
 ## Standard library
 
 `uses Std.<Name>` imports a module from [`std/`](std/):
@@ -94,11 +100,13 @@ Process.with_env("NAME", "value")` adjusts where and with what it runs.
 |---|---|
 | `Assert` | `assert` |
 | `Dom` | the `Browser` host and its `Dom` effect |
+| `Fs` | the `Node` host's `Fs` effect: `read`, `write`, `append`, `exists`, `is_dir`, `mkdir_all`, `list`, `walk`, `remove`, `remove_all` |
 | `Http` | `Request`, `Response`, `Header`, `header` lookup |
 | `Id` | typed ids, `Id<a>` |
 | `Json` | the `Json` trait, `encode`/`decode` |
 | `List`, `Map`, `Option`, `Result` | collections and their combinators |
 | `Math` | `pi` |
+| `Path` | POSIX path functions: `join`, `dirname`, `basename`, `extension`, `normalize`, `is_absolute`, `relative` |
 | `Prelude` | `Eq` and `Show` (always in scope) |
 | `Process` | the `Node` host's `Process` effect: `args`, `env`, `cwd`, `set_exit_code`, `run`, `output` |
 | `Ref` | mutable cells under the `Mut` effect |

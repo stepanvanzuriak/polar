@@ -317,6 +317,7 @@ pub struct CExtern {
   pub name: String,
   pub module: String,
   pub export: String,
+  pub label: String,
   pub params: Vec<Boundary>,
   pub ret: Boundary,
   pub origin: Option<Span>,
@@ -329,6 +330,7 @@ pub enum Boundary {
   Unit,
   Option(Box<Boundary>),
   List(Box<Boundary>),
+  Result(Box<Boundary>, Box<Boundary>),
   Record(Vec<(String, Boundary)>),
 }
 

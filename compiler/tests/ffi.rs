@@ -118,7 +118,10 @@ Log.info(twice(shout, \"y\"))\n  }}\n\nexports\n  main\n"
   );
   let js = js(&src);
 
-  assert!(js.contains("$rt.extern($js$shout, [null], null)"), "{js}");
+  assert!(
+    js.contains("$rt.extern($js$shout, [null], null, \"shout\")"),
+    "{js}"
+  );
   assert_eq!(
     run_program_with(&src, "app.px", &[], Some("Node"), &[("ffi.js", FFI_JS)])
       .unwrap_or_else(|e| panic!("{e}")),

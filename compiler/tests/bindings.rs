@@ -461,15 +461,21 @@ fn module_bind_imports_every_operation() {
     "{js}"
   );
   assert!(
-    js.contains("$rt.extern($js$Kv$DOM$get, [null], [\"option\", null])"),
+    js.contains(
+      "$rt.extern($js$Kv$DOM$get, [null], [\"option\", null], \"Kv.get\")"
+    ),
     "{js}"
   );
   assert!(
-    js.contains("$rt.extern($js$Kv$DOM$set, [null, null], \"unit\")"),
+    js.contains(
+      "$rt.extern($js$Kv$DOM$set, [null, null], \"unit\", \"Kv.set\")"
+    ),
     "{js}"
   );
   assert!(
-    js.contains("$rt.extern($js$Kv$DOM$keys, [], [\"list\", null])"),
+    js.contains(
+      "$rt.extern($js$Kv$DOM$keys, [], [\"list\", null], \"Kv.keys\")"
+    ),
     "{js}"
   );
   assert!(!emit_for_host(PORTABLE, "Node").contains("dom.js"));
@@ -533,4 +539,140 @@ fn module_bind_of_an_imported_effect() {
   let js = "export function get(key) {\n  return key === \"k\" ? \"found\" : null;\n}\n";
 
   assert_eq!(run(main, "Node", &modules, &[("kv.js", js)]), "found\n");
+}
+
+const RESULTS: &str = "module Main
+
+uses
+  Std.List
+  Std.Option
+  Std.Result
+
+hosts
+  Node
+
+types
+  Item = { a: Option<Int> } derive(Show)
+
+effects
+  Echo in Node {
+    good() -> Result<String, List<Int>>
+    bad() -> Result<String, List<Int>>
+    nested(flag: Bool) -> Result<String, Option<List<Item>>>
+    echo(value: Result<String, Option<Int>>) -> Result<String, Option<Int>>
+    junk() -> Result<String, Int>
+  }
+
+binds
+  Echo in Node = \"./echo.js\"
+
+functions
+  ints(result: Result<String, List<Int>>) -> String {
+    match result {
+      Ok(xs) -> \"Ok([#{List.join(List.map(xs, Int.to_string), \", \")}])\",
+      Err(e) -> \"Err(#{e})\",
+    }
+  }
+
+  items(result: Result<String, Option<List<Item>>>) -> String {
+    match result {
+      Ok(Some(xs)) -> \"Ok(Some([#{List.join(List.map(xs, function(x) { \"#{x}\" }), \", \")}]))\",
+      Ok(None) -> \"Ok(None)\",
+      Err(e) -> \"Err(#{e})\",
+    }
+  }
+
+  main() -> {} / {Echo} {
+BODY
+  }
+
+exports
+  main
+";
+
+const ECHO_JS: &str = "export function good() {
+  return { ok: [1] };
+}
+
+export function bad() {
+  return { err: \"x\" };
+}
+
+export function nested(flag) {
+  if (flag !== true && flag !== false) {
+    throw new Error(\"flag\");
+  }
+
+  return flag ? { ok: [{ a: 1 }, { a: null }] } : { ok: null };
+}
+
+export function echo(value) {
+  return value;
+}
+
+export function junk() {
+  return 42;
+}
+";
+
+fn run_results(body: &str) -> Result<String, String> {
+  run_program_with(
+    &RESULTS.replace("BODY", body),
+    "app.px",
+    &[],
+    Some("Node"),
+    &[("echo.js", ECHO_JS)],
+  )
+}
+
+#[test]
+fn result_boundary_return() {
+  assert_eq!(
+    run_results(
+      "    Log.info(ints(Echo.good()))\n    Log.info(ints(Echo.bad()))"
+    ),
+    Ok("Ok([1])\nErr(x)\n".to_string())
+  );
+}
+
+#[test]
+fn result_boundary_nested() {
+  assert_eq!(
+    run_results(
+      "    Log.info(items(Echo.nested(true)))\n    Log.info(items(Echo.nested(false)))"
+    ),
+    Ok("Ok(Some([{ a: Some(1) }, { a: None }]))\nOk(None)\n".to_string())
+  );
+}
+
+#[test]
+fn result_boundary_argument() {
+  assert_eq!(
+    run_results(
+      "    Log.info(\"#{Echo.echo(Ok(Some(1)))}\")\n    Log.info(\"#{Echo.echo(Ok(None))}\")\n    Log.info(\"#{Echo.echo(Err(\"e\"))}\")"
+    ),
+    Ok("Ok(Some(1))\nOk(None)\nErr(e)\n".to_string())
+  );
+}
+
+#[test]
+fn result_boundary_shape() {
+  let js = emit_for_host(&RESULTS.replace("BODY", "    {}"), "Node");
+
+  assert!(
+    js.contains("$rt.extern($js$Echo$Node$junk, [], [\"result\", null, null], \"Echo.junk\")"),
+    "{js}"
+  );
+  assert!(
+    js.contains("[[\"result\", [\"option\", null], null]], [\"result\", [\"option\", null], null], \"Echo.echo\")"),
+    "{js}"
+  );
+}
+
+#[test]
+fn result_boundary_bad() {
+  let err = run_results("    Log.info(\"#{Echo.junk()}\")").unwrap_err();
+
+  assert!(err.contains("`Echo.junk` returned 42"), "{err}");
+  assert!(err.contains("{ ok: value } or { err: error }"), "{err}");
 }

@@ -254,6 +254,59 @@ effects
         </table>
       </div>
 
+      <h2 id="fs">Fs</h2>
+      <p>Reads and writes text files on the <code>Node</code> host. See <a href="command-line-programs.html#files">Command-Line Programs</a>.</p>
+<pre class="code" data-lang="polar"><code>types
+  FsError = { code: String, path: String, message: String } derive(Show)
+
+effects
+  Fs in Node {
+    read(path: String) -> Result&lt;FsError, String&gt;
+    write(path: String, text: String) -> Result&lt;FsError, {}&gt;
+    append(path: String, text: String) -> Result&lt;FsError, {}&gt;
+    exists(path: String) -> Bool
+    is_dir(path: String) -> Bool
+    mkdir_all(path: String) -> Result&lt;FsError, {}&gt;
+    list(path: String) -> Result&lt;FsError, List&lt;String&gt;&gt;
+    walk(path: String) -> Result&lt;FsError, List&lt;String&gt;&gt;
+    remove(path: String) -> Result&lt;FsError, {}&gt;
+    remove_all(path: String) -> Result&lt;FsError, {}&gt;
+  }</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Operation</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>read</code></td><td>The file's text, as UTF-8</td></tr>
+            <tr><td><code>write</code></td><td>Creates or truncates the file. A missing parent directory is <code>ENOENT</code></td></tr>
+            <tr><td><code>append</code></td><td>Creates the file or adds to its end</td></tr>
+            <tr><td><code>exists</code>, <code>is_dir</code></td><td>Whether the path exists, or is a directory. Never fail</td></tr>
+            <tr><td><code>mkdir_all</code></td><td>Creates a directory and its parents, like <code>mkdir -p</code>. Fine if it exists</td></tr>
+            <tr><td><code>list</code></td><td>The names in a directory, sorted</td></tr>
+            <tr><td><code>walk</code></td><td>Every file below a directory, as sorted paths relative to it with <code>/</code> separators. Doesn't follow symlinks</td></tr>
+            <tr><td><code>remove</code></td><td>Removes a file or an empty directory</td></tr>
+            <tr><td><code>remove_all</code></td><td>Removes a path and everything below it. Fine if it's missing</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>An <code>FsError</code>'s <code>code</code> is Node's: <code>ENOENT</code>, <code>EEXIST</code>, <code>ENOTDIR</code>, <code>EACCES</code> and so on, so you can match on it.</p>
+
+      <h2 id="path">Path</h2>
+      <p>Pure functions on POSIX paths, written in Polar. They don't touch the file system and work on every host.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">join(base: String, part: String) -> String</code></td><td>Joins and normalizes. An absolute <code>part</code> wins: <code>join("a", "/b")</code> is <code>/b</code></td></tr>
+            <tr><td><code class="sig">dirname(path: String) -> String</code></td><td><code>dirname("/a/b.px")</code> is <code>/a</code>, <code>dirname("b.px")</code> is <code>.</code></td></tr>
+            <tr><td><code class="sig">basename(path: String) -> String</code></td><td><code>basename("/a/b.px")</code> is <code>b.px</code></td></tr>
+            <tr><td><code class="sig">extension(path: String) -> String</code></td><td><code>.px</code>, or <code>""</code> when there is none. <code>extension(".gitignore")</code> is <code>""</code></td></tr>
+            <tr><td><code class="sig">normalize(path: String) -> String</code></td><td>Collapses <code>.</code>, <code>..</code> and <code>//</code>, keeping a leading <code>/</code>. <code>normalize("")</code> is <code>.</code></td></tr>
+            <tr><td><code class="sig">is_absolute(path: String) -> Bool</code></td><td>Whether the path starts with <code>/</code></td></tr>
+            <tr><td><code class="sig">relative(from: String, to: String) -> String</code></td><td>The path from <code>from</code> to <code>to</code>: <code>relative("/w/ticket", "/w/apps/demo")</code> is <code>../apps/demo</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <h2 id="assert">Assert</h2>
 <pre class="code" data-lang="polar"><code>Failed = Failed(String)</code></pre>
       <div class="table-wrap">
