@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hosts – Polar</title>
+<meta name="description" content="Targeting Node and the browser, how Polar works out where each function can run, multi-host builds, and native effects.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="hosts">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Hosts</h1>
+      <p class="lead">A <strong>host</strong> is a place your code runs, like <code>Node</code> or <code>Browser</code>. Polar uses each function's effects to work out which hosts it can run on, and builds a separate bundle for each.</p>
+
+      <h2 id="declaring">Declaring hosts</h2>
+      <p>A module lists the hosts it targets in the <code>hosts</code> zone. Every effect then says which host it lives on:</p>
+<pre class="code" data-lang="polar"><code>hosts
+  Node
+
+effects
+  Clock in Node {
+    now() -> Int
+  }</code></pre>
+      <p>The standard library declares the two common hosts with their effects. <code>Std.Dom</code> provides <code>Browser</code> and its <code>Dom</code> effect, and <code>Std.Process</code> provides <code>Node</code> and its <code>Process</code> effect.</p>
+
+      <h2 id="where-code-runs">Where code can run</h2>
+      <p>You never mark a function with a host yourself. Polar works it out from its effects:</p>
+      <ul>
+        <li>A pure function runs on <strong>every</strong> host.</li>
+        <li>A function that uses <code>Clock</code> runs only where <code>Clock</code> exists: <code>Node</code>.</li>
+        <li>A function that uses two effects runs only where <strong>both</strong> exist.</li>
+      </ul>
+      <p>You can ask Polar what it decided with <code>--emit=hosts</code>. Here's the program from <a href="effects.html#all-together">Effects</a>:</p>
+<pre class="code out"><code><span class="pr">$</span> polar build clock.px --emit=hosts
+double : every host
+main   : {Node}
+stamp  : {Node}</code></pre>
+
+      <h2 id="nowhere">Code that can't run anywhere</h2>
+      <p>This function adds text to the page using <code>Dom</code>, which only exists in the browser. It also reads a count using <code>Visits</code>, which lives in Node:</p>
+<pre class="code" data-lang="polar"><code>start() -> {} / {Dom, Visits} {
+  Dom.append_text("p", "#{Visits.count()} visits so far")
+}</code></pre>
+      <p>No host has both, and Polar says so before you ship it:</p>
+<pre class="code"><code><span class="er">error[POLAR0811]</span>: `start` can't run anywhere
+  --> hosts_bad.px:23:3
+   |
+23 |   start() -> {} / {Dom, Visits} {
+   |   ^^^^^ no host provides both `Visits` and `Dom`
+24 |     Dom.append_text("p", "#{Visits.count()} visits so far")
+   |     --------------- `Dom` runs on {Browser}
+   |                             ------------ `Visits` runs on {Node}
+   |
+   = help: split the work: call a function that uses `Visits` from one host and one that uses `Dom` from the other</code></pre>
+      <p>One way to fix this is a <strong>bridge</strong>, which makes <code>Visits</code> callable from the browser over HTTP. That has its own page: <a href="bridges.html">Bridges</a>.</p>
+
+      <h2 id="building">Building for several hosts</h2>
+      <p>List the hosts in your project's <code>polar.toml</code>:</p>
+<pre class="code"><code>[project]
+name = "visits"
+hosts = ["Browser", "Node"]</code></pre>
+      <p><code>polar build</code> then writes one complete bundle per host. Each one contains only that host's binds, so browser code never ships your server's database code:</p>
+<pre class="code out"><code><span class="pr">$</span> polar build
+built visits (1 file) for Browser into dist/Browser in 118ms
+built visits (1 file) for Node into dist/Node in 191ms</code></pre>
+      <p>To build or run just one, pass <code>--host</code>:</p>
+<pre class="code"><code><span class="pr">$</span> polar build --host Node
+<span class="pr">$</span> polar run --host Node</code></pre>
+
+      <h2 id="native">Native effects and force</h2>
+      <p>Some effects truly belong to one host. Mark those <code>native</code>:</p>
+<pre class="code" data-lang="polar"><code>effects
+  native Canvas in Browser {
+    draw(shape: String) -> {}
+  }</code></pre>
+      <p>You can still bind a native effect on another host, for example to draw into an SVG buffer on the server. But that's an emulation, not the real thing, so Polar asks you to say so with <code>force</code>:</p>
+<pre class="code" data-lang="polar"><code>binds
+  force Canvas in Node {
+    draw(shape) {
+      Log.info("svg buffer: #{shape}")
+    }
+  }</code></pre>
+      <p>Without <code>force</code>, Polar reports that <code>Canvas</code> is native to <code>Browser</code>. With <code>force</code> where it isn't needed, you get a warning to remove it.</p>
+      <p>You've now seen every main concept. Let's put them together in a real program: <a href="thinking-in-polar.html">Thinking in Polar</a>.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

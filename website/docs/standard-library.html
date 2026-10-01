@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Standard Library – Polar</title>
+<meta name="description" content="Every module in Std with its types and function signatures.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="standard-library">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Standard Library</h1>
+      <p class="lead">The standard library is written in Polar and lives in the repository's <code>std/</code> folder. Import a module with <code>uses Std.&lt;Name&gt;</code>, then call its functions through the module name.</p>
+      <p>Signatures use the notation from the main concepts: lowercase names are <a href="functions.html#generics">type variables</a>, <code>/ {…}</code> lists <a href="effects.html">effects</a>, <code>{| e}</code> passes effects through, and <code>where</code> asks for a <a href="traits.html#where">trait</a>.</p>
+
+      <h2 id="list">List</h2>
+<pre class="code" data-lang="polar"><code>List&lt;a&gt; = Nil | Cons(a, List&lt;a&gt;) derive(Eq, Show)</code></pre>
+      <p>Write lists with <code>[1, 2, 3]</code> rather than <code>Cons</code>. List syntax needs <code>uses Std.List</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">range(from: Int, to: Int) -> List&lt;Int&gt;</code></td><td>Integers from <code>from</code>, up to but not including <code>to</code></td></tr>
+            <tr><td><code class="sig">is_empty(xs: List&lt;a&gt;) -> Bool</code></td><td>Whether the list has no items</td></tr>
+            <tr><td><code class="sig">length(xs: List&lt;a&gt;) -> Int</code></td><td>The number of items</td></tr>
+            <tr><td><code class="sig">map(xs: List&lt;a&gt;, f: function(a) -> b / {| e}) -> List&lt;b&gt; / {| e}</code></td><td>Applies <code>f</code> to every item</td></tr>
+            <tr><td><code class="sig">filter(xs: List&lt;a&gt;, keep: function(a) -> Bool / {| e}) -> List&lt;a&gt; / {| e}</code></td><td>The items where <code>keep</code> is true</td></tr>
+            <tr><td><code class="sig">fold(xs: List&lt;a&gt;, initial: b, f: function(b, a) -> b / {| e}) -> b / {| e}</code></td><td>Combines the items from left to right, starting with <code>initial</code></td></tr>
+            <tr><td><code class="sig">head(xs: List&lt;a&gt;) -> Option&lt;a&gt;</code></td><td>The first item</td></tr>
+            <tr><td><code class="sig">nth(xs: List&lt;a&gt;, index: Int) -> Option&lt;a&gt;</code></td><td>The item at <code>index</code>, counting from 0</td></tr>
+            <tr><td><code class="sig">find(xs: List&lt;a&gt;, test: function(a) -> Bool / {| e}) -> Option&lt;a&gt; / {| e}</code></td><td>The first item that passes <code>test</code></td></tr>
+            <tr><td><code class="sig">any(xs: List&lt;a&gt;, test: function(a) -> Bool / {| e}) -> Bool / {| e}</code></td><td>Whether at least one item passes</td></tr>
+            <tr><td><code class="sig">all(xs: List&lt;a&gt;, test: function(a) -> Bool / {| e}) -> Bool / {| e}</code></td><td>Whether every item passes</td></tr>
+            <tr><td><code class="sig">append(xs: List&lt;a&gt;, ys: List&lt;a&gt;) -> List&lt;a&gt;</code></td><td><code>xs</code> followed by <code>ys</code></td></tr>
+            <tr><td><code class="sig">concat_map(xs: List&lt;a&gt;, f: function(a) -> List&lt;b&gt; / {| e}) -> List&lt;b&gt; / {| e}</code></td><td>Maps each item to a list, and joins the lists</td></tr>
+            <tr><td><code class="sig">reverse(xs: List&lt;a&gt;) -> List&lt;a&gt;</code></td><td>The items in reverse order</td></tr>
+            <tr><td><code class="sig">join(xs: List&lt;String&gt;, separator: String) -> String</code></td><td>Joins strings with <code>separator</code> between them</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="option">Option</h2>
+<pre class="code" data-lang="polar"><code>Option&lt;a&gt; = None | Some(a) derive(Eq, Show)</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">map(option: Option&lt;a&gt;, f: function(a) -> b / {| e}) -> Option&lt;b&gt; / {| e}</code></td><td>Applies <code>f</code> to the value, if there is one</td></tr>
+            <tr><td><code class="sig">with_default(option: Option&lt;a&gt;, default: a) -> a</code></td><td>The value, or <code>default</code> for <code>None</code></td></tr>
+            <tr><td><code class="sig">and_then(option: Option&lt;a&gt;, f: function(a) -> Option&lt;b&gt; / {| e}) -> Option&lt;b&gt; / {| e}</code></td><td>Chains a step that might also return <code>None</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="result">Result</h2>
+<pre class="code" data-lang="polar"><code>Result&lt;e, a&gt; = Err(e) | Ok(a) derive(Eq, Show)</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">map(result: Result&lt;e, a&gt;, f: function(a) -> b / {| fx}) -> Result&lt;e, b&gt; / {| fx}</code></td><td>Applies <code>f</code> to an <code>Ok</code> value</td></tr>
+            <tr><td><code class="sig">map_err(result: Result&lt;e, a&gt;, f: function(e) -> g / {| fx}) -> Result&lt;g, a&gt; / {| fx}</code></td><td>Applies <code>f</code> to an <code>Err</code> value</td></tr>
+            <tr><td><code class="sig">and_then(result: Result&lt;e, a&gt;, f: function(a) -> Result&lt;e, b&gt; / {| fx}) -> Result&lt;e, b&gt; / {| fx}</code></td><td>Chains a step that might also fail</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="map">Map</h2>
+<pre class="code" data-lang="polar"><code>Map&lt;k, v&gt; = Empty | Entry(k, v, Map&lt;k, v&gt;)</code></pre>
+      <p>Keys are compared with <code>Eq</code>. Every change returns a new map.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">empty() -> Map&lt;k, v&gt;</code></td><td>A map with no entries</td></tr>
+            <tr><td><code class="sig">is_empty(map: Map&lt;k, v&gt;) -> Bool</code></td><td>Whether there are no entries</td></tr>
+            <tr><td><code class="sig">size(map: Map&lt;k, v&gt;) -> Int</code></td><td>The number of entries</td></tr>
+            <tr><td><code class="sig">get(map: Map&lt;k, v&gt;, key: k) -> Option&lt;v&gt; where Eq&lt;k&gt;</code></td><td>The value for <code>key</code></td></tr>
+            <tr><td><code class="sig">has(map: Map&lt;k, v&gt;, key: k) -> Bool where Eq&lt;k&gt;</code></td><td>Whether <code>key</code> is present</td></tr>
+            <tr><td><code class="sig">insert(map: Map&lt;k, v&gt;, key: k, value: v) -> Map&lt;k, v&gt; where Eq&lt;k&gt;</code></td><td>Adds or replaces an entry</td></tr>
+            <tr><td><code class="sig">remove(map: Map&lt;k, v&gt;, key: k) -> Map&lt;k, v&gt; where Eq&lt;k&gt;</code></td><td>Removes an entry</td></tr>
+            <tr><td><code class="sig">keys(map: Map&lt;k, v&gt;) -> List&lt;k&gt;</code></td><td>All keys</td></tr>
+            <tr><td><code class="sig">values(map: Map&lt;k, v&gt;) -> List&lt;v&gt;</code></td><td>All values</td></tr>
+            <tr><td><code class="sig">to_list(map: Map&lt;k, v&gt;) -> List&lt;{ key: k, value: v }&gt;</code></td><td>All entries as records</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="json">Json</h2>
+<pre class="code" data-lang="polar"><code>traits
+  Json&lt;a&gt; {
+    to_json(value: a) -> JsonValue
+    from_json(value: JsonValue, path: String) -> Result&lt;JsonError, a&gt;
+  }
+
+types
+  JsonValue =
+    | JNull
+    | JBool(Bool)
+    | JNumber(Float)
+    | JString(String)
+    | JArray(List&lt;JsonValue&gt;)
+    | JObject(List&lt;{ key: String, value: JsonValue }&gt;)
+
+  JsonError = { path: String, expected: String, found: String }</code></pre>
+      <p>Derive <code>Json</code> for your own types. <code>Int</code>, <code>Float</code>, <code>String</code>, <code>Bool</code>, <code>List</code>, <code>Option</code> and <code>Result</code> implement it already. See <a href="json.html">Working with JSON</a>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">encode(value: a) -> String where Json&lt;a&gt;</code></td><td>JSON text for a value</td></tr>
+            <tr><td><code class="sig">decode(text: String) -> Result&lt;JsonError, a&gt; where Json&lt;a&gt;</code></td><td>Parses and checks JSON text</td></tr>
+            <tr><td><code class="sig">message(error: JsonError) -> String</code></td><td>A readable description of an error</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For writing a <code>Json</code> implementation by hand, the module also exports <code>object</code>, <code>tagged</code>, <code>object_fields</code>, <code>field</code>, <code>variant</code> and <code>unknown_variant</code>. They're the building blocks <code>derive(Json)</code> uses.</p>
+
+      <h2 id="ref">Ref</h2>
+<pre class="code" data-lang="polar"><code>Ref&lt;a&gt;</code></pre>
+      <p>A mutable cell. See <a href="mutable-state.html">Mutable State</a>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">new(value: a) -> Ref&lt;a&gt;</code></td><td>A new cell holding <code>value</code></td></tr>
+            <tr><td><code class="sig">get(ref: Ref&lt;a&gt;) -> a / {Mut}</code></td><td>The current value</td></tr>
+            <tr><td><code class="sig">set(ref: Ref&lt;a&gt;, value: a) -> {} / {Mut}</code></td><td>Replaces the value</td></tr>
+            <tr><td><code class="sig">update(ref: Ref&lt;a&gt;, f: function(a) -> a) -> {} / {Mut}</code></td><td>Replaces the value with <code>f(current)</code></td></tr>
+            <tr><td><code class="sig">modify(ref: Ref&lt;a&gt;, f: function(a) -> { value: a, result: b }) -> b / {Mut}</code></td><td>Replaces the value and returns <code>result</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="table">Table</h2>
+<pre class="code" data-lang="polar"><code>Table&lt;r&gt; = Ref&lt;{ next: Int, rows: List&lt;{ id: Int, row: r }&gt; }&gt;</code></pre>
+      <p>An in-memory table with automatic numeric ids.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">new() -> Table&lt;r&gt;</code></td><td>An empty table</td></tr>
+            <tr><td><code class="sig">find(table: Table&lt;r&gt;, id: Int) -> Option&lt;r&gt; / {Mut}</code></td><td>The row with that id</td></tr>
+            <tr><td><code class="sig">all(table: Table&lt;r&gt;) -> List&lt;r&gt; / {Mut}</code></td><td>Every row, in insertion order</td></tr>
+            <tr><td><code class="sig">size(table: Table&lt;r&gt;) -> Int / {Mut}</code></td><td>The number of rows</td></tr>
+            <tr><td><code class="sig">insert(table: Table&lt;r&gt;, make: function(Int) -> r) -> r / {Mut}</code></td><td>Adds the row <code>make(id)</code> and returns it</td></tr>
+            <tr><td><code class="sig">update(table: Table&lt;r&gt;, id: Int, row: r) -> Bool / {Mut}</code></td><td>Replaces a row. Returns whether it existed</td></tr>
+            <tr><td><code class="sig">delete(table: Table&lt;r&gt;, id: Int) -> Bool / {Mut}</code></td><td>Removes a row. Returns whether it existed</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="id">Id</h2>
+<pre class="code" data-lang="polar"><code>Id&lt;a&gt; = Id(Int)</code></pre>
+      <p>A typed id. An <code>Id&lt;Post&gt;</code> and an <code>Id&lt;User&gt;</code> are different types, so you can't pass one where the other is expected. <code>Id</code> implements <code>Eq</code>, <code>Show</code> and <code>Json</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">value(id: Id&lt;a&gt;) -> Int</code></td><td>The number inside</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="http">Http</h2>
+<pre class="code" data-lang="polar"><code>Header = { name: String, value: String }
+
+Request = {
+  method: String,
+  path: String,
+  query: String,
+  headers: List&lt;Header&gt;,
+  body: String,
+}
+
+Response = { status: Int, headers: List&lt;Header&gt;, body: String }</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">header(headers: List&lt;Header&gt;, name: String) -> String</code></td><td>The value of a header, matched without regard to case, or <code>""</code> if it's missing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="url">Url</h2>
+<pre class="code" data-lang="polar"><code>Pair = { name: String, value: String } derive(Eq, Show)</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">encode(text: String) -> String</code></td><td>Percent-encodes text for a URL component</td></tr>
+            <tr><td><code class="sig">decode(text: String) -> String</code></td><td>Percent-decodes text. Never throws: invalid input comes back unchanged</td></tr>
+            <tr><td><code class="sig">parse_query(text: String) -> List&lt;Pair&gt;</code></td><td>Parses <code>a=1&amp;b=2</code>, with or without a leading <code>?</code>. <code>+</code> becomes a space</td></tr>
+            <tr><td><code class="sig">build_query(pairs: List&lt;Pair&gt;) -> String</code></td><td>The reverse of <code>parse_query</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="dom">Dom</h2>
+      <p>Provides the <code>Browser</code> host and the <code>Dom</code> effect. See <a href="browser.html">Running in the Browser</a>.</p>
+<pre class="code" data-lang="polar"><code>effects
+  Dom in Browser {
+    append_text(tag: String, text: String) -> {}
+    append_html(html: String) -> {}
+    has(id: String) -> Bool
+    set_html(id: String, html: String) -> {}
+  }</code></pre>
+
+      <h2 id="process">Process</h2>
+      <p>Provides the <code>Node</code> host and the <code>Process</code> effect. See <a href="command-line-programs.html">Command-Line Programs</a>.</p>
+<pre class="code" data-lang="polar"><code>types
+  EnvVar = { name: String, value: String }
+
+  RunOptions = { cwd: Option&lt;String&gt;, env: List&lt;EnvVar&gt; }
+
+  Output = { code: Int, stdout: String, stderr: String }
+
+effects
+  Process in Node {
+    args() -> List&lt;String&gt;
+    env(name: String) -> Option&lt;String&gt;
+    cwd() -> String
+    set_exit_code(code: Int) -> {}
+    run(command: String, args: List&lt;String&gt;, options: RunOptions) -> Int
+    output(command: String, args: List&lt;String&gt;, options: RunOptions) -> Output
+  }</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">inherit() -> RunOptions</code></td><td>Run in the current directory and environment</td></tr>
+            <tr><td><code class="sig">in_dir(options: RunOptions, dir: String) -> RunOptions</code></td><td>Run in <code>dir</code> instead</td></tr>
+            <tr><td><code class="sig">with_env(options: RunOptions, name: String, value: String) -> RunOptions</code></td><td>Add an environment variable</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="assert">Assert</h2>
+<pre class="code" data-lang="polar"><code>Failed = Failed(String)</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">assert(check: Bool) -> {} / {Throws&lt;Failed&gt;}</code></td><td>Throws <code>Failed</code> when <code>check</code> is false</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="math">Math</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Constant</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="sig">pi: Float</code></td><td>3.141592653589793</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="prelude">Prelude</h2>
+      <p>Always in scope, without a <code>uses</code>.</p>
+<pre class="code" data-lang="polar"><code>traits
+  Eq&lt;a&gt; {
+    eq(x: a, y: a) -> Bool
+  }
+
+  Show&lt;a&gt; {
+    show(value: a) -> String
+  }</code></pre>
+      <p><code>Int</code>, <code>Float</code>, <code>String</code> and <code>Bool</code> implement both. <code>==</code> uses <code>Eq</code>, and <code>#{…}</code> uses <code>Show</code>.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

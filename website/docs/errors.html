@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handling Errors – Polar</title>
+<meta name="description" content="Throwing errors with throw, the Throws effect, catching with try and catch, uncaught errors and assertions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="errors">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Handling Errors</h1>
+      <p class="lead">Polar has <code>throw</code> and <code>try</code>/<code>catch</code>, like JavaScript, with one difference: the errors a function can throw are part of its type, so nothing is thrown that the caller doesn't know about.</p>
+
+      <h2 id="throwing">Throwing an error</h2>
+      <p>An error is an ordinary value, usually a variant case that describes what went wrong:</p>
+<pre class="code" data-lang="polar"><code>types
+  Missing = Missing(String)
+
+functions
+  balance(name: String) -> Int / {Throws&lt;Missing&gt;} {
+    match name {
+      "ann" -> 120,
+      "bob" -> 15,
+      _ -> throw Missing(name),
+    }
+  }</code></pre>
+      <p><code>throw</code> stops the function and hands the error up. Throwing is an effect, <code>Throws&lt;Missing&gt;</code>, so it shows up in the signature next to any other effects.</p>
+
+      <h2 id="propagating">Errors travel up</h2>
+      <p>If you call a function that throws and don't catch the error, it passes through you, and you have to declare it too. A function can throw more than one kind of error:</p>
+<pre class="code" data-lang="polar"><code>types
+  TooPoor = TooPoor(Int)
+
+functions
+  withdraw(name: String, amount: Int) -> Int / {Throws&lt;Missing&gt;, Throws&lt;TooPoor&gt;} {
+    let current = balance(name)
+
+    if current &lt; amount { throw TooPoor(current) } else { current - amount }
+  }</code></pre>
+      <p><code>withdraw</code> throws <code>TooPoor</code> itself, and lets <code>Missing</code> from <code>balance</code> pass through.</p>
+
+      <h2 id="catching">Catching errors</h2>
+      <p><code>try</code> runs a block. If something inside it throws, the matching <code>catch</code> arm runs instead. The arms are patterns, just like in <code>match</code>:</p>
+<pre class="code" data-lang="polar"><code>try_withdraw(name: String, amount: Int) -> String {
+  try {
+    "#{name} has #{withdraw(name, amount)} left"
+  } catch {
+    Missing(n) -> "no account for #{n}",
+    TooPoor(left) -> "#{name} only has #{left}",
+  }
+}</code></pre>
+      <p>Look at the signature: <code>try_withdraw</code> is pure. Both errors are handled inside it, so its callers never see them, and the type says so.</p>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> <code>try</code> is an expression, like <code>if</code> and <code>match</code>. Both the block and every <code>catch</code> arm produce a value of the same type.</p>
+      </div>
+
+      <h2 id="uncaught">Uncaught errors</h2>
+      <p>An error that reaches the top of <code>main</code> without being caught is reported, and the program exits with code 1:</p>
+<pre class="code out"><code><span class="pr">$</span> polar run uncaught.px
+uncaught error: Missing("bob")</code></pre>
+
+      <h2 id="assertions">Assertions</h2>
+      <p><code>Std.Assert</code> has one function, <code>assert</code>. It throws a <code>Failed</code> error when its condition is false. It's handy for quick checks in examples and tests:</p>
+<pre class="code" data-lang="polar"><code>uses
+  Std.Assert
+
+functions
+  main() {
+    Assert.assert(1 + 1 == 2)
+  }</code></pre>
+
+      <h2 id="throws-or-result">Throws or Result?</h2>
+      <p>Polar gives you two ways to report failure. Here's how to choose:</p>
+      <ul>
+        <li>Use <strong><code>Result</code></strong> when the caller is expected to deal with the failure right away, like parsing user input. It's a value you pass around and match on. See <a href="lists-options-results.html#result">Result</a>.</li>
+        <li>Use <strong><code>throw</code></strong> when the failure should skip over several layers of code to wherever it's handled, without every function in between checking for it.</li>
+      </ul>
+
+      <h2 id="all-together">All together</h2>
+<pre class="code" data-lang="polar"><code>module Accounts
+
+uses
+  Std.Assert
+
+types
+  Missing = Missing(String)
+
+  TooPoor = TooPoor(Int)
+
+functions
+  balance(name: String) -> Int / {Throws&lt;Missing&gt;} {
+    match name {
+      "ann" -> 120,
+      "bob" -> 15,
+      _ -> throw Missing(name),
+    }
+  }
+
+  withdraw(name: String, amount: Int) -> Int / {Throws&lt;Missing&gt;, Throws&lt;TooPoor&gt;} {
+    let current = balance(name)
+
+    if current &lt; amount { throw TooPoor(current) } else { current - amount }
+  }
+
+  try_withdraw(name: String, amount: Int) -> String {
+    try {
+      "#{name} has #{withdraw(name, amount)} left"
+    } catch {
+      Missing(n) -> "no account for #{n}",
+      TooPoor(left) -> "#{name} only has #{left}",
+    }
+  }
+
+  main() {
+    Log.info(try_withdraw("ann", 50))
+    Log.info(try_withdraw("bob", 50))
+    Log.info(try_withdraw("cat", 50))
+    Assert.assert(try_withdraw("ann", 20) == "ann has 100 left")
+    Assert.assert(1 + 1 == 3)
+  }
+
+exports
+  main</code></pre>
+<pre class="code out"><code><span class="pr">$</span> polar run accounts.px
+ann has 70 left
+bob only has 15
+no account for cat
+uncaught error: Failed("false")</code></pre>
+      <p>The first assertion passes. The second fails, and since nothing catches it, the program stops with exit code 1.</p>
+      <p>Effects tell Polar what a function does. Next, we'll see how Polar uses that to decide where a function can run: <a href="hosts.html">Hosts</a>.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Running in the Browser – Polar</title>
+<meta name="description" content="Build a Polar program for the Browser host, use the Dom effect, and load it from an HTML page.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="browser">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Running in the Browser</h1>
+      <p class="lead">Polar code runs in the browser like any other ES module. This guide builds a small page from scratch.</p>
+
+      <h2 id="project">Set up the project</h2>
+      <p>Make a project whose only host is <code>Browser</code>:</p>
+<pre class="code"><code>[project]
+name = "web"
+hosts = ["Browser"]</code></pre>
+      <p>Then write <code>src/main.px</code>. <code>Std.Dom</code> provides the <code>Browser</code> host and the <code>Dom</code> effect:</p>
+<pre class="code" data-lang="polar"><code>module Main
+
+uses
+  Std.Dom
+
+hosts
+  Browser
+
+functions
+  start() -> {} / {Dom} {
+    Dom.append_text("h1", "Hello from Polar")
+    Dom.append_text("p", "This paragraph was added by Polar code.")
+  }
+
+exports
+  start</code></pre>
+      <p>By convention, the browser entry point is called <code>start</code>. <code>main</code> is for programs started by <code>polar run</code>.</p>
+
+      <h2 id="build">Build it</h2>
+<pre class="code"><code><span class="pr">$</span> polar build
+built web (1 file) into dist in 7ms</code></pre>
+      <p><code>dist/main.js</code> is an ES module. Because <code>start</code> uses an effect, it compiles to an <code>async</code> function:</p>
+<pre class="code"><code>import * as $rt from "./_polar/runtime.js";
+import * as $Dom from "./_polar/std/Dom.js";
+
+export async function start() {
+  await $Dom.$bind$Dom.append_text("h1", "Hello from Polar");
+  return await $Dom.$bind$Dom.append_text("p", "This paragraph was added by Polar code.");
+}</code></pre>
+
+      <h2 id="page">Load it from a page</h2>
+      <p>Import it with a module script:</p>
+<pre class="code"><code>&lt;!doctype html&gt;
+&lt;html&gt;
+  &lt;body&gt;
+    &lt;script type="module"&gt;
+      import { start } from "./dist/main.js";
+
+      start();
+    &lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      <p>Browsers only load modules over HTTP, not from <code>file://</code> URLs, so serve the folder with any static server:</p>
+<pre class="code"><code><span class="pr">$</span> python3 -m http.server 8000</code></pre>
+      <p>Open <code>http://localhost:8000</code> and you'll see the heading and paragraph.</p>
+
+      <h2 id="dom">The Dom effect</h2>
+      <p><code>Dom</code> is deliberately small. It's enough to put content on a page from Polar:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Operation</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>Dom.append_text(tag, text)</code></td><td>Adds a new element with that text to the end of the body</td></tr>
+            <tr><td><code>Dom.append_html(html)</code></td><td>Adds an HTML string to the end of the body</td></tr>
+            <tr><td><code>Dom.has(id)</code></td><td>Whether an element with that id exists</td></tr>
+            <tr><td><code>Dom.set_html(id, html)</code></td><td>Replaces the contents of the element with that id</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For anything else, declare an effect of your own and <a href="javascript-interop.html#binding-to-a-file">bind it to JavaScript</a>. That's exactly how <code>Dom</code> itself is written.</p>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> Keep rendering logic pure: functions that turn data into strings or HTML don't need <code>Dom</code>. Only the function that puts the result on the page does. Then the same code can render on the server too.</p>
+      </div>
+      <p>To talk to a server from the browser, read <a href="bridges.html">Bridges</a> next.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>
