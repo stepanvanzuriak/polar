@@ -131,10 +131,16 @@ function toJs(shape, value) {
   }
 
   if (Array.isArray(shape)) {
-    const [kind, inner] = shape;
+    const [kind, inner, error] = shape;
 
     if (kind === "option") {
       return value.$ === "Some" ? toJs(inner, payload(value)) : null;
+    }
+
+    if (kind === "result") {
+      return value.$ === "Ok"
+        ? { ok: toJs(inner, payload(value)) }
+        : { err: toJs(error, payload(value)) };
     }
 
     return [...each(value)].map((x) => toJs(inner, x));
@@ -149,7 +155,7 @@ function toJs(shape, value) {
   return out;
 }
 
-function fromJs(shape, value) {
+function fromJs(shape, value, label) {
   if (shape === null) {
     return value;
   }
@@ -159,31 +165,55 @@ function fromJs(shape, value) {
   }
 
   if (Array.isArray(shape)) {
-    const [kind, inner] = shape;
+    const [kind, inner, error] = shape;
 
     if (kind === "option") {
-      return value == null ? none() : some(fromJs(inner, value));
+      return value == null ? none() : some(fromJs(inner, value, label));
     }
 
-    return list(Array.from(value, (x) => fromJs(inner, x)));
+    if (kind === "result") {
+      if (typeof value === "object" && value !== null) {
+        if (Object.hasOwn(value, "ok")) {
+          return ok(fromJs(inner, value.ok, label));
+        }
+
+        if (Object.hasOwn(value, "err")) {
+          return err(fromJs(error, value.err, label));
+        }
+      }
+
+      throw new TypeError(
+        `\`${label}\` returned ${describe(value)} where a Result was expected; return { ok: value } or { err: error }`,
+      );
+    }
+
+    return list(Array.from(value, (x) => fromJs(inner, x, label)));
   }
 
   const out = { ...value };
 
   for (const [key, inner] of Object.entries(shape)) {
-    out[key] = fromJs(inner, value[key]);
+    out[key] = fromJs(inner, value[key], label);
   }
 
   return out;
 }
 
-export function extern(f, params, ret) {
+function describe(value) {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+export function extern(f, params, ret, label = f.name) {
   return (...args) => {
     const out = f(...params.map((shape, i) => toJs(shape, args[i])));
 
     return typeof out?.then === "function"
-      ? out.then((value) => fromJs(ret, value))
-      : fromJs(ret, out);
+      ? out.then((value) => fromJs(ret, value, label))
+      : fromJs(ret, out, label);
   };
 }
 

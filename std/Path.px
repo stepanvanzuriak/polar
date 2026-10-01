@@ -1,0 +1,123 @@
+module Path
+
+uses
+  Std.List
+  Std.Option
+
+functions
+  is_absolute(path: String) -> Bool {
+    String.starts_with(path, "/")
+  }
+
+  join(base: String, part: String) -> String {
+    if is_absolute(part) || base == "" {
+      normalize(part)
+    } else {
+      normalize("#{base}/#{part}")
+    }
+  }
+
+  normalize(path: String) -> String {
+    let absolute = is_absolute(path)
+    let body = List.join(List.reverse(resolve(segments(path), [], absolute)), "/")
+
+    if absolute { "/#{body}" } else if body == "" { "." } else { body }
+  }
+
+  dirname(path: String) -> String {
+    let trimmed = trim_trailing(path)
+
+    match List.reverse(String.split(trimmed, "/")) {
+      [] -> ".",
+      [_] -> ".",
+      [_, ..rest] -> {
+        let parent = trim_trailing(List.join(List.reverse(rest), "/"))
+
+        if parent == "" { "/" } else { parent }
+      }
+    }
+  }
+
+  basename(path: String) -> String {
+    Option.with_default(last(String.split(trim_trailing(path), "/")), "")
+  }
+
+  extension(path: String) -> String {
+    let base = basename(path)
+
+    match String.split(base, ".") {
+      [] -> "",
+      [_] -> "",
+      ["", _] -> "",
+      pieces -> if base == ".." {
+        ""
+      } else {
+        ".#{Option.with_default(last(pieces), "")}"
+      },
+    }
+  }
+
+  relative(from: String, to: String) -> String {
+    let parts = unshared(segments(normalize(from)), segments(normalize(to)))
+
+    if parts == "" { "." } else { parts }
+  }
+
+  unshared(from: List<String>, to: List<String>) -> String {
+    match from {
+      [a, ..rest_from] -> match to {
+        [b, ..rest_to] -> if a == b {
+          unshared(rest_from, rest_to)
+        } else {
+          climb(from, to)
+        },
+        [] -> climb(from, to),
+      },
+      [] -> climb(from, to),
+    }
+  }
+
+  climb(from: List<String>, to: List<String>) -> String {
+    List.join(List.append(List.map(from, function(_) { ".." }), to), "/")
+  }
+
+  segments(path: String) -> List<String> {
+    List.filter(String.split(path, "/"), function(s) { s != "" && s != "." })
+  }
+
+  resolve(parts: List<String>, stack: List<String>, absolute: Bool) -> List<String> {
+    match parts {
+      [] -> stack,
+      ["..", ..rest] -> match stack {
+        [] -> if absolute {
+          resolve(rest, [], absolute)
+        } else {
+          resolve(rest, [".."], absolute)
+        },
+        ["..", .._] -> resolve(rest, ["..", ..stack], absolute),
+        [_, ..up] -> resolve(rest, up, absolute),
+      },
+      [part, ..rest] -> resolve(rest, [part, ..stack], absolute),
+    }
+  }
+
+  trim_trailing(path: String) -> String {
+    if String.length(path) > 1 && String.ends_with(path, "/") {
+      trim_trailing(String.slice(path, 0, String.length(path) - 1))
+    } else {
+      path
+    }
+  }
+
+  last(xs: List<String>) -> Option<String> {
+    List.head(List.reverse(xs))
+  }
+
+exports
+  basename
+  dirname
+  extension
+  is_absolute
+  join
+  normalize
+  relative

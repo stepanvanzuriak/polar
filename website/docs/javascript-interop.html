@@ -90,12 +90,13 @@ export async function wait(ms) {
             <tr><td><code>{}</code></td><td>Unchanged</td><td><code>{}</code>, whatever was returned</td></tr>
             <tr><td><code>Option&lt;T&gt;</code></td><td><code>None</code> becomes <code>null</code>, <code>Some(x)</code> becomes <code>x</code></td><td><code>null</code> and <code>undefined</code> become <code>None</code>, anything else <code>Some</code></td></tr>
             <tr><td><code>List&lt;T&gt;</code></td><td>An array</td><td>Any iterable</td></tr>
+            <tr><td><code>Result&lt;E, A&gt;</code></td><td><code>Ok(x)</code> becomes <code>{ ok: x }</code>, <code>Err(e)</code> becomes <code>{ err: e }</code></td><td>An object with an <code>ok</code> or <code>err</code> key. Anything else is a runtime error naming the operation</td></tr>
             <tr><td>Records</td><td>Objects, with fields converted by these rules</td><td>The same, in reverse</td></tr>
             <tr><td>Variants</td><td>Their tagged object form</td><td>Their tagged object form</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Conversions nest, so an <code>Option&lt;List&lt;Int&gt;&gt;</code> or a record field holding a list convert too. With the externs above:</p>
+      <p>Conversions nest, so an <code>Option&lt;List&lt;Int&gt;&gt;</code>, a <code>Result&lt;String, List&lt;Int&gt;&gt;</code> or a record field holding a list convert too. With the externs above:</p>
 <pre class="code" data-lang="polar"><code>Option.with_default(first_word("...  "), "(no words)")   // "(no words)", JS returned null
 List.length(words("a b  c"))                             // 3, JS returned an array</code></pre>
 

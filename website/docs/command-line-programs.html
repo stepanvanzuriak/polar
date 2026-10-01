@@ -99,6 +99,24 @@ missing: 127</code></pre>
       <p>A command that can't be started returns 127, the same code a shell uses. Options say where and with what environment to run:</p>
 <pre class="code" data-lang="polar"><code>Process.inherit() |> Process.in_dir("sub") |> Process.with_env("NAME", "value")</code></pre>
       <p><code>Process.inherit()</code> starts from the current directory and environment. <code>in_dir</code> and <code>with_env</code> each return new options, so they chain with the pipe.</p>
+      <h2 id="files">Files and paths</h2>
+      <p><code>Std.Fs</code> reads and writes text files, and <code>Std.Path</code> takes paths apart. Operations that can fail return a <code>Result</code> whose error is an <code>FsError</code>, so they chain with <code>Result.and_then</code>:</p>
+<pre class="code" data-lang="polar"><code>uses
+  Std.Fs
+  Std.Path
+  Std.Result
+
+hosts
+  Node
+
+functions
+  copy(from: String, to: String) -> Result&lt;FsError, {}&gt; / {Fs} {
+    Fs.read(from) |> Result.and_then(function(text) {
+      Fs.mkdir_all(Path.dirname(to)) |> Result.and_then(function(_) { Fs.write(to, text) })
+    })
+  }</code></pre>
+      <p>Match on the error's <code>code</code> to handle a particular failure, such as <code>ENOENT</code> for a missing file. <code>Fs.list</code> and <code>Fs.walk</code> return sorted names, so output built from them is the same on every run. See <a href="standard-library.html#fs">the reference</a> for every operation.</p>
+
       <div class="callout tip">
         <p><span class="label">Tip:</span> Do the real work in pure functions that take the arguments as a list, and keep <code>main</code> thin. You can then test the logic without starting a process. <a href="thinking-in-polar.html">Thinking in Polar</a> builds a whole tool this way.</p>
       </div>

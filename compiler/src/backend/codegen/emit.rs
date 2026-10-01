@@ -348,6 +348,7 @@ fn extern_items(module: &CModule) -> Vec<Item> {
         var(&raw_extern_name(&ext.name)),
         array(ext.params.iter().map(shape).collect()),
         shape(&ext.ret),
+        string(&ext.label),
       ],
       ext.origin.clone(),
     );
@@ -393,6 +394,9 @@ fn shape(boundary: &Boundary) -> Expr {
     Boundary::Unit => string("unit"),
     Boundary::Option(inner) => array(vec![string("option"), shape(inner)]),
     Boundary::List(inner) => array(vec![string("list"), shape(inner)]),
+    Boundary::Result(ok, err) => {
+      array(vec![string("result"), shape(ok), shape(err)])
+    }
     Boundary::Record(fields) => {
       object(fields.iter().map(|(name, b)| prop(name, shape(b))).collect())
     }
