@@ -132,6 +132,8 @@ pub(crate) enum Command {
     file: Option<PathBuf>,
     #[arg(long)]
     host: Option<String>,
+    #[arg(last = true)]
+    args: Vec<String>,
   },
   Fmt {
     paths: Vec<PathBuf>,

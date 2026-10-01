@@ -9,7 +9,9 @@
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const [mainPath, polarFile, runtimePath] = process.argv.slice(2);
+const own = process.argv.slice(2);
+const dashes = own.indexOf("--");
+const [mainPath, polarFile, runtimePath] = dashes < 0 ? own : own.slice(0, dashes);
 const program = await import(pathToFileURL(mainPath).href);
 
 if (typeof program.main !== "function") {
@@ -22,7 +24,7 @@ if (typeof program.main !== "function") {
 
 try {
   await program.main();
-  process.exitCode = 0;
+  process.exitCode ??= 0;
 } catch (error) {
   if (error?.[Symbol.for("polar.error")]) {
     const runtime = await import(

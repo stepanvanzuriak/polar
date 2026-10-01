@@ -17,6 +17,7 @@ pub(crate) fn run(
   file: &Path,
   host: Option<&str>,
   configured: Option<&[String]>,
+  args: &[String],
 ) -> Result<u8, CliError> {
   let node = needs_node(ctx)?;
 
@@ -114,6 +115,8 @@ pub(crate) fn run(
     .arg(dir.path().join("launcher.mjs"))
     .arg(&main_js)
     .arg(&input.display)
+    .arg("--")
+    .args(args)
     .current_dir(&ctx.io.cwd)
     .status()
     .map_err(|e| {
@@ -131,9 +134,10 @@ pub(crate) fn run(
 pub(crate) fn launch(
   ctx: &mut Ctx<'_, '_>,
   project: &Project,
+  args: &[String],
 ) -> Result<u8, CliError> {
   let Some(launch) = &project.launch else {
-    return run(ctx, &project.main, None, Some(&project.hosts));
+    return run(ctx, &project.main, None, Some(&project.hosts), args);
   };
   let node = needs_node(ctx)?;
   let dir = tempfile::Builder::new()
@@ -183,6 +187,8 @@ pub(crate) fn launch(
     .arg("--enable-source-maps")
     .arg(&launch.script)
     .arg(&manifest_path)
+    .arg("--")
+    .args(args)
     .current_dir(&ctx.io.cwd)
     .status()
     .map_err(|e| {

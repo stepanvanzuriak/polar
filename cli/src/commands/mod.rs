@@ -65,16 +65,16 @@ pub(crate) fn dispatch(
     Command::Check { paths, out, watch: false } => {
       check::check(ctx, &targets(&paths, &cwd, out.as_deref())?)
     }
-    Command::Run { file, host } => {
+    Command::Run { file, host, args } => {
       match (project::run_target(file.as_deref(), &cwd)?, host) {
         (project::RunTarget::Launch(project), None) => {
-          run::launch(ctx, &project)
+          run::launch(ctx, &project, &args)
         }
         (project::RunTarget::Launch(project), Some(host)) => {
-          run::run(ctx, &project.main, Some(&host), Some(&project.hosts))
+          run::run(ctx, &project.main, Some(&host), Some(&project.hosts), &args)
         }
         (project::RunTarget::File { path, hosts }, host) => {
-          run::run(ctx, &path, host.as_deref(), hosts.as_deref())
+          run::run(ctx, &path, host.as_deref(), hosts.as_deref(), &args)
         }
       }
     }
