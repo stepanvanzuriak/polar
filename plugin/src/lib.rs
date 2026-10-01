@@ -207,10 +207,19 @@ impl Diagnostic {
   }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Sibling {
+  pub name: String,
+  pub source: String,
+  pub origin: Span,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Expansion {
   pub generated: Vec<Generated>,
   pub diagnostics: Vec<Diagnostic>,
+  #[serde(default)]
+  pub siblings: Vec<Sibling>,
 }
 
 impl Expansion {
@@ -220,6 +229,19 @@ impl Expansion {
 
   pub fn emit(&mut self, generated: Generated) {
     self.generated.push(generated);
+  }
+
+  pub fn emit_sibling(
+    &mut self,
+    name: impl Into<String>,
+    source: impl Into<String>,
+    origin: Span,
+  ) {
+    self.siblings.push(Sibling {
+      name: name.into(),
+      source: source.into(),
+      origin,
+    });
   }
 
   #[must_use]

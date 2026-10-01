@@ -69,6 +69,36 @@ pub fn imports(source: &str, filename: &str, sets: &[String]) -> Vec<String> {
 }
 
 #[must_use]
+pub fn siblings(
+  source: &str,
+  filename: &str,
+  sets: &[String],
+) -> Vec<(String, String)> {
+  plugins::within(sets, || {
+    let file = SourceFile::new(filename, source);
+    let mut bag = DiagnosticBag::default();
+    let module = parse(&file, &lex(&file, &mut bag), &mut bag);
+
+    if bag.has_errors()
+      || !module
+        .zones
+        .iter()
+        .any(|z| matches!(z.kind, crate::syntax::ast::ZoneKind::Plugin(_)))
+    {
+      return Vec::new();
+    }
+
+    crate::syntax::expand::siblings(&module, &file)
+  })
+}
+
+/// The file a sibling module named `name` of the module in `file` lives in.
+#[must_use]
+pub fn sibling_file(name: &str) -> String {
+  format!("{}.px", snake_case(name))
+}
+
+#[must_use]
 pub fn hosts(source: &str, filename: &str, sets: &[String]) -> Vec<String> {
   let module = parse_with(source, filename, sets);
 
