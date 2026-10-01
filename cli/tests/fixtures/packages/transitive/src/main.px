@@ -1,0 +1,12 @@
+module Main
+
+uses
+  Fancy.Label
+
+functions
+  main() {
+    Log.info(Label.describe(1.0))
+  }
+
+exports
+  main

@@ -1,0 +1,27 @@
+module Blog
+
+uses
+  Std.Id
+  Std.Json
+
+schema
+  // people who write
+  users
+    id    Id<User>  primary
+    name  String // shown on posts
+
+  categories
+    id     Id<Category>  primary
+    title  String
+
+  blog_posts as Article
+    id           Id<Article>           primary
+    title        String
+    author_id    Id<User>              references users
+    category_id  Option<Id<Category>>  references categories
+    draft        Bool
+
+functions
+  count() -> Int {
+    0
+  }

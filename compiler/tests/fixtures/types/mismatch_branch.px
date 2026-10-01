@@ -1,0 +1,8 @@
+functions
+  pick(c: Bool) {
+    if c {
+      1
+    } else {
+      "a"
+    }
+  }

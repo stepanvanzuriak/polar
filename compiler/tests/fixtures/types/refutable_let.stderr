@@ -1,0 +1,9 @@
+error[POLAR0602]: this pattern can fail, but `let` has nowhere else to go
+ --> refutable_let.px:6:9
+  |
+6 |     let Some(x) = o
+  |         ^^^^^^^ `None` is not covered
+  |
+  = help: use `match` to handle the other cases
+
+error: aborting due to 1 error

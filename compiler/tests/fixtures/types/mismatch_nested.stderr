@@ -1,0 +1,11 @@
+error[POLAR0501]: mismatched types
+  --> mismatch_nested.px:10:5
+   |
+ 9 |   count(text: String) -> Result<Int, Int> {
+   |                          ---------------- expected because of this
+10 |     parse(text)
+   |     ^^^^^^^^^^^ expected `Result<Int, Int>`, found `Result<Int, String>`
+   |
+   = note: argument 2 of `Result` differs: expected `Int`, found `String`
+
+error: aborting due to 1 error

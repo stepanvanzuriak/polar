@@ -1,0 +1,9 @@
+error[POLAR0708]: cannot tell which type this is
+  --> ambiguous_type.px:12:14
+   |
+12 |     describe(make())
+   |              ^^^^ the type of this is unknown, and it must have `Make`
+   |
+   = help: add a type annotation, like `let x: Post = …`
+
+error: aborting due to 1 error

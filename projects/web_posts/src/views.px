@@ -1,0 +1,43 @@
+module Views
+
+uses
+  Framework.Html
+  Post
+  Std.List
+
+views
+  layout(title: String, children: Html)
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>{title}</title>
+      </head>
+      <body>
+        {children}
+        {Html.scripts()}
+      </body>
+    </html>
+
+  card(post: Post)
+    <article class="post" data-id={post.id}>
+      <h2>{post.title}</h2>
+      <p>Post #{post.id} by author {post.author_id} — don't miss it!</p>
+    </article>
+
+  list(posts: List<Post>)
+    <section>
+      <p>{List.length(posts)} posts &amp; counting</p>
+      {List.map(posts, card)}
+    </section>
+
+  page(posts: List<Post>)
+    <Layout title="Posts">
+      <h1>Posts</h1>
+      <div id="app">
+        <List posts={posts} />
+      </div>
+    </Layout>
+
+exports
+  list
+  page

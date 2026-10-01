@@ -1,0 +1,8 @@
+functions
+  headline(post: { title: String, body: String }) -> String {
+    "#{post.title}: #{post.body}"
+  }
+
+  main() {
+    Log.info(headline({ id: 1 }))
+  }

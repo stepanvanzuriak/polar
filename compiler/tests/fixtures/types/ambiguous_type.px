@@ -1,0 +1,13 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+  Make<a> {
+    make() -> a
+  }
+
+functions
+  f() -> String {
+    describe(make())
+  }

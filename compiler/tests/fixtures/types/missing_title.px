@@ -1,0 +1,8 @@
+functions
+  title_of(r: { title: String | rest }) -> String {
+    r.title
+  }
+
+  main() {
+    Log.info(title_of({ body: "x" }))
+  }

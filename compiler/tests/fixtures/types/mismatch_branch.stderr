@@ -1,0 +1,10 @@
+error[POLAR0501]: mismatched types
+ --> mismatch_branch.px:6:7
+  |
+4 |       1
+  |       - this branch is `Int`
+5 |     } else {
+6 |       "a"
+  |       ^^^ expected `Int`, found `String`
+
+error: aborting due to 1 error

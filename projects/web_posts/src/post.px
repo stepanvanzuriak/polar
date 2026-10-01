@@ -1,0 +1,19 @@
+module Post
+
+uses
+  Std.Id
+  Std.Json
+  Std.Table
+  User
+
+schema
+  posts in Node
+    id         Id<Post>  primary
+    title      String
+    author_id  Id<User>  references users
+
+binds
+  Posts in Browser from Node
+
+exports
+  Posts

@@ -1,0 +1,12 @@
+module Assert
+
+types
+  Failed = Failed(String)
+
+functions
+  assert(check: Bool) -> {} / {Throws<Failed>} {
+    if !check { throw Failed(Bool.to_string(check)) } else { {} }
+  }
+
+exports
+  assert

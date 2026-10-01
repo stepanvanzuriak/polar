@@ -1,0 +1,14 @@
+module C
+
+types
+  Point = { x: Int, y: Int }
+
+  Shape = Dot(Point) | Blank
+
+functions
+  origin() -> Shape {
+    Dot({ x: 0, y: 0 })
+  }
+
+exports
+  origin

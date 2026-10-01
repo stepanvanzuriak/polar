@@ -1,0 +1,9 @@
+error[POLAR0702]: the trait `Describe` has no method `descrbe`
+  --> unknown_method.px:11:5
+   |
+11 |     descrbe(value) {
+   |     ^^^^^^^
+   |
+   = help: did you mean `describe`?
+
+error: aborting due to 1 error

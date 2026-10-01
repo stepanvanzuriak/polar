@@ -1,0 +1,51 @@
+module Todo
+
+uses
+  Std.List
+  Std.Json
+
+types
+  Priority = Low | Medium | High derive(Eq, Json)
+
+  Task = { id: Int, title: String, priority: Priority, done: Bool } derive(Eq, Json)
+
+functions
+  label(p: Priority) -> String {
+    match p {
+      Low -> "low",
+      Medium -> "medium",
+      High -> "high" |> String.uppercase,
+    }
+  }
+
+  title_of(r: { title: String | rest }) -> String {
+    r.title
+  }
+
+  complete(t: Task) -> Task {
+    { ..t, done: true }
+  }
+
+  show(t: Task) -> String {
+    let mark = if t.done { "x" } else { " " }
+
+    "[#{mark}] #{t.id}. #{title_of(t)} (#{label(t.priority)})"
+  }
+
+  main() {
+    let tasks = [
+      { id: 1, title: "write the parser", priority: High, done: false },
+      { id: 2, title: "buy milk", priority: Low, done: false },
+    ]
+    let finished = List.map(
+      tasks,
+      function(t) { if t.id == 1 { complete(t) } else { t } },
+    )
+    let open = List.filter(finished, function(t) { !t.done })
+
+    Log.info(List.join(List.map(finished, show), "\n"))
+    Log.info("#{List.length(open)} of #{List.length(finished)} still open")
+  }
+
+exports
+  main

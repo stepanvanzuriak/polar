@@ -1,0 +1,114 @@
+// Effects, hosts and bindings: the tour of Milestone 3.
+//
+// `hosts` names the runtimes a program targets, `effects` declares each
+// capability in the host where it natively exists, and `binds` provides a
+// capability on a host. Every function's effect row says what it does, and
+// the rows decide where it may run: `polar build --emit=hosts` prints each
+// function's host set. `main` uses only what both hosts provide, so it runs on
+// either:
+//
+//   polar run --host DOM examples/effects.px
+//   polar run --host Node examples/effects.px
+//
+// Built for `DOM`, `Storage` reaches `effects.dom.js` through two externs: an
+// in-memory stand-in for the browser's `localStorage`, so this runs under Node.
+
+module Effects
+
+uses
+  Std.List
+
+hosts
+  DOM
+  Node
+
+types
+  Missing = Missing(String)
+
+effects
+  Storage in DOM {
+    get(key: String) -> String / {Throws<Missing>}
+    set(key: String, value: String) -> {}
+  }
+
+  Db in Node {
+    find(id: Int) -> String
+  }
+
+  native Canvas in DOM {
+    draw(shape: String) -> {}
+  }
+
+externs
+  local_get(key: String) -> String / {Throws<Missing>} = "./effects.dom.js" get_item
+  local_set(key: String, value: String) -> {} = "./effects.dom.js" set_item
+
+binds
+  Storage in DOM {
+    get(key) {
+      local_get(key)
+    }
+
+    set(key, value) {
+      local_set(key, value)
+    }
+  }
+
+  Storage in Node {
+    get(key) {
+      if key == "title" { "Hello from Node" } else { throw Missing(key) }
+    }
+
+    set(key, value) {
+      Log.info("node storage: #{key} = #{value}")
+    }
+  }
+
+  Db in Node {
+    find(id) {
+      "post #{id}"
+    }
+  }
+
+  Canvas in DOM {
+    draw(shape) {
+      Log.info("canvas: #{shape}")
+    }
+  }
+
+  force Canvas in Node {
+    draw(shape) {
+      Log.info("svg buffer: #{shape}")
+    }
+  }
+
+functions
+  slug(title: String) -> String {
+    title |> String.lowercase |> String.replace(" ", "-")
+  }
+
+  read(key: String) -> String / {Storage} {
+    try {
+      Storage.get(key)
+    } catch {
+      Missing(k) -> "(no #{k})",
+    }
+  }
+
+  post_title(id: Int) -> String / {Db} {
+    Db.find(id)
+  }
+
+  each(xs: List<a>, f: function(a) -> {} / {| e}) -> {} / {| e} {
+    List.fold(xs, {}, function(done, x) { f(x) })
+  }
+
+  main() {
+    Storage.set("title", "Hello Polar World")
+    Log.info(slug(read("title")))
+    Log.info(read("draft"))
+    each(["circle", "square"], function(shape) { Canvas.draw(shape) })
+  }
+
+exports
+  main

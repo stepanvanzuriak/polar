@@ -1,0 +1,8 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+    label(value: a) -> String
+  }
+
+exports
+  Describe { describe }

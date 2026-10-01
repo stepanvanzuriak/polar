@@ -1,0 +1,79 @@
+// Row 64: every pattern kind, executed.
+
+types
+  Shape = Circle(Float) | Rect(Float, Float) | Red
+  Box = Boxed(Shape)
+
+functions
+  int(x) {
+    match x {
+      0 -> "zero",
+      -1 -> "minus one",
+      _ -> "other int",
+    }
+  }
+
+  float(x) {
+    match x {
+      1.5 -> "one and a half",
+      _ -> "other float",
+    }
+  }
+
+  string(x) {
+    match x {
+      "hi" -> "greeting",
+      _ -> "other string",
+    }
+  }
+
+  bool(x) {
+    match x {
+      true -> "yes",
+      false -> "no",
+    }
+  }
+
+  shape(x) {
+    match x {
+      Red -> "red",
+      Circle(r) -> "circle #{r}",
+      Rect(w, h) -> "rect #{w}x#{h}",
+    }
+  }
+
+  boxed(x) {
+    match x {
+      Boxed(Circle(r)) -> "boxed circle #{r}",
+      Boxed(_) -> "boxed other",
+    }
+  }
+
+  record(x) {
+    match x {
+      { name: "Ada", .. } -> "Ada herself",
+      { name: n, age: a } -> "#{n} at #{a}",
+    }
+  }
+
+  main() {
+    Log.info(int(0))
+    Log.info(int(-1))
+    Log.info(int(7))
+    Log.info(float(1.5))
+    Log.info(float(2.5))
+    Log.info(string("hi"))
+    Log.info(string("bye"))
+    Log.info(bool(true))
+    Log.info(bool(false))
+    Log.info(shape(Red))
+    Log.info(shape(Circle(2.0)))
+    Log.info(shape(Rect(3.0, 4.0)))
+    Log.info(boxed(Boxed(Circle(1.0))))
+    Log.info(boxed(Boxed(Red)))
+    Log.info(record({ name: "Ada", age: 36 }))
+    Log.info(record({ name: "Alan", age: 41 }))
+  }
+
+exports
+  main

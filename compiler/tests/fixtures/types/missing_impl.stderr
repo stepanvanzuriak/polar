@@ -1,0 +1,9 @@
+error[POLAR0707]: `function(Int) -> Int` has no `Describe` impl
+  --> missing_impl.px:12:14
+   |
+12 |     Log.info(twice(function(n: Int) -> Int { n }))
+   |              ^^^^^ this needs `Describe`
+   |
+   = note: required by `twice`, which says `where Describe<a>`
+
+error: aborting due to 1 error

@@ -1,0 +1,9 @@
+module B
+
+functions
+  label() -> String {
+    1
+  }
+
+exports
+  label

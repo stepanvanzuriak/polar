@@ -1,0 +1,52 @@
+module Main
+
+uses
+  Std.List
+  Std.Result
+  Std.Json
+  HybridStorage
+
+types
+  Settings = { theme: String, volume: Int } derive(Json)
+
+functions
+  show_keys() -> {} / {Storage} {
+    match Storage.keys() {
+      [] -> Log.info("no keys"),
+      keys -> Log.info("keys: #{List.join(keys, ", ")}"),
+    }
+  }
+
+  main() {
+    Storage.clear()
+    Storage.set("greeting", "hello from hybrid storage")
+    Log.info(HybridStorage.require("greeting"))
+    Log.info("has greeting: #{HybridStorage.has("greeting")}")
+    Log.info(HybridStorage.get_or("missing", "fallback for a missing key"))
+
+    let chosen: Settings = { theme: "dark", volume: 7 }
+    let defaults: Settings = { theme: "light", volume: 5 }
+
+    HybridStorage.save("settings", chosen)
+    show_keys()
+
+    match HybridStorage.load("settings", defaults) {
+      Ok(settings) -> Log.info("theme: #{settings.theme}, volume: #{settings.volume}"),
+      Err(error) -> Log.error(Json.message(error)),
+    }
+
+    Storage.remove("greeting")
+    Log.info("after remove: #{HybridStorage.has("greeting")}")
+
+    try {
+      Log.info(HybridStorage.require("greeting"))
+    } catch {
+      Missing(key) -> Log.info("missing: #{key}"),
+    }
+
+    Storage.clear()
+    show_keys()
+  }
+
+exports
+  main

@@ -1,0 +1,14 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+types
+  Status = Draft | Published(Int)
+
+impls
+  Describe for Status {
+    descrbe(value) {
+      "status"
+    }
+  }

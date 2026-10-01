@@ -1,0 +1,21 @@
+module App
+
+hosts
+  Node
+
+effects
+  Db in Node {
+    load(id: Int) -> String
+  }
+
+functions
+  h(g: function() -> Int) -> Int {
+    g()
+  }
+
+  f() {
+    h(function() {
+      Db.load(1)
+      1
+    })
+  }

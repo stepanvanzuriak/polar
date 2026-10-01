@@ -1,0 +1,21 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+types
+  List<a> = Nil | Cons(a, List<a>)
+
+  Post = { title: String }
+
+functions
+  f(post: Post) {
+    describe(Cons(post, Nil))
+  }
+
+impls
+  Describe for List<a> where Describe<a> {
+    describe(value) {
+      "list"
+    }
+  }

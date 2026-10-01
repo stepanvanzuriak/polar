@@ -1,0 +1,79 @@
+module Complex
+
+uses
+  Std.List
+
+types
+  Complex = { r: Float, i: Float } derive(Eq)
+
+functions
+  make(r: Float, i: Float) -> Complex {
+    { r: r, i: i }
+  }
+
+  add(a: Complex, b: Complex) -> Complex {
+    { r: a.r + b.r, i: a.i + b.i }
+  }
+
+  /// `(a + bi)(c + di) = (ac - bd) + (ad + bc)i`
+  multiply(a: Complex, b: Complex) -> Complex {
+    { r: a.r * b.r - a.i * b.i, i: a.r * b.i + a.i * b.r }
+  }
+
+  /// The sum of `z` and every number in `rest`, like the JavaScript `add(z, ...rest)`.
+  sum(z: Complex, rest: List<Complex>) -> Complex {
+    List.fold(rest, z, add)
+  }
+
+  product(z: Complex, rest: List<Complex>) -> Complex {
+    List.fold(rest, z, multiply)
+  }
+
+  negate(z: Complex) -> Complex {
+    { r: -z.r, i: -z.i }
+  }
+
+  conjugate(z: Complex) -> Complex {
+    { ..z, i: -z.i }
+  }
+
+  /// `1 / z`. Dividing by zero gives `NaN` parts, as in JavaScript.
+  invert(z: Complex) -> Complex {
+    let denom = z.r * z.r + z.i * z.i
+
+    { r: z.r / denom, i: -z.i / denom }
+  }
+
+  /// `|z|`, the distance from the origin.
+  modulus(z: Complex) -> Float {
+    Float.sqrt(z.r * z.r + z.i * z.i)
+  }
+
+  to_string(z: Complex) -> String {
+    match z {
+      { r: 0.0, i: 0.0 } -> "0",
+      { r: r, i: 0.0 } -> "#{r}",
+      { r: 0.0, i: i } -> if i < 0.0 { "-#{imaginary(i)}" } else { imaginary(i) },
+      { r: r, i: i } -> if i < 0.0 {
+        "#{r}-#{imaginary(i)}"
+      } else {
+        "#{r}+#{imaginary(i)}"
+      },
+    }
+  }
+
+  imaginary(i: Float) -> String {
+    "#{Float.abs(i)}i"
+  }
+
+exports
+  add
+  conjugate
+  invert
+  make
+  modulus
+  multiply
+  negate
+  product
+  sum
+  to_string

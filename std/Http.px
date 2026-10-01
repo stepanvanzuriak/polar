@@ -1,0 +1,32 @@
+module Http
+
+uses
+  Std.List
+
+types
+  Header = { name: String, value: String }
+
+  Request = {
+    method: String,
+    path: String,
+    query: String,
+    headers: List<Header>,
+    body: String,
+  }
+
+  Response = { status: Int, headers: List<Header>, body: String }
+
+functions
+  header(headers: List<Header>, name: String) -> String {
+    match headers {
+      [] -> "",
+      [first, ..rest] -> if String.lowercase(first.name) == String.lowercase(name) {
+        first.value
+      } else {
+        header(rest, name)
+      },
+    }
+  }
+
+exports
+  header

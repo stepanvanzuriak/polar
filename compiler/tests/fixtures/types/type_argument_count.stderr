@@ -1,0 +1,7 @@
+error[POLAR0506]: `List` takes 1 type argument but 2 were given
+ --> type_argument_count.px:5:9
+  |
+5 |   f(xs: List<Int, Int>) {
+  |         ^^^^^^^^^^^^^^
+
+error: aborting due to 1 error

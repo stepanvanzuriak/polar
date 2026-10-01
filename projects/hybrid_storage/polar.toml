@@ -1,0 +1,6 @@
+[project]
+name = "hybrid_storage"
+src = "src"
+out = "dist"
+main = "src/main.px"
+hosts = ["Browser", "Node"]

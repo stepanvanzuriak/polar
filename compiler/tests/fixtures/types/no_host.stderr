@@ -1,0 +1,12 @@
+error[POLAR0811]: `broken` can't run anywhere
+  --> no_host.px:28:3
+   |
+28 |   broken(id: Int) -> {} / {Db, Canvas} {
+   |   ^^^^^^ no host provides both `Db` and `Canvas`
+29 |     Canvas.draw(Db.find(id))
+   |     ----------- `Canvas` runs on {DOM}
+   |                 ------- `Db` runs on {Node}
+   |
+   = help: split the work: call a function that uses `Db` from one host and one that uses `Canvas` from the other
+
+error: aborting due to 1 error

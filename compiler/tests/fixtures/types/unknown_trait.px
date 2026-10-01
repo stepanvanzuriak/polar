@@ -1,0 +1,7 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+types
+  Status = Draft | Published(Int) derive(Describ)

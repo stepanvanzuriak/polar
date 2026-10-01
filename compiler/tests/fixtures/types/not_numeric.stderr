@@ -1,0 +1,7 @@
+error[POLAR0512]: arithmetic needs `Int` or `Float`, found `String`
+ --> not_numeric.px:3:5
+  |
+3 |     "a" + "b"
+  |     ^^^ this is `String`
+
+error: aborting due to 1 error

@@ -1,0 +1,7 @@
+Ada <ada@example.com>
+renamed: true
+Ada Lovelace <ada@example.com>
+updated: true
+2 todos, first done: true
+deleted: true, again: false
+1

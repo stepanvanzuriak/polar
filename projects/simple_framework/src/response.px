@@ -1,0 +1,49 @@
+module Response
+
+uses
+  Framework.Html
+  Std.Http
+  Std.Json
+  Std.List
+
+functions
+  with_type(status: Int, kind: String, body: String) -> Response {
+    { status: status, headers: [{ name: "content-type", value: kind }], body: body }
+  }
+
+  text(status: Int, body: String) -> Response {
+    with_type(status, "text/plain; charset=utf-8", body)
+  }
+
+  html(status: Int, body: String) -> Response {
+    with_type(status, "text/html; charset=utf-8", body)
+  }
+
+  view(status: Int, page: Html) -> Response {
+    html(status, Html.document(page))
+  }
+
+  json(status: Int, value: a) -> Response where Json<a> {
+    with_type(status, "application/json", Json.encode(value))
+  }
+
+  empty(status: Int) -> Response {
+    { status: status, headers: [], body: "" }
+  }
+
+  redirect(location: String) -> Response {
+    { status: 302, headers: [{ name: "location", value: location }], body: "" }
+  }
+
+  not_found() -> Response {
+    text(404, "not found")
+  }
+
+exports
+  empty
+  html
+  json
+  not_found
+  redirect
+  text
+  view

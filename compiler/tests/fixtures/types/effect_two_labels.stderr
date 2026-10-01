@@ -1,0 +1,10 @@
+error[POLAR0808]: `read` uses `Storage` and `Throws<Missing>`, but its signature says it is pure
+  --> effect_two_labels.px:16:5
+   |
+16 |     Storage.get(key)
+   |     ^^^^^^^^^^^^^^^^ this uses `Storage` and `Throws<Missing>`
+   |
+   = note: a signature with `->` and no `/ {…}` promises no effects
+   = help: add `/ {Storage, Throws<Missing>}` after the return type
+
+error: aborting due to 1 error

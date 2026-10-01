@@ -1,0 +1,73 @@
+module Mean
+
+uses
+  Std.List
+  Std.Math
+  Std.Result
+
+types
+  Time = { h: Float, m: Float, s: Float }
+
+constants
+  day: Float = 24.0 * 60.0 * 60.0
+  pi_twice: Float = 2.0 * Math.pi
+
+functions
+  /// The time of day at angle `rads` on a 24-hour clock face.
+  from_radians(rads: Float) -> Time {
+    let turned = rads % pi_twice
+    let rads = if turned < 0.0 { turned + pi_twice } else { turned }
+
+    {
+      h: Float.floor(rads * 12.0 / Math.pi),
+      m: Float.floor(rads * 720.0 / Math.pi % 60.0),
+      s: Float.floor(rads * 43200.0 / Math.pi % 60.0 + 0.5),
+    }
+  }
+
+  from_parts(h: Float, m: Float, s: Float) -> Result<String, Time> {
+    if h > 23.0 || m > 59.0 || s > 59.0 {
+      Err("#{h}:#{m}:#{s} is not a time of day")
+    } else {
+      Ok({ h: h, m: m, s: s })
+    }
+  }
+
+  as_radians(t: Time) -> Float {
+    (t.h / 12.0 + t.m / 720.0 + t.s / 43200.0) * Math.pi
+  }
+
+  mean_time(times: List<Time>) -> Time {
+    let sums = times
+      |> List.map(as_radians)
+      |> List.fold(
+        { sin: 0.0, cos: 0.0 },
+        function(acc, a) { { sin: acc.sin + Float.sin(a), cos: acc.cos + Float.cos(a) } },
+      )
+
+    from_radians(Float.atan2(sums.sin, sums.cos))
+  }
+
+  main() {
+    let parsed = [
+      from_parts(23.0, 0.0, 17.0),
+      from_parts(23.0, 40.0, 20.0),
+      from_parts(0.0, 12.0, 45.0),
+      from_parts(0.0, 17.0, 19.0),
+    ]
+    let times = List.concat_map(
+      parsed,
+      function(result) {
+        match result {
+          Ok(time) -> [time],
+          Err(_) -> [],
+        }
+      },
+    )
+    let mean = mean_time(times)
+
+    Log.info("#{mean.h}:#{mean.m}:#{mean.s}")
+  }
+
+exports
+  main

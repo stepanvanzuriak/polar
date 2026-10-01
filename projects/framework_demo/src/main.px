@@ -1,0 +1,40 @@
+module Main
+
+uses
+  Accounts
+  Std.Id
+  Std.Json
+  Std.List
+  Std.Option
+  Std.Table
+
+schema
+  todos in Node
+    id     Id<Todo>  primary
+    title  String
+    done   Bool
+
+functions
+  main() -> {} / {Todos, Users} {
+    let ada = Accounts.register("Ada", "ada@example.com")
+    let first = Todos.insert({ title: "write the schema plugin", done: false })
+    let second = Todos.insert({ title: "ship it", done: false })
+
+    Log.info(Accounts.describe(ada.id))
+    Log.info("renamed: #{Accounts.rename(ada.id, "Ada Lovelace")}")
+    Log.info(Accounts.describe(ada.id))
+    Log.info("updated: #{Todos.update({ ..first, done: true })}")
+    Log.info("#{List.length(Todos.all())} todos, first done: #{done(first.id)}")
+    Log.info("deleted: #{Todos.delete(second.id)}, again: #{Todos.delete(second.id)}")
+    Log.info(Json.encode(first.id))
+  }
+
+  done(id: Id<Todo>) -> Bool / {Todos} {
+    match Todos.find(id) {
+      Some(todo) -> todo.done,
+      None -> false,
+    }
+  }
+
+exports
+  main

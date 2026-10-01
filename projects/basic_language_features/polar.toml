@@ -1,0 +1,5 @@
+[project]
+name = "basic_language_features"
+src = "src"
+out = "dist"
+main = "src/main.px"

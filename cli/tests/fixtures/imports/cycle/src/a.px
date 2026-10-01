@@ -1,0 +1,17 @@
+module A
+
+uses
+  B
+
+functions
+  name() -> String {
+    "a"
+  }
+
+  main() {
+    Log.info(B.name())
+  }
+
+exports
+  main
+  name

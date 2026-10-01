@@ -1,0 +1,4 @@
+functions
+  double(a: Float) -> Float {
+    a * 2
+  }

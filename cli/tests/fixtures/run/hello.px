@@ -1,0 +1,7 @@
+functions
+  main() {
+    Log.info("hello, world")
+  }
+
+exports
+  main

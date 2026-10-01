@@ -1,0 +1,18 @@
+// Non-tail recursion 5 000 deep: every frame is an `await`ed call that has
+// not suspended yet, so the JS stack grows as it would for sync code (R6.4).
+
+functions
+  count(n) {
+    if n == 0 {
+      0
+    } else {
+      1 + count(n - 1)
+    }
+  }
+
+  main() {
+    Log.info("#{count(5000)}")
+  }
+
+exports
+  main

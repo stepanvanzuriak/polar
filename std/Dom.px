@@ -1,0 +1,19 @@
+module Dom
+
+hosts
+  Browser
+
+effects
+  Dom in Browser {
+    append_text(tag: String, text: String) -> {}
+    append_html(html: String) -> {}
+    has(id: String) -> Bool
+    set_html(id: String, html: String) -> {}
+  }
+
+binds
+  Dom in Browser = "./bindings/Dom.js"
+
+exports
+  Browser
+  Dom

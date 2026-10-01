@@ -1,0 +1,9 @@
+error[POLAR0510]: the type alias `Node` refers to itself
+ --> recursive_alias.px:2:3
+  |
+2 |   Node = { value: Int, next: Node }
+  |   ^^^^
+  |
+  = help: make it a variant, like `Node = Node({ … })`, so it has a name to stop at
+
+error: aborting due to 1 error

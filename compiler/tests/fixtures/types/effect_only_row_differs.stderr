@@ -1,0 +1,16 @@
+error[POLAR0501]: mismatched types
+  --> effect_only_row_differs.px:17:7
+   |
+12 |   h(g: function() -> Int) -> Int {
+   |     -------------------- expected because of this
+...
+17 |     h(function() {
+   |       ^^^^^^^^^^^^
+18 |       Db.load(1)
+19 |       1
+20 |     })
+   |     ^ expected `function() -> Int`, found `function() -> Int / {Db | e}`
+   |
+   = note: these functions differ only in their effects: `h` wants a pure function, and this one uses `Db`
+
+error: aborting due to 1 error

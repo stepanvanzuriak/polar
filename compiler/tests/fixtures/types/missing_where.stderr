@@ -1,0 +1,11 @@
+error[POLAR0709]: the annotation `a` doesn't promise `Describe`
+ --> missing_where.px:8:5
+  |
+7 |   f(x: a) -> String {
+  |   ----------------- `a` is declared here
+8 |     describe(x)
+  |     ^^^^^^^^ this needs `Describe<a>`
+  |
+  = help: add `where Describe<a>` after the return type
+
+error: aborting due to 1 error

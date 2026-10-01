@@ -1,0 +1,44 @@
+module Id
+
+uses
+  Std.Json
+  Std.Result
+
+types
+  Id<a> = Id(Int)
+
+functions
+  value(id: Id<a>) -> Int {
+    match id {
+      Id(n) -> n,
+    }
+  }
+
+impls
+  Eq for Id<a> {
+    eq(x, y) {
+      value(x) == value(y)
+    }
+  }
+
+  Show for Id<a> {
+    show(id) {
+      "Id(#{value(id)})"
+    }
+  }
+
+  Json for Id<a> {
+    to_json(id) {
+      Json.to_json(value(id))
+    }
+
+    from_json(json, path) {
+      match Json.from_json(json, path) {
+        Err(error) -> Err(error),
+        Ok(n) -> Ok(Id(n)),
+      }
+    }
+  }
+
+exports
+  value

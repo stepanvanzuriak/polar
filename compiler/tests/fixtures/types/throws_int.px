@@ -1,0 +1,6 @@
+module App
+
+functions
+  f(g: function() -> {} / {Throws<Int>}) -> {} {
+    {}
+  }

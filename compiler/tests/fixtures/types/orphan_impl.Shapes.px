@@ -1,0 +1,9 @@
+module Shapes
+
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+exports
+  Describe { describe }

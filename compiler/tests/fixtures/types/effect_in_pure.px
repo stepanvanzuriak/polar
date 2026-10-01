@@ -1,0 +1,18 @@
+module App
+
+hosts
+  Node
+
+effects
+  Db in Node {
+    load(id: Int) -> String
+  }
+
+functions
+  title(id) {
+    Db.load(id)
+  }
+
+  shout(id: Int) -> String {
+    String.uppercase(title(id))
+  }

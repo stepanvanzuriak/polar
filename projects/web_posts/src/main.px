@@ -1,0 +1,35 @@
+module Main
+
+uses
+  Framework.Html
+  Post
+  Routes
+  Std.Dom
+  Std.Http
+  Std.List
+  User
+  Views
+
+functions
+  show(text: String) -> {} / {Dom} {
+    Dom.append_text("p", text)
+  }
+
+  render(html: String) -> {} / {Dom} {
+    if Dom.has("app") { Dom.set_html("app", html) } else { Dom.append_html(html) }
+  }
+
+  router(request: Request) {
+    Routes.router(request)
+  }
+
+  start() -> {} / {Dom, Posts} {
+    let posts = Posts.all()
+
+    show("the browser sees #{List.length(posts)} posts")
+    render(Html.to_string(Views.list(posts)))
+  }
+
+exports
+  router
+  start

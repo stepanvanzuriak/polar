@@ -1,0 +1,9 @@
+error[POLAR0504]: infinite type
+ --> infinite.px:6:10
+  |
+6 |     nest([x])
+  |          ^^^ this would make `a` equal to `List<a>`
+  |
+  = help: this usually means an argument is in the wrong position
+
+error: aborting due to 1 error

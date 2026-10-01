@@ -1,0 +1,124 @@
+use std::fmt;
+
+macro_rules! diagnostic_codes {
+  ($($name:ident = $code:literal),+ $(,)?) => {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    #[repr(u16)]
+    pub enum DiagnosticCode {
+      $($name = $code,)+
+    }
+
+    impl DiagnosticCode {
+      pub const ALL: &[DiagnosticCode] = &[$(DiagnosticCode::$name,)+];
+    }
+
+    impl fmt::Display for DiagnosticCode {
+      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "POLAR{:04}", *self as u16)
+      }
+    }
+  };
+}
+
+diagnostic_codes! {
+  InternalCompilerError       = 1,
+  InvalidUtf8                 = 2,
+  UnexpectedCharacter         = 101,
+  UnterminatedString          = 102,
+  InvalidEscape               = 103,
+  UnterminatedInterpolation   = 104,
+  MalformedNumber             = 105,
+  UnexpectedToken             = 201,
+  ExpectedDeclaration         = 202,
+  VisibilityKeyword           = 203,
+  RedundantDeclarationKeyword = 204,
+  EffectVariableWithoutBar    = 205,
+  WrongIdentifierCase         = 206,
+  DeclWrongZone               = 207,
+  ZoneOutOfOrder              = 208,
+  ZoneDuplicate               = 209,
+  NestingTooDeep              = 210,
+  ChainedComparison           = 211,
+  TrailingLet                 = 212,
+  RecordLiteralInCondition    = 213,
+  MissingElse                 = 214,
+  EmptyBlock                  = 215,
+  ListSyntaxNotSupported      = 216,
+  LocalFnDeclaration          = 217,
+  StatementsOnSameLine        = 218,
+  InterpolationInPattern      = 219,
+  SpreadNotFirst              = 220,
+  TraitParamCount             = 221,
+  UnknownRecipeCase           = 222,
+  MethodNeedsAnnotation       = 223,
+  ModifierWrongZone           = 224,
+  ExternTarget                = 225,
+  BridgeWithBody              = 226,
+  PluginKeywordAsName         = 227,
+  UnknownName                 = 301,
+  DuplicateDefinition         = 302,
+  UnknownUppercaseName        = 303,
+  ConstructorArity            = 304,
+  UnknownBuiltinMember        = 305,
+  ImportNotSupported          = 306,
+  BuiltinModuleAsValue        = 307,
+  CallArity                   = 308,
+  UnknownStdModule            = 309,
+  UnknownModule               = 310,
+  ListTypeNotInScope          = 311,
+  ConstantCalled              = 312,
+  ConstantUsesBelow           = 313,
+  ImportCycle                 = 314,
+  UnknownEffect               = 316,
+  UnknownOperation            = 317,
+  UnknownHost                 = 319,
+  NumberOutOfRange            = 401,
+  TypeMismatch                = 501,
+  MissingField                = 502,
+  ExtraField                  = 503,
+  InfiniteType                = 504,
+  UnknownType                 = 505,
+  TypeArgumentCount           = 506,
+  NotAFunction                = 507,
+  ArgumentCount               = 508,
+  AnnotationTooGeneral        = 509,
+  RecursiveAlias              = 510,
+  UnboundTypeVariable         = 511,
+  NotNumeric                  = 512,
+  DuplicateField              = 513,
+  NonExhaustiveMatch          = 601,
+  RefutableLet                = 602,
+  UnreachableArm              = 603,
+  UnknownTrait                = 701,
+  UnknownMethod               = 702,
+  MissingMethod               = 703,
+  OrphanImpl                  = 704,
+  DuplicateImpl               = 705,
+  IncompleteTraitExport       = 706,
+  MissingImpl                 = 707,
+  AmbiguousType               = 708,
+  MissingWhere                = 709,
+  NotDerivable                = 710,
+  BadRecipe                   = 711,
+  MissingOperation            = 801,
+  ExtraOperation              = 802,
+  OrphanBind                  = 803,
+  DuplicateBind               = 804,
+  NativeBind                  = 805,
+  NeedlessForce               = 806,
+  OperationParamCount         = 807,
+  EffectNotAllowed            = 808,
+  BadThrowsType               = 809,
+  CatchNeedsType              = 810,
+  NoHost                      = 811,
+  BindCycle                   = 812,
+  EffectNotOnHost             = 813,
+  HostCantRunMain             = 815,
+  MissingBinding              = 816,
+  NativeWithoutHost           = 817,
+  BridgeTargetUnbound         = 818,
+  BridgeNotWireSafe           = 819,
+  BridgeChain                 = 820,
+  PluginError                 = 901,
+  PluginFailed                = 902,
+}

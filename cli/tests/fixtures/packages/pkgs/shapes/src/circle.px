@@ -1,0 +1,12 @@
+module Circle
+
+externs
+  pi() -> Float = "./pi.js" pi
+
+functions
+  area(r: Float) -> Float {
+    pi() * r * r
+  }
+
+exports
+  area

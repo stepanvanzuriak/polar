@@ -1,0 +1,27 @@
+module App
+
+types
+  Missing = Missing(String)
+  Invalid = Empty | TooLong(Int)
+
+functions
+  check(s: String) -> String / {Throws<Invalid>} {
+    if s == "" { throw Empty } else { s }
+  }
+
+  safe(s: String) -> String {
+    try {
+      check(s)
+    } catch {
+      Empty -> "(empty)",
+      TooLong(n) -> "(#{n} chars)",
+    }
+  }
+
+  main() {
+    Log.info(safe(""))
+    check("")
+  }
+
+exports
+  main

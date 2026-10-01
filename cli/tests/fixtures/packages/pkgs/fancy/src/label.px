@@ -1,0 +1,12 @@
+module Label
+
+uses
+  Shapes.Circle
+
+functions
+  describe(r: Float) -> String {
+    "a circle of area #{Circle.area(r)}"
+  }
+
+exports
+  describe

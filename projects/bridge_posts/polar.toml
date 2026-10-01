@@ -1,0 +1,6 @@
+[project]
+name = "bridge_posts"
+src = "src"
+out = "dist"
+main = "src/main.px"
+hosts = ["Browser", "Node"]

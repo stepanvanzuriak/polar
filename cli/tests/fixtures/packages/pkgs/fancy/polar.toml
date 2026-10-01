@@ -1,0 +1,6 @@
+[package]
+name = "fancy"
+module = "Fancy"
+
+[dependencies]
+shapes = { path = "../shapes" }

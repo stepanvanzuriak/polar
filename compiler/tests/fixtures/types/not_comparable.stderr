@@ -1,0 +1,7 @@
+error[POLAR0512]: comparison needs `Int`, `Float` or `String`, found `Bool`
+ --> not_comparable.px:3:5
+  |
+3 |     true < false
+  |     ^^^^ this is `Bool`
+
+error: aborting due to 1 error

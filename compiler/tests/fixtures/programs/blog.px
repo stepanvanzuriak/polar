@@ -1,0 +1,120 @@
+// A tiny blog — the program Milestone 0 has to compile, run and round-trip.
+//
+// There is no checker yet, so every type annotation below is parsed and then
+// ignored. They are written as if they were enforced, because one day they are.
+
+module Blog
+
+uses
+  Std.Json
+  Std.Result
+
+types
+  /// A phantom-tagged id. Generic aliases are erased; this is an `Int` at runtime.
+  Id<a> = Int
+
+  Status = Draft | Published(Int) derive(Json, Eq)
+
+  /// M0 has no list literals, so lists are an ordinary user-declared variant.
+  List<a> = Nil | Cons(a, List<a>)
+
+  User = { id: Id<User>, name: String } derive(Json, Eq)
+
+  /// `derive(Json, Eq)` writes the JSON codec and `==` for you, field by field.
+  Post = {
+    id: Id<Post>,
+    title: String,
+    body: String,
+    author_id: Id<User>,
+    status: Status,
+  } derive(Json, Eq)
+
+functions
+  /// The row tail `| rest` accepts any record that has a `title`, and keeps the
+  /// other fields on the way through. Called below with two different shapes.
+  title_of(r: { title: String | rest }) -> String {
+    r.title
+  }
+
+  /// `slug` from ROADMAP.md, verbatim: a pipeline into two builtin `String` members.
+  slug(r: { title: String | rest }) -> String {
+    r.title |> String.lowercase |> String.replace(" ", "-")
+  }
+
+  /// Record update. The spread has to come first; the fields after it win.
+  publish(post: Post, year: Int) -> Post {
+    { ..post, status: Published(year) }
+  }
+
+  /// A record pattern with a constructor pattern nested inside it.
+  describe(post: Post) -> String {
+    match post {
+      { title: t, status: Draft, .. } -> "#{t} — draft",
+      { title: t, status: Published(year), .. } -> "#{t} — published in #{year}",
+    }
+  }
+
+  /// Recursion over `List`, and a lambda passed in from the caller.
+  map(xs: List<a>, f) -> List<b> {
+    match xs {
+      [] -> [],
+      [head, ..tail] -> [f(head), ..map(tail, f)],
+    }
+  }
+
+  length(xs: List<a>) -> Int {
+    match xs {
+      [] -> 0,
+      [_, ..tail] -> 1 + length(tail),
+    }
+  }
+
+  /// `[head]` is a list pattern: `Cons(head, Nil)`.
+  join(xs: List<Int>) -> String {
+    match xs {
+      [] -> "",
+      [head] -> Int.to_string(head),
+      [head, ..tail] -> "#{Int.to_string(head)}, #{join(tail)}",
+    }
+  }
+
+  main() {
+    let ada = { id: 1, name: "Ada" }
+    let post: Post = {
+      id: 1,
+      title: "Hello Polar World",
+      body: "Polar compiles to JavaScript.",
+      author_id: ada.id,
+      status: Draft,
+    }
+
+    // One `title_of`, two record shapes — this is what row polymorphism buys.
+    Log.info(title_of(post))
+    Log.info(title_of({ title: "About", body: "Who we are." }))
+
+    Log.info(slug(post))
+    Log.info(describe(post))
+    Log.info(describe(publish(post, 2026)))
+
+    let nums = [1, 2, 3]
+    let doubled = map(nums, function(n) { n * 2 })
+
+    Log.info("doubled: #{join(doubled)}")
+    Log.info("length: #{length(doubled)}")
+
+    let text = Json.encode(post)
+
+    Log.info(text)
+
+    let back: Result<JsonError, Post> = Json.decode(text)
+
+    match back {
+      Ok(decoded) -> Log.info("round trip: #{decoded == post}"),
+      Err(error) -> Log.error(Json.message(error)),
+    }
+  }
+
+exports
+  main
+  slug
+  title_of

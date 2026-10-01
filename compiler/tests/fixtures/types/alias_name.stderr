@@ -1,0 +1,9 @@
+error[POLAR0501]: mismatched types
+ --> alias_name.px:6:5
+  |
+5 |   publish(p: Post) -> Post {
+  |                       ---- expected because of this
+6 |     1
+  |     ^ expected `Post`, found `Int`
+
+error: aborting due to 1 error

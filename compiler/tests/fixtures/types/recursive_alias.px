@@ -1,0 +1,2 @@
+types
+  Node = { value: Int, next: Node }

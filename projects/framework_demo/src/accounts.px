@@ -1,0 +1,42 @@
+module Accounts
+
+uses
+  Std.Id
+  Std.Json
+  Std.Option
+  Std.Table
+
+hosts
+  Node
+
+schema
+  users in Node
+    id     Id<User>  primary
+    name   String
+    email  String
+
+functions
+  register(name: String, email: String) -> User / {Users} {
+    Users.insert({ name: name, email: email })
+  }
+
+  describe(id: Id<User>) -> String / {Users} {
+    match Users.find(id) {
+      Some(user) -> "#{user.name} <#{user.email}>",
+      None -> "no user #{Id.value(id)}",
+    }
+  }
+
+  rename(id: Id<User>, name: String) -> Bool / {Users} {
+    match Users.find(id) {
+      Some(user) -> Users.update({ ..user, name: name }),
+      None -> false,
+    }
+  }
+
+exports
+  Node
+  Users
+  describe
+  register
+  rename

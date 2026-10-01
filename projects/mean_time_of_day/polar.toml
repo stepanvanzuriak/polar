@@ -1,0 +1,5 @@
+[project]
+name = "mean_time_of_day"
+src = "src"
+out = "dist"
+main = "src/main.px"

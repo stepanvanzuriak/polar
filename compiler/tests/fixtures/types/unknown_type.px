@@ -1,0 +1,7 @@
+types
+  Post = { id: Int }
+
+functions
+  f(p: Pots) -> Int {
+    p.id
+  }

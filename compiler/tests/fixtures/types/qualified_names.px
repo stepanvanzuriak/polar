@@ -1,0 +1,10 @@
+uses
+  Std.Option
+
+types
+  Option<a> = Nothing | Something(a)
+
+functions
+  f(o: Option<Int>) {
+    o == Some(1)
+  }

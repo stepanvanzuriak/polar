@@ -1,0 +1,10 @@
+[project]
+name = "web_posts"
+hosts = ["Browser", "Node"]
+
+[run]
+launcher = "simple_framework"
+options = { port = 3000 }
+
+[dependencies]
+simple_framework = { path = "../simple_framework" }

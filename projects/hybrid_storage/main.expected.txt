@@ -1,0 +1,8 @@
+hello from hybrid storage
+has greeting: true
+fallback for a missing key
+keys: greeting, settings
+theme: dark, volume: 7
+after remove: false
+missing: greeting
+no keys

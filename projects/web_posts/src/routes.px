@@ -1,0 +1,45 @@
+module Routes
+
+uses
+  Framework.Response
+  Post
+  Std.Http
+  Std.Id
+  Std.Json
+  Std.Option
+  Std.Result
+  Views
+
+routes
+  GET     /           -> home
+  GET     /posts      -> index
+  GET     /posts/:id  -> show
+  POST    /posts      -> create
+  DELETE  /posts/:id  -> remove
+
+functions
+  home() -> Response / {Posts} {
+    Response.view(200, Views.page(Posts.all()))
+  }
+
+  index() -> Response / {Posts} {
+    Response.json(200, Posts.all())
+  }
+
+  show(id: Int) -> Response / {Posts} {
+    match Posts.find(Id(id)) {
+      Some(post) -> Response.json(200, post),
+      None -> Response.not_found(),
+    }
+  }
+
+  create(request: Request) -> Response / {Posts} {
+    match Json.decode(request.body) {
+      Ok(row) -> Response.json(201, Posts.insert(row)),
+      Err(error) -> Response.text(400, Json.message(error)),
+    }
+  }
+
+  remove(id: Int) -> Response / {Posts} {
+    if Posts.delete(Id(id)) { Response.empty(204) } else { Response.not_found() }
+  }

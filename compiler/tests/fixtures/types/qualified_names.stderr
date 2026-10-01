@@ -1,0 +1,7 @@
+error[POLAR0501]: mismatched types
+ --> qualified_names.px:9:10
+  |
+9 |     o == Some(1)
+  |          ^^^^^^^ expected `Option<Int>`, found `Std.Option.Option<Int>`
+
+error: aborting due to 1 error

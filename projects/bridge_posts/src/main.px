@@ -1,0 +1,93 @@
+module Main
+
+uses
+  Std.Dom
+  Std.Json
+  Std.List
+  Std.Option
+
+hosts
+  Browser
+  Node
+
+types
+  Post = { id: Int, title: String } derive(Json, Eq)
+
+  Missing = Missing(Int) derive(Json)
+
+constants
+  seed: List<Post> = [
+    { id: 1, title: "Hello from the server" },
+    { id: 2, title: "Bridges forward effects" },
+  ]
+
+effects
+  Db in Node {
+    find(id: Int) -> Option<Post>
+    count() -> Int
+  }
+
+  Posts in Node {
+    fetch(id: Int) -> Post / {Throws<Missing>}
+    count() -> Int
+  }
+
+binds
+  Db in Node {
+    find(id) {
+      List.find(seed, function(post) { post.id == id })
+    }
+
+    count() {
+      List.length(seed)
+    }
+  }
+
+  Posts in Node {
+    fetch(id) {
+      match Db.find(id) {
+        Some(post) -> post,
+        None -> throw Missing(id),
+      }
+    }
+
+    count() {
+      Db.count()
+    }
+  }
+
+  Posts in Browser from Node
+
+functions
+  show(text: String) -> {} / {Dom} {
+    Dom.append_text("p", text)
+  }
+
+  describe(id: Int) -> String / {Posts} {
+    try {
+      let post = Posts.fetch(id)
+
+      "#{post.id}: #{post.title}"
+    } catch {
+      Missing(n) -> "no post #{n}",
+    }
+  }
+
+  same_twice(id: Int) -> Bool / {Posts} {
+    try {
+      Posts.fetch(id) == Posts.fetch(id)
+    } catch {
+      Missing(_) -> false,
+    }
+  }
+
+  start() -> {} / {Dom, Posts} {
+    show("#{Posts.count()} posts on the server")
+    show(describe(1))
+    show(describe(2))
+    show(describe(42))
+    show("the same post twice is equal: #{same_twice(1)}")
+  }
+
+exports
+  start

@@ -1,0 +1,7 @@
+types
+  List<a> = Nil | Cons(a, List<a>)
+
+functions
+  f(xs: List<Int, Int>) {
+    xs
+  }

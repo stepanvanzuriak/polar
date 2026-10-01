@@ -1,0 +1,87 @@
+module Main
+
+uses
+  Std.List
+  Std.Map
+  Std.Option
+  Std.Assert
+
+traits
+  Area<a> {
+    area(shape: a) -> Int
+  }
+
+types
+  Shape = Circle(Int) | Square(Int)
+
+  Entry = { key: String, value: Int }
+
+  Counter = { name: String, bump: function(Int) -> Int }
+
+functions
+  describe({ key: k, value: v }: Entry) -> String {
+    "#{k}=#{v}"
+  }
+
+  max_of(xs: List<Int>) -> Int {
+    List.fold(xs, 0, function(m, x) { if x > m { x } else { m } })
+  }
+
+  callback(n: Int) {
+    n * 2
+  }
+
+  main() {
+    let a = 10
+    let b = 2
+    Log.info("bitwise")
+    Log.info("a AND b: #{a & b}")
+    Log.info("a OR b: #{a | b}")
+    Log.info("a XOR b: #{a ^ b}")
+    Log.info("NOT a: #{~a}")
+
+    Log.info("Abstract type")
+    Log.info(Int.to_string(area(Circle(2))))
+    Log.info(Int.to_string(area(Square(3))))
+    Log.info("Apply a callback to an array")
+    Log.info([1, 2, 3] |> List.map(callback) |> List.map(Int.to_string) |> List.join(","))
+    Log.info("Argument destructuring")
+    Log.info(describe({ key: "a", value: 1 }))
+    Log.info(Int.to_string(max_of([5, 6, 2, 3, 7])))
+    Log.info("Arrays")
+    Log.info([1, 2, 3] |> List.map(Int.to_string) |> List.join(" "))
+    Log.info("Assertions")
+    Assert.assert(2 == 2)
+    Log.info("Map")
+    let scores = Map.empty()
+      |> Map.insert("x", 1)
+      |> Map.insert("y", 2)
+      |> Map.insert("x", 3)
+    Log.info(Int.to_string(Option.with_default(Map.get(scores, "y"), 0)))
+    Log.info(Int.to_string(Option.with_default(Map.get(scores, "z"), -1)))
+    Log.info("AssociativeArray")
+    Log.info(scores |> Map.to_list |> List.map(describe) |> List.join(", "))
+    Log.info(Int.to_string(Map.size(scores |> Map.remove("x"))))
+    Log.info("BinaryDigits")
+    Log.info("#{5 |> Int.to_base(2)}, #{50 |> Int.to_base(2)}, #{9000 |> Int.to_base(2)}")
+    Log.info("BooleanValues")
+    Log.info(Bool.to_string(true))
+    Log.info("Call an object method")
+    let counter = { name: "c", bump: function(n) { n + 1 } }
+    Log.info(Int.to_string(counter.bump(1)))
+    Log.info("CharacterCodes")
+    Log.info("a: #{Int.to_string("a" |> String.charCodeAt(0))}")
+  }
+
+impls
+  Area for Shape {
+    area(shape) {
+      match shape {
+        Circle(r) -> 3 * r * r,
+        Square(s) -> s * s,
+      }
+    }
+  }
+
+exports
+  main

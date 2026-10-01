@@ -1,0 +1,12 @@
+module Main
+
+uses
+  Shapes.Circle
+
+functions
+  main() {
+    Log.info(Float.to_string(Circle.area(2.0)))
+  }
+
+exports
+  main

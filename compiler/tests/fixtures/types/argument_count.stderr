@@ -1,0 +1,9 @@
+error[POLAR0508]: this function takes 1 argument but 2 were given
+ --> argument_count.px:3:5
+  |
+3 |     g(1, 2)
+  |     ^^^^^^^
+  |
+  = note: the function has type `function(Int) -> Int`
+
+error: aborting due to 1 error

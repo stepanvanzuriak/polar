@@ -1,0 +1,9 @@
+module Main
+
+uses
+  Round.Circle
+
+functions
+  main() {
+    Circle.area(1.0)
+  }

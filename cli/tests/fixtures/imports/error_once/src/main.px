@@ -1,0 +1,12 @@
+module Main
+
+uses
+  B
+
+functions
+  main() {
+    Log.info(B.label())
+  }
+
+exports
+  main

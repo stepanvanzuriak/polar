@@ -1,0 +1,4 @@
+functions
+  f(g: function(Int) -> Int) -> Int {
+    g(1, 2)
+  }

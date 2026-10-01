@@ -1,0 +1,4 @@
+functions
+  f(x: a) -> a {
+    1
+  }

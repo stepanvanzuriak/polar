@@ -1,0 +1,9 @@
+[package]
+name = "simple_framework"
+module = "Framework"
+
+[plugin]
+zones = ["schema", "routes", "views"]
+
+[launcher]
+script = "launcher/serve.mjs"

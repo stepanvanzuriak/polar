@@ -1,0 +1,20 @@
+module User
+
+uses
+  Std.Id
+  Std.Json
+  Std.Table
+
+hosts
+  Browser
+  Node
+
+schema
+  users in Node
+    id    Id<User>  primary
+    name  String
+
+exports
+  Browser
+  Node
+  Users

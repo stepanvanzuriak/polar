@@ -1,0 +1,11 @@
+error[POLAR0808]: `load` uses `Db`, which its signature doesn't list
+  --> row_enforced.px:72:5
+   |
+71 |   load(key: String) -> String / {Storage} {
+   |                               ----------- the signature allows `{Storage}`
+72 |     Db.find(1)
+   |     ^^^^^^^^^^ this uses `Db`
+   |
+   = help: add `Db` to the row: `/ {Db, Storage}`
+
+error: aborting due to 1 error

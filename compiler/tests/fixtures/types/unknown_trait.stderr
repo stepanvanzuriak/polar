@@ -1,0 +1,9 @@
+error[POLAR0701]: cannot find trait `Describ`
+ --> unknown_trait.px:7:42
+  |
+7 |   Status = Draft | Published(Int) derive(Describ)
+  |                                          ^^^^^^^
+  |
+  = help: did you mean `Describe`?
+
+error: aborting due to 1 error

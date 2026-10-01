@@ -1,0 +1,5 @@
+[project]
+name = "framework_demo"
+
+[dependencies]
+simple_framework = { path = "../simple_framework" }

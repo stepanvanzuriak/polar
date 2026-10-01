@@ -1,0 +1,9 @@
+error[POLAR0703]: this impl is missing `label`
+  --> missing_method.px:11:3
+   |
+11 |   Describe for Status {
+   |   ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: add `label(value: Status) -> String { … }`
+
+error: aborting due to 1 error

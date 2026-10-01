@@ -1,0 +1,8 @@
+error[POLAR0513]: field `a` is given twice
+ --> duplicate_field.px:3:13
+  |
+3 |     { a: 1, a: 2 }
+  |             ^
+  |       - first given here
+
+error: aborting due to 1 error

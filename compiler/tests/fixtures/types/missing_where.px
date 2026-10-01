@@ -1,0 +1,9 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+functions
+  f(x: a) -> String {
+    describe(x)
+  }

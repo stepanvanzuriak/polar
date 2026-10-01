@@ -1,0 +1,15 @@
+[package]
+name = "notes_plugin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+polar-plugin = { path = "../../../../plugin" }
+
+[lints]
+workspace = true

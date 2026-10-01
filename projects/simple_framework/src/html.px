@@ -1,0 +1,102 @@
+module Html
+
+uses
+  Std.Id
+  Std.List
+  Std.Option
+
+traits
+  Render<a> {
+    render(value: a) -> Html
+  }
+
+types
+  Html = Html(String)
+
+functions
+  raw(text: String) -> Html {
+    Html(text)
+  }
+
+  to_string(html: Html) -> String {
+    match html {
+      Html(text) -> text,
+    }
+  }
+
+  escape(text: String) -> String {
+    let amp = String.replace(text, "&", "&amp;")
+    let lt = String.replace(amp, "<", "&lt;")
+    let gt = String.replace(lt, ">", "&gt;")
+    let quot = String.replace(gt, "\"", "&quot;")
+
+    String.replace(quot, "'", "&#39;")
+  }
+
+  scripts() -> Html {
+    Html(
+      "<script type=\"module\">import { start } from \"/_client/main.js\"; start();</script>",
+    )
+  }
+
+  piece(value: a) -> String where Render<a> {
+    to_string(render(value))
+  }
+
+  concat(pieces: List<String>) -> Html {
+    Html(List.join(pieces, ""))
+  }
+
+  document(page: Html) -> String {
+    "<!doctype html>#{to_string(page)}"
+  }
+
+impls
+  Render for Html {
+    render(value) {
+      value
+    }
+  }
+
+  Render for String {
+    render(value) {
+      Html(escape(value))
+    }
+  }
+
+  Render for Int {
+    render(value) {
+      Html(Int.to_string(value))
+    }
+  }
+
+  Render for Id<a> {
+    render(value) {
+      Html(Int.to_string(Id.value(value)))
+    }
+  }
+
+  Render for List<a> where Render<a> {
+    render(values) {
+      Html(List.join(List.map(values, piece), ""))
+    }
+  }
+
+  Render for Option<a> where Render<a> {
+    render(value) {
+      match value {
+        None -> Html(""),
+        Some(x) -> render(x),
+      }
+    }
+  }
+
+exports
+  Render { render }
+  concat
+  document
+  escape
+  piece
+  raw
+  scripts
+  to_string

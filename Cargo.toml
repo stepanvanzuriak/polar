@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = ["compiler", "cli", "plugin", "compiler/tests/fixtures/notes_plugin"]
+exclude = ["projects"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }

@@ -1,0 +1,68 @@
+module HybridStorage
+
+uses
+  Std.List
+  Std.Option
+  Std.Result
+  Std.Json
+
+hosts
+  Browser
+  Node
+
+types
+  Missing = Missing(String)
+
+effects
+  Storage {
+    get(key: String) -> Option<String>
+    set(key: String, value: String) -> {}
+    remove(key: String) -> {}
+    keys() -> List<String>
+    clear() -> {}
+  }
+
+binds
+  Storage in Browser = "./browser.js"
+
+  Storage in Node = "./node.js"
+
+functions
+  has(key: String) -> Bool / {Storage} {
+    match Storage.get(key) {
+      Some(_) -> true,
+      None -> false,
+    }
+  }
+
+  get_or(key: String, fallback: String) -> String / {Storage} {
+    Option.with_default(Storage.get(key), fallback)
+  }
+
+  require(key: String) -> String / {Storage, Throws<Missing>} {
+    match Storage.get(key) {
+      Some(value) -> value,
+      None -> throw Missing(key),
+    }
+  }
+
+  save(key: String, value: a) -> {} / {Storage} where Json<a> {
+    Storage.set(key, Json.encode(value))
+  }
+
+  load(key: String, fallback: a) -> Result<JsonError, a> / {Storage} where Json<a> {
+    match Storage.get(key) {
+      Some(text) -> Json.decode(text),
+      None -> Ok(fallback),
+    }
+  }
+
+exports
+  Browser
+  Node
+  Storage
+  has
+  get_or
+  require
+  save
+  load

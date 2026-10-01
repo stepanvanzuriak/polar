@@ -1,0 +1,12 @@
+module B
+
+uses
+  A
+
+functions
+  name() -> String {
+    A.name()
+  }
+
+exports
+  name

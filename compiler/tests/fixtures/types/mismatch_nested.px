@@ -1,0 +1,11 @@
+types
+  Result<e, a> = Err(e) | Ok(a)
+
+functions
+  parse(text: String) -> Result<Int, String> {
+    Err(String.length(text))
+  }
+
+  count(text: String) -> Result<Int, Int> {
+    parse(text)
+  }

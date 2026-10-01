@@ -1,0 +1,9 @@
+error[POLAR0809]: `Throws` needs a named error type, not `Int`
+ --> throws_int.px:4:35
+  |
+4 |   f(g: function() -> {} / {Throws<Int>}) -> {} {
+  |                                   ^^^
+  |
+  = help: declare one in `types`, like `ParseError = ParseError(String)`
+
+error: aborting due to 1 error

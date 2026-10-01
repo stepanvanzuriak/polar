@@ -1,0 +1,34 @@
+module Result
+
+types
+  Result<e, a> = Err(e) | Ok(a) derive(Eq, Show)
+
+functions
+  map(result: Result<e, a>, f: function(a) -> b / {| fx}) -> Result<e, b> / {| fx} {
+    match result {
+      Err(error) -> Err(error),
+      Ok(x) -> Ok(f(x)),
+    }
+  }
+
+  map_err(result: Result<e, a>, f: function(e) -> g / {| fx}) -> Result<g, a> / {| fx} {
+    match result {
+      Err(error) -> Err(f(error)),
+      Ok(x) -> Ok(x),
+    }
+  }
+
+  and_then(
+    result: Result<e, a>,
+    f: function(a) -> Result<e, b> / {| fx},
+  ) -> Result<e, b> / {| fx} {
+    match result {
+      Err(error) -> Err(error),
+      Ok(x) -> f(x),
+    }
+  }
+
+exports
+  and_then
+  map
+  map_err

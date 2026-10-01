@@ -1,0 +1,63 @@
+module Prelude
+
+traits
+  Eq<a> {
+    eq(x: a, y: a) -> Bool
+  }
+
+  Show<a> {
+    show(value: a) -> String
+  }
+
+impls
+  Eq for Int {
+    eq(x, y) {
+      Int.eq(x, y)
+    }
+  }
+
+  Eq for Float {
+    eq(x, y) {
+      Float.eq(x, y)
+    }
+  }
+
+  Eq for String {
+    eq(x, y) {
+      String.eq(x, y)
+    }
+  }
+
+  Eq for Bool {
+    eq(x, y) {
+      Bool.eq(x, y)
+    }
+  }
+
+  Show for Int {
+    show(value) {
+      Int.to_string(value)
+    }
+  }
+
+  Show for Float {
+    show(value) {
+      Float.to_string(value)
+    }
+  }
+
+  Show for String {
+    show(value) {
+      value
+    }
+  }
+
+  Show for Bool {
+    show(value) {
+      Bool.to_string(value)
+    }
+  }
+
+exports
+  Eq { eq }
+  Show { show }

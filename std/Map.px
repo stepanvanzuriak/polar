@@ -1,0 +1,85 @@
+module Map
+
+uses
+  Std.List
+  Std.Option
+
+types
+  Map<k, v> = Empty | Entry(k, v, Map<k, v>)
+
+functions
+  empty() -> Map<k, v> {
+    Empty
+  }
+
+  is_empty(map: Map<k, v>) -> Bool {
+    match map {
+      Empty -> true,
+      Entry(_, _, _) -> false,
+    }
+  }
+
+  size(map: Map<k, v>) -> Int {
+    match map {
+      Empty -> 0,
+      Entry(_, _, rest) -> 1 + size(rest),
+    }
+  }
+
+  get(map: Map<k, v>, key: k) -> Option<v> where Eq<k> {
+    match map {
+      Empty -> None,
+      Entry(k, v, rest) -> if k == key { Some(v) } else { get(rest, key) },
+    }
+  }
+
+  has(map: Map<k, v>, key: k) -> Bool where Eq<k> {
+    match get(map, key) {
+      None -> false,
+      Some(_) -> true,
+    }
+  }
+
+  remove(map: Map<k, v>, key: k) -> Map<k, v> where Eq<k> {
+    match map {
+      Empty -> Empty,
+      Entry(k, v, rest) -> if k == key { rest } else { Entry(k, v, remove(rest, key)) },
+    }
+  }
+
+  insert(map: Map<k, v>, key: k, value: v) -> Map<k, v> where Eq<k> {
+    Entry(key, value, remove(map, key))
+  }
+
+  keys(map: Map<k, v>) -> List<k> {
+    match map {
+      Empty -> [],
+      Entry(k, _, rest) -> [k, ..keys(rest)],
+    }
+  }
+
+  values(map: Map<k, v>) -> List<v> {
+    match map {
+      Empty -> [],
+      Entry(_, v, rest) -> [v, ..values(rest)],
+    }
+  }
+
+  to_list(map: Map<k, v>) -> List<{ key: k, value: v }> {
+    match map {
+      Empty -> [],
+      Entry(k, v, rest) -> [{ key: k, value: v }, ..to_list(rest)],
+    }
+  }
+
+exports
+  empty
+  get
+  has
+  insert
+  is_empty
+  keys
+  remove
+  size
+  to_list
+  values

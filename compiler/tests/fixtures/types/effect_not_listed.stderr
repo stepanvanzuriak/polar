@@ -1,0 +1,11 @@
+error[POLAR0808]: `load` uses `Db`, which its signature doesn't list
+  --> effect_not_listed.px:18:5
+   |
+17 |   load(k: String) -> String / {Storage} {
+   |                             ----------- the signature allows `{Storage}`
+18 |     Db.load(1)
+   |     ^^^^^^^^^^ this uses `Db`
+   |
+   = help: add `Db` to the row: `/ {Db, Storage}`
+
+error: aborting due to 1 error

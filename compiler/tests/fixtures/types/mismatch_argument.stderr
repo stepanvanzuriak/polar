@@ -1,0 +1,10 @@
+error[POLAR0501]: mismatched types
+ --> mismatch_argument.px:7:12
+  |
+2 |   double(x: Int) -> Int {
+  |          ------ expected because of this
+...
+7 |     double("a")
+  |            ^^^ expected `Int`, found `String`
+
+error: aborting due to 1 error

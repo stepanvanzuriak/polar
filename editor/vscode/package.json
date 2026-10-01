@@ -1,0 +1,27 @@
+{
+  "name": "polar-lang",
+  "displayName": "Polar",
+  "description": "Syntax highlighting for the Polar language (.px)",
+  "version": "0.0.1",
+  "publisher": "polar-lang",
+  "license": "MIT",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "polar",
+        "aliases": ["Polar", "polar"],
+        "extensions": [".px"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "polar",
+        "scopeName": "source.polar",
+        "path": "./syntaxes/polar.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+error[POLAR0505]: cannot find type `Pots`
+ --> unknown_type.px:5:8
+  |
+5 |   f(p: Pots) -> Int {
+  |        ^^^^
+  |
+  = help: did you mean `Post`?
+
+error: aborting due to 1 error

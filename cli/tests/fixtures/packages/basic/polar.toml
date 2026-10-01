@@ -1,0 +1,5 @@
+[project]
+name = "basic"
+
+[dependencies]
+shapes = { path = "../pkgs/shapes" }

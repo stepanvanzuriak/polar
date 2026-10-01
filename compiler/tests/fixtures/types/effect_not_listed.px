@@ -1,0 +1,19 @@
+module App
+
+hosts
+  DOM
+  Node
+
+effects
+  Db in Node {
+    load(id: Int) -> String
+  }
+
+  Storage in DOM {
+    get(key: String) -> String
+  }
+
+functions
+  load(k: String) -> String / {Storage} {
+    Db.load(1)
+  }

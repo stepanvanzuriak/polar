@@ -1,0 +1,9 @@
+error[POLAR0706]: exporting `Describe` must list all its methods
+ --> incomplete_export.px:8:3
+  |
+8 |   Describe { describe }
+  |   ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: add `label`: write `Describe { describe, label }`
+
+error: aborting due to 1 error

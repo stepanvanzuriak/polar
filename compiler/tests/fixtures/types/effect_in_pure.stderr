@@ -1,0 +1,10 @@
+error[POLAR0808]: `shout` uses `Db`, but its signature says it is pure
+  --> effect_in_pure.px:17:22
+   |
+17 |     String.uppercase(title(id))
+   |                      ^^^^^^^^^ this uses `Db`
+   |
+   = note: a signature with `->` and no `/ {…}` promises no effects
+   = help: add `/ {Db}` after the return type
+
+error: aborting due to 1 error

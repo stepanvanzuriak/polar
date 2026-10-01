@@ -1,0 +1,27 @@
+// Self tail calls compile to `while (true)` loops, so building and folding a
+// 100 000-element list needs no stack beyond one frame each (M4-02).
+
+uses
+  Std.List
+
+functions
+  build(n, acc) {
+    if n == 0 {
+      acc
+    } else {
+      build(n - 1, [n, ..acc])
+    }
+  }
+
+  sum_to(n, acc) {
+    if n == 0 { acc } else { sum_to(n - 1, acc + n) }
+  }
+
+  main() {
+    let xs = build(100000, [])
+    Log.info("#{List.fold(xs, 0, function(total, x) { total + x })}")
+    Log.info("#{sum_to(100000, 0)}")
+  }
+
+exports
+  main

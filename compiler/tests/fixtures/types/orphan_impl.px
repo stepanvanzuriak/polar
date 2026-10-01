@@ -1,0 +1,12 @@
+module A
+
+uses
+  Shapes
+  Geo
+
+impls
+  Describe for Point {
+    describe(value) {
+      "a point"
+    }
+  }

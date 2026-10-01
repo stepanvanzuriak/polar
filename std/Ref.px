@@ -1,0 +1,42 @@
+module Ref
+
+types
+  Ref<a>
+
+functions
+  new(value: a) -> Ref<a> {
+    RefRaw.new(value)
+  }
+
+  get(ref: Ref<a>) -> a / {Mut} {
+    RefRaw.get(ref)
+  }
+
+  set(ref: Ref<a>, value: a) -> {} / {Mut} {
+    RefRaw.set(ref, value)
+  }
+
+  update(ref: Ref<a>, f: function(a) -> a) -> {} / {Mut} {
+    RefRaw.set(ref, f(RefRaw.get(ref)))
+  }
+
+  modify(ref: Ref<a>, f: function(a) -> { value: a, result: b }) -> b / {Mut} {
+    let out = f(RefRaw.get(ref))
+
+    RefRaw.set(ref, out.value)
+    out.result
+  }
+
+impls
+  Show for Ref<a> {
+    show(ref) {
+      "<ref>"
+    }
+  }
+
+exports
+  new
+  get
+  set
+  update
+  modify

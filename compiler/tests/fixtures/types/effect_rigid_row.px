@@ -1,0 +1,18 @@
+module App
+
+uses
+  Std.List
+
+hosts
+  Node
+
+effects
+  Db in Node {
+    load(id: Int) -> String
+  }
+
+functions
+  each(xs: List<a>, f: function(a) -> {} / {| e}) -> {} / {| e} {
+    Db.load(1)
+    {}
+  }

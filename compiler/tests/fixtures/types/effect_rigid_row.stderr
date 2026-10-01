@@ -1,0 +1,11 @@
+error[POLAR0808]: `each` uses `Db`, but its row only allows what `f` does
+  --> effect_rigid_row.px:16:5
+   |
+15 |   each(xs: List<a>, f: function(a) -> {} / {| e}) -> {} / {| e} {
+   |                                                         ------- the signature's row
+16 |     Db.load(1)
+   |     ^^^^^^^^^^ this uses `Db`
+   |
+   = help: add `Db` before the `|`: `/ {Db | e}`
+
+error: aborting due to 1 error

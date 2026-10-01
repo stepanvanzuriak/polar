@@ -1,0 +1,16 @@
+GET /posts -> 200 []
+POST /posts -> 201 {"id":1,"title":"First","author_id":1}
+POST /posts -> 201 {"id":2,"title":"Second","author_id":2}
+GET /posts/1 -> 200 {"id":1,"title":"First","author_id":1}
+GET /posts/99 -> 404 not found
+GET /posts/abc -> 404 {"error":"not found"}
+POST /posts -> 400 .title: expected String, found 3
+DELETE /posts/1 -> 204
+DELETE /posts/1 -> 404 not found
+GET /posts -> 200 [{"id":2,"title":"Second","author_id":2}]
+POST /posts -> 201 {"id":3,"title":"<script>alert(\"hi\")</script> & co","author_id":1}
+GET / -> 200 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Posts</title></head><body><h1>Posts</h1><div id="app"><section><p>2 posts &amp; counting</p><article class="post" data-id="2"><h2>Second</h2><p>Post #2 by author 2 — don't miss it!</p></article><article class="post" data-id="3"><h2>&lt;script&gt;alert(&quot;hi&quot;)&lt;/script&gt; &amp; co</h2><p>Post #3 by author 1 — don't miss it!</p></article></section></div><script type="module">import { start } from "/_client/main.js"; start();</script></body></html>
+GET /_client/main.js -> 200 text/javascript; charset=utf-8 with start
+GET /_client/..%2fNode%2fmain.js -> 404 application/json
+the browser sees 2 posts
+<section><p>2 posts &amp; counting</p><article class="post" data-id="2"><h2>Second</h2><p>Post #2 by author 2 — don't miss it!</p></article><article class="post" data-id="3"><h2>&lt;script&gt;alert(&quot;hi&quot;)&lt;/script&gt; &amp; co</h2><p>Post #3 by author 1 — don't miss it!</p></article></section>

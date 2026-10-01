@@ -1,0 +1,9 @@
+error[POLAR0707]: `Post` has no `Describe` impl
+  --> missing_impl_nested.px:13:5
+   |
+13 |     describe(Cons(post, Nil))
+   |     ^^^^^^^^ this needs `Describe`
+   |
+   = note: needed for `Describe<List<Post>>`
+
+error: aborting due to 1 error

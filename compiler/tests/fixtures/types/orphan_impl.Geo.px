@@ -1,0 +1,4 @@
+module Geo
+
+types
+  Point = Point(Float, Float)

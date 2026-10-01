@@ -1,0 +1,7 @@
+module Math
+
+constants
+  pi: Float = 3.141592653589793
+
+exports
+  pi

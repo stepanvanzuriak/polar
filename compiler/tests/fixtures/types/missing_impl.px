@@ -1,0 +1,13 @@
+traits
+  Describe<a> {
+    describe(value: a) -> String
+  }
+
+functions
+  twice(x) {
+    String.concat(describe(x), describe(x))
+  }
+
+  main() {
+    Log.info(twice(function(n: Int) -> Int { n }))
+  }

@@ -1,0 +1,7 @@
+types
+  Post = { id: Int, title: String }
+
+functions
+  publish(p: Post) -> Post {
+    1
+  }

@@ -1,0 +1,131 @@
+module List
+
+uses
+  Std.Option
+
+types
+  List<a> = Nil | Cons(a, List<a>) derive(Eq, Show)
+
+functions
+  range(from: Int, to: Int) -> List<Int> {
+    if from >= to { [] } else { [from, ..range(from + 1, to)] }
+  }
+
+  is_empty(xs: List<a>) -> Bool {
+    match xs {
+      [] -> true,
+      [_, .._] -> false,
+    }
+  }
+
+  length(xs: List<a>) -> Int {
+    match xs {
+      [] -> 0,
+      [_, ..rest] -> 1 + length(rest),
+    }
+  }
+
+  map(xs: List<a>, f: function(a) -> b / {| e}) -> List<b> / {| e} {
+    match xs {
+      [] -> [],
+      [x, ..rest] -> [f(x), ..map(rest, f)],
+    }
+  }
+
+  filter(xs: List<a>, keep: function(a) -> Bool / {| e}) -> List<a> / {| e} {
+    match xs {
+      [] -> [],
+      [x, ..rest] -> if keep(x) { [x, ..filter(rest, keep)] } else { filter(rest, keep) },
+    }
+  }
+
+  fold(xs: List<a>, initial: b, f: function(b, a) -> b / {| e}) -> b / {| e} {
+    match xs {
+      [] -> initial,
+      [x, ..rest] -> fold(rest, f(initial, x), f),
+    }
+  }
+
+  head(xs: List<a>) -> Option<a> {
+    match xs {
+      [] -> None,
+      [x, .._] -> Some(x),
+    }
+  }
+
+  nth(xs: List<a>, index: Int) -> Option<a> {
+    match xs {
+      [] -> None,
+      [x, ..rest] -> if index == 0 {
+        Some(x)
+      } else if index < 0 {
+        None
+      } else {
+        nth(rest, index - 1)
+      },
+    }
+  }
+
+  find(xs: List<a>, test: function(a) -> Bool / {| e}) -> Option<a> / {| e} {
+    match xs {
+      [] -> None,
+      [x, ..rest] -> if test(x) { Some(x) } else { find(rest, test) },
+    }
+  }
+
+  any(xs: List<a>, test: function(a) -> Bool / {| e}) -> Bool / {| e} {
+    match xs {
+      [] -> false,
+      [x, ..rest] -> test(x) || any(rest, test),
+    }
+  }
+
+  all(xs: List<a>, test: function(a) -> Bool / {| e}) -> Bool / {| e} {
+    match xs {
+      [] -> true,
+      [x, ..rest] -> test(x) && all(rest, test),
+    }
+  }
+
+  append(xs: List<a>, ys: List<a>) -> List<a> {
+    match xs {
+      [] -> ys,
+      [x, ..rest] -> [x, ..append(rest, ys)],
+    }
+  }
+
+  concat_map(xs: List<a>, f: function(a) -> List<b> / {| e}) -> List<b> / {| e} {
+    match xs {
+      [] -> [],
+      [x, ..rest] -> append(f(x), concat_map(rest, f)),
+    }
+  }
+
+  reverse(xs: List<a>) -> List<a> {
+    fold(xs, [], function(acc, x) { [x, ..acc] })
+  }
+
+  join(xs: List<String>, separator: String) -> String {
+    match xs {
+      [] -> "",
+      [x] -> x,
+      [x, ..rest] -> "#{x}#{separator}#{join(rest, separator)}",
+    }
+  }
+
+exports
+  all
+  any
+  append
+  concat_map
+  filter
+  find
+  fold
+  head
+  is_empty
+  join
+  length
+  map
+  nth
+  range
+  reverse

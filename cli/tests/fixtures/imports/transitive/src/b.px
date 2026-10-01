@@ -1,0 +1,20 @@
+module B
+
+uses
+  C
+
+functions
+  start() -> Shape {
+    C.origin()
+  }
+
+  describe(shape: Shape) -> String {
+    match shape {
+      Dot(point) -> "dot at #{point.x}, #{point.y}",
+      Blank -> "blank",
+    }
+  }
+
+exports
+  describe
+  start

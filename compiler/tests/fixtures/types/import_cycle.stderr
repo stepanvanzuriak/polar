@@ -1,0 +1,9 @@
+error[POLAR0314]: import cycle: A → B → A
+ --> import_cycle.px:4:3
+  |
+4 |   B
+  |   ^
+  |
+  = help: move what both modules need into a third module
+
+error: aborting due to 1 error

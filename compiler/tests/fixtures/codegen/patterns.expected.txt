@@ -1,0 +1,16 @@
+zero
+minus one
+other int
+one and a half
+other float
+greeting
+other string
+yes
+no
+red
+circle 2
+rect 3x4
+boxed circle 1
+boxed other
+Ada herself
+Alan at 41

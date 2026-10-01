@@ -1,0 +1,16 @@
+target/
+.DS_Store
+.idea
+
+node_modules/
+
+# Emitted JS written beside each codegen fixture by tests/codegen.rs.
+compiler/tests/fixtures/codegen/*.js
+
+# Build output of the projects under projects/.
+projects/*/dist/
+
+tasks/
+
+# What polar generates to build a project's plugin.
+.polar/

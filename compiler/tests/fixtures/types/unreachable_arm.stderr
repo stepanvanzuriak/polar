@@ -1,0 +1,9 @@
+warning[POLAR0603]: this arm can never run
+ --> unreachable_arm.px:8:7
+  |
+7 |       _ -> "any",
+  |       ---------- this arm already covers it
+8 |       Draft -> "draft",
+  |       ^^^^^^^^^^^^^^^^ earlier arms already match everything it would
+
+warning: 1 warning emitted

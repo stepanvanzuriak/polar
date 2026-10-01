@@ -1,0 +1,4 @@
+# `cargo polar-fmt` formats the projects. Cargo aliases cannot shadow the
+# built-in `cargo fmt`, hence the name.
+[alias]
+polar-fmt = "run -p polar-cli -- fmt projects"

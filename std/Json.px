@@ -1,0 +1,262 @@
+module Json
+
+uses
+  Std.List
+  Std.Option
+  Std.Result
+
+traits
+  Json<a> {
+    to_json(value: a) -> JsonValue
+    from_json(value: JsonValue, path: String) -> Result<JsonError, a>
+  }
+
+types
+  JsonValue =
+    | JNull
+    | JBool(Bool)
+    | JNumber(Float)
+    | JString(String)
+    | JArray(List<JsonValue>)
+    | JObject(List<{ key: String, value: JsonValue }>)
+
+  JsonError = { path: String, expected: String, found: String }
+
+functions
+  encode(value: a) -> String where Json<a> {
+    JsonRaw.print(to_json(value))
+  }
+
+  decode(text: String) -> Result<JsonError, a> where Json<a> {
+    match JsonRaw.parse(text) {
+      Err(problem) -> Err({ path: "", expected: "JSON", found: problem }),
+      Ok(value) -> from_json(value, ""),
+    }
+  }
+
+  message(error: JsonError) -> String {
+    let at = if error.path == "" { "" } else { "#{error.path}: " }
+
+    if error.expected == "" {
+      "#{at}#{error.found}"
+    } else {
+      "#{at}expected #{error.expected}, found #{error.found}"
+    }
+  }
+
+  describe(value: JsonValue) -> String {
+    match value {
+      JNull -> "null",
+      JBool(b) -> Bool.to_string(b),
+      JNumber(n) -> Float.to_string(n),
+      JString(_) -> "a string",
+      JArray(_) -> "an array",
+      JObject(_) -> "an object",
+    }
+  }
+
+  fail(path: String, expected: String, value: JsonValue) -> Result<JsonError, a> {
+    Err({ path: path, expected: expected, found: describe(value) })
+  }
+
+  missing(path: String) -> Result<JsonError, a> {
+    Err({ path: path, expected: "", found: "missing field" })
+  }
+
+  object(fields: List<{ key: String, value: JsonValue }>) -> JsonValue {
+    JObject(fields)
+  }
+
+  numbered(args: List<JsonValue>, index: Int) -> List<{ key: String, value: JsonValue }> {
+    match args {
+      [] -> [],
+      [arg, ..rest] -> [{ key: "_#{index}", value: arg }, ..numbered(rest, index + 1)],
+    }
+  }
+
+  tagged(name: String, args: List<JsonValue>) -> JsonValue {
+    JObject([{ key: "$", value: JString(name) }, ..numbered(args, 0)])
+  }
+
+  object_fields(value: JsonValue, path: String) -> Result<JsonError, List<{
+    key: String,
+    value: JsonValue,
+  }>> {
+    match value {
+      JObject(fields) -> Ok(fields),
+      other -> fail(path, "an object", other),
+    }
+  }
+
+  field(
+    fields: List<{ key: String, value: JsonValue }>,
+    path: String,
+    key: String,
+  ) -> Result<JsonError, a> where Json<a> {
+    let at = "#{path}.#{key}"
+
+    match JsonRaw.lookup(fields, key) {
+      None -> missing(at),
+      Some(value) -> from_json(value, at),
+    }
+  }
+
+  variant(value: JsonValue, path: String) -> Result<JsonError, {
+    tag: String,
+    fields: List<{ key: String, value: JsonValue }>,
+  }> {
+    match value {
+      JObject(fields) -> match JsonRaw.lookup(fields, "$") {
+        Some(JString(tag)) -> Ok({ tag: tag, fields: fields }),
+        Some(other) -> fail("#{path}.$", "a constructor name", other),
+        None -> missing("#{path}.$"),
+      },
+      other -> fail(path, "an object", other),
+    }
+  }
+
+  unknown_variant(path: String, expected: String, found: String) -> Result<JsonError, a> {
+    Err({ path: "#{path}.$", expected: expected, found: "\"#{found}\"" })
+  }
+
+  decode_items(
+    items: List<JsonValue>,
+    path: String,
+    index: Int,
+  ) -> Result<JsonError, List<a>> where Json<a> {
+    match items {
+      [] -> Ok([]),
+      [item, ..rest] -> match from_json(item, "#{path}[#{index}]") {
+        Err(error) -> Err(error),
+        Ok(first) -> match decode_items(rest, path, index + 1) {
+          Err(error) -> Err(error),
+          Ok(others) -> Ok([first, ..others]),
+        },
+      },
+    }
+  }
+
+impls
+  Json for Int {
+    to_json(value) {
+      JNumber(Int.to_float(value))
+    }
+
+    from_json(value, path) {
+      match value {
+        JNumber(n) -> if Float.floor(n) == n {
+          Ok(Float.to_int(n))
+        } else {
+          fail(path, "Int", value)
+        },
+        other -> fail(path, "Int", other),
+      }
+    }
+  }
+
+  Json for Float {
+    to_json(value) {
+      JNumber(value)
+    }
+
+    from_json(value, path) {
+      match value {
+        JNumber(n) -> Ok(n),
+        other -> fail(path, "Float", other),
+      }
+    }
+  }
+
+  Json for String {
+    to_json(value) {
+      JString(value)
+    }
+
+    from_json(value, path) {
+      match value {
+        JString(s) -> Ok(s),
+        other -> fail(path, "String", other),
+      }
+    }
+  }
+
+  Json for Bool {
+    to_json(value) {
+      JBool(value)
+    }
+
+    from_json(value, path) {
+      match value {
+        JBool(b) -> Ok(b),
+        other -> fail(path, "Bool", other),
+      }
+    }
+  }
+
+  Json for List<a> where Json<a> {
+    to_json(value) {
+      JArray(List.map(value, to_json))
+    }
+
+    from_json(value, path) {
+      match value {
+        JArray(items) -> decode_items(items, path, 0),
+        other -> fail(path, "an array", other),
+      }
+    }
+  }
+
+  Json for Option<a> where Json<a> {
+    to_json(value) {
+      match value {
+        None -> JNull,
+        Some(x) -> to_json(x),
+      }
+    }
+
+    from_json(value, path) {
+      match value {
+        JNull -> Ok(None),
+        other -> match from_json(other, path) {
+          Err(error) -> Err(error),
+          Ok(x) -> Ok(Some(x)),
+        },
+      }
+    }
+  }
+
+  Json for Result<e, a> where Json<e>, Json<a> {
+    to_json(value) {
+      match value {
+        Err(x) -> tagged("Err", [to_json(x)]),
+        Ok(x) -> tagged("Ok", [to_json(x)]),
+      }
+    }
+
+    from_json(value, path) {
+      match variant(value, path) {
+        Err(error) -> Err(error),
+        Ok({ tag: "Err", fields: fields }) -> match field(fields, path, "_0") {
+          Err(error) -> Err(error),
+          Ok(x) -> Ok(Err(x)),
+        },
+        Ok({ tag: "Ok", fields: fields }) -> match field(fields, path, "_0") {
+          Err(error) -> Err(error),
+          Ok(x) -> Ok(Ok(x)),
+        },
+        Ok({ tag: tag, fields: _ }) -> unknown_variant(path, "Err or Ok", tag),
+      }
+    }
+  }
+
+exports
+  Json { to_json, from_json }
+  decode
+  encode
+  field
+  message
+  object
+  object_fields
+  tagged
+  unknown_variant
+  variant

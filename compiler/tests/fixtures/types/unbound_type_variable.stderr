@@ -1,0 +1,9 @@
+error[POLAR0511]: the type variable `a` is not defined
+ --> unbound_type_variable.px:2:13
+  |
+2 |   Box = Box(a)
+  |             ^
+  |
+  = help: add it to the type's parameters, like `Box<a>`
+
+error: aborting due to 1 error

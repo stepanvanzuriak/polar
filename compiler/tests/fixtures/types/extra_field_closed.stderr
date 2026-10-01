@@ -1,0 +1,12 @@
+error[POLAR0503]: unexpected field `x`
+ --> extra_field_closed.px:7:11
+  |
+2 |   id_of(p: { id: Int }) -> Int {
+  |         -------------- expected because of this
+...
+7 |     id_of({ id: 1, x: 2 })
+  |           ^^^^^^^^^^^^^^^ the type `{ id: Int }` has no field `x`
+  |
+  = note: this record type is closed; write `| rest` in the annotation to accept extra fields
+
+error: aborting due to 1 error

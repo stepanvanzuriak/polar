@@ -1,0 +1,10 @@
+error[POLAR0502]: missing field `title`
+ --> missing_title.px:7:23
+  |
+2 |   title_of(r: { title: String | rest }) -> String {
+  |            --------------------------- `title` is required here
+...
+7 |     Log.info(title_of({ body: "x" }))
+  |                       ^^^^^^^^^^^^^ this record has no field `title`
+
+error: aborting due to 1 error

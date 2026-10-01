@@ -1,0 +1,41 @@
+module Main
+
+uses
+  Std.List
+  Complex
+
+functions
+  show(label: String, z: Complex) -> String {
+    "#{label} = #{Complex.to_string(z)}"
+  }
+
+  main() {
+    let a = Complex.make(3.0, 4.0)
+    let b = Complex.make(1.0, -2.0)
+
+    Log.info(show("a", a))
+    Log.info(show("b", b))
+    Log.info(show("a + b", Complex.add(a, b)))
+    Log.info(show("a + b + i", Complex.sum(a, [b, Complex.make(0.0, 1.0)])))
+    Log.info(show("a * b", Complex.multiply(a, b)))
+    Log.info(show("a * b * a", Complex.product(a, [b, a])))
+    Log.info(show("-a", Complex.negate(a)))
+    Log.info(show("conj(b)", Complex.conjugate(b)))
+    Log.info(show("1 / (1+i)", Complex.invert(Complex.make(1.0, 1.0))))
+    Log.info(show("a * (1 / a)", Complex.multiply(a, Complex.invert(a))))
+    Log.info("|a| = #{Complex.modulus(a)}")
+    Log.info("|b| = #{Complex.modulus(b)}")
+
+    let samples = [
+      Complex.make(0.0, 0.0),
+      Complex.make(2.0, 0.0),
+      Complex.make(0.0, -1.0),
+      Complex.make(-1.5, 0.5),
+    ]
+
+    Log.info(List.join(List.map(samples, Complex.to_string), ", "))
+    Log.info("a == make(3, 4): #{a == Complex.make(3.0, 4.0)}")
+  }
+
+exports
+  main

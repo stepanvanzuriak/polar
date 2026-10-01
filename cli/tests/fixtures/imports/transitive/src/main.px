@@ -1,0 +1,14 @@
+module Main
+
+uses
+  B
+
+functions
+  main() {
+    let shape = B.start()
+
+    Log.info(B.describe(shape))
+  }
+
+exports
+  main

@@ -1,0 +1,7 @@
+error[POLAR0507]: this is not a function
+ --> not_a_function.px:5:5
+  |
+5 |     x(2)
+  |     ^ it has type `Int`
+
+error: aborting due to 1 error

@@ -1,0 +1,12 @@
+types
+  List<a> = Nil | Cons(a, List<a>)
+  Option<a> = None | Some(a)
+  Box<a> = Box(a)
+
+functions
+  f(y) {
+    let z: Box<function(b) -> Option<a>> = y
+    let x: Box<function(a) -> List<b>> = z
+
+    x
+  }

@@ -1,0 +1,73 @@
+module Effects
+
+uses
+  Std.List
+
+hosts
+  DOM
+  Node
+
+types
+  Missing = Missing(String)
+
+effects
+  Storage in DOM {
+    get(key: String) -> String / {Throws<Missing>}
+    set(key: String, value: String) -> {}
+  }
+
+  Db in Node {
+    find(id: Int) -> String
+  }
+
+  native Canvas in DOM {
+    draw(shape: String) -> {}
+  }
+
+externs
+  local_get(key: String) -> String / {Throws<Missing>} = "./effects.dom.js" get_item
+  local_set(key: String, value: String) -> {} = "./effects.dom.js" set_item
+
+binds
+  Storage in DOM {
+    get(key) {
+      local_get(key)
+    }
+
+    set(key, value) {
+      local_set(key, value)
+    }
+  }
+
+  Storage in Node {
+    get(key) {
+      if key == "title" { "Hello from Node" } else { throw Missing(key) }
+    }
+
+    set(key, value) {
+      Log.info("node storage: #{key} = #{value}")
+    }
+  }
+
+  Db in Node {
+    find(id) {
+      "post #{id}"
+    }
+  }
+
+  Canvas in DOM {
+    draw(shape) {
+      Log.info("canvas: #{shape}")
+    }
+  }
+
+  force Canvas in Node {
+    draw(shape) {
+      Log.info("svg buffer: #{shape}")
+    }
+  }
+
+functions
+  title(key: String) -> String {
+    Storage.get(key)
+  }

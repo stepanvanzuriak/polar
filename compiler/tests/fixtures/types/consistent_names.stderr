@@ -1,0 +1,10 @@
+error[POLAR0501]: mismatched types
+ --> consistent_names.px:9:42
+  |
+9 |     let x: Box<function(a) -> List<b>> = z
+  |                                          ^ expected `Box<function(a) -> List<b>>`, found `Box<function(b) -> Option<a>>`
+  |            --------------------------- expected because of this
+  |
+  = note: the return type differs: expected `List<b>`, found `Option<a>`
+
+error: aborting due to 1 error

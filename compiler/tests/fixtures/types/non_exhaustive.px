@@ -1,0 +1,9 @@
+types
+  Status = Draft | Published(Int)
+
+functions
+  describe(s: Status) -> String {
+    match s {
+      Draft -> "draft",
+    }
+  }

@@ -1,0 +1,77 @@
+module Table
+
+uses
+  Std.List
+  Std.Option
+  Std.Ref
+
+types
+  Table<r> = Ref<{ next: Int, rows: List<{ id: Int, row: r }> }>
+
+functions
+  new() -> Table<r> {
+    Ref.new({ next: 1, rows: [] })
+  }
+
+  find(table: Table<r>, id: Int) -> Option<r> / {Mut} {
+    match List.find(Ref.get(table).rows, function(entry) { entry.id == id }) {
+      Some(entry) -> Some(entry.row),
+      None -> None,
+    }
+  }
+
+  all(table: Table<r>) -> List<r> / {Mut} {
+    List.map(Ref.get(table).rows, function(entry) { entry.row })
+  }
+
+  size(table: Table<r>) -> Int / {Mut} {
+    List.length(Ref.get(table).rows)
+  }
+
+  insert(table: Table<r>, make: function(Int) -> r) -> r / {Mut} {
+    Ref.modify(
+      table,
+      function(state) {
+        let row = make(state.next)
+        let rows = List.append(state.rows, [{ id: state.next, row: row }])
+
+        { value: { next: state.next + 1, rows: rows }, result: row }
+      },
+    )
+  }
+
+  update(table: Table<r>, id: Int, row: r) -> Bool / {Mut} {
+    Ref.modify(
+      table,
+      function(state) {
+        let known = List.any(state.rows, function(entry) { entry.id == id })
+        let rows = List.map(
+          state.rows,
+          function(entry) { if entry.id == id { { id: id, row: row } } else { entry } },
+        )
+
+        { value: { next: state.next, rows: rows }, result: known }
+      },
+    )
+  }
+
+  delete(table: Table<r>, id: Int) -> Bool / {Mut} {
+    Ref.modify(
+      table,
+      function(state) {
+        let known = List.any(state.rows, function(entry) { entry.id == id })
+        let rows = List.filter(state.rows, function(entry) { entry.id != id })
+
+        { value: { next: state.next, rows: rows }, result: known }
+      },
+    )
+  }
+
+exports
+  all
+  delete
+  find
+  insert
+  new
+  size
+  update

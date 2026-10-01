@@ -1,0 +1,10 @@
+error[POLAR0705]: `Status` already has a `Describe` impl
+  --> duplicate_impl.px:16:3
+   |
+10 |   Describe for Status {
+   |   ------------------- the first one
+...
+16 |   Describe for Status {
+   |   ^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 1 error

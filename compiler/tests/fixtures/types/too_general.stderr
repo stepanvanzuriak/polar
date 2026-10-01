@@ -1,0 +1,11 @@
+error[POLAR0509]: the annotation `a` is too general
+ --> too_general.px:3:5
+  |
+2 |   f(x: a) -> a {
+  |              - expected because of this
+3 |     1
+  |     ^ this is `Int`, so the function only works for `Int`
+  |
+  = help: replace `a` with `Int`, or remove the annotation
+
+error: aborting due to 1 error

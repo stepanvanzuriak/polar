@@ -1,0 +1,9 @@
+error[POLAR0704]: this impl must live next to `Describe` or `Point`
+ --> orphan_impl.px:8:3
+  |
+8 |   Describe for Point {
+  |   ^^^^^^^^^^^^^^^^^^
+  |
+  = help: move this impl into the module that declares `Describe` or the one that declares `Point`
+
+error: aborting due to 1 error

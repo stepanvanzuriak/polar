@@ -1,0 +1,8 @@
+functions
+  id_of(p: { id: Int }) -> Int {
+    p.id
+  }
+
+  main() {
+    id_of({ id: 1, x: 2 })
+  }

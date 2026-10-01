@@ -1,0 +1,17 @@
+module App
+
+hosts
+  DOM
+
+types
+  Missing = Missing(String)
+
+effects
+  Storage in DOM {
+    get(key: String) -> String / {Throws<Missing>}
+  }
+
+functions
+  read(key: String) -> String {
+    Storage.get(key)
+  }

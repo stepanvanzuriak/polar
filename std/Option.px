@@ -1,0 +1,31 @@
+module Option
+
+types
+  Option<a> = None | Some(a) derive(Eq, Show)
+
+functions
+  map(option: Option<a>, f: function(a) -> b / {| e}) -> Option<b> / {| e} {
+    match option {
+      None -> None,
+      Some(x) -> Some(f(x)),
+    }
+  }
+
+  with_default(option: Option<a>, default: a) -> a {
+    match option {
+      None -> default,
+      Some(x) -> x,
+    }
+  }
+
+  and_then(option: Option<a>, f: function(a) -> Option<b> / {| e}) -> Option<b> / {| e} {
+    match option {
+      None -> None,
+      Some(x) -> f(x),
+    }
+  }
+
+exports
+  and_then
+  map
+  with_default

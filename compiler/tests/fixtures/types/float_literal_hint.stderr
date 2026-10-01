@@ -1,0 +1,9 @@
+error[POLAR0501]: mismatched types
+ --> float_literal_hint.px:3:9
+  |
+3 |     a * 2
+  |         ^ expected `Float`, found `Int`
+  |
+  = help: write `2.0` for a Float
+
+error: aborting due to 1 error

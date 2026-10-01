@@ -1,0 +1,8 @@
+functions
+  double(x: Int) -> Int {
+    x * 2
+  }
+
+  main() {
+    double("a")
+  }

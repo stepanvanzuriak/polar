@@ -1,0 +1,10 @@
+error[POLAR0502]: missing fields `body` and `title`
+ --> missing_several.px:7:23
+  |
+2 |   headline(post: { title: String, body: String }) -> String {
+  |            ------------------------------------- `body` and `title` are required here
+...
+7 |     Log.info(headline({ id: 1 }))
+  |                       ^^^^^^^^^ this record has no fields `body` and `title`
+
+error: aborting due to 1 error

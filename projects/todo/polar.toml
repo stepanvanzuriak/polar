@@ -1,0 +1,5 @@
+[project]
+name = "todo"
+src = "src"
+out = "dist"
+main = "src/main.px"

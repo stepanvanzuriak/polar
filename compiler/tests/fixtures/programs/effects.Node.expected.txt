@@ -1,0 +1,5 @@
+node storage: title = Hello Polar World
+hello-from-node
+(no draft)
+svg buffer: circle
+svg buffer: square
