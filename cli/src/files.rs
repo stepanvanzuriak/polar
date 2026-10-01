@@ -196,13 +196,104 @@ pub fn read_source(input: &Input) -> Result<Source, CliError> {
   Ok(decode(&input.display, &bytes))
 }
 
-/// Reads an input's bytes, from the embedded SDK or from disk.
+/// Reads an input's bytes from disk. A module no file holds may be a sibling
+/// that a plugin zone in a file next to it generates (see [`siblings`]).
 ///
 /// # Errors
 ///
-/// Fails if the file cannot be read.
+/// Fails if the file cannot be read and no zone generates it.
 pub fn read_bytes(input: &Input) -> io::Result<Vec<u8>> {
-  fs::read(&input.path)
+  match fs::read(&input.path) {
+    Err(e) if e.kind() == io::ErrorKind::NotFound => {
+      generated_source(input).map(String::into_bytes).ok_or(e)
+    }
+    read => read,
+  }
+}
+
+/// The source of the sibling module `input` names, from whichever `.px` file
+/// in its folder generates it.
+fn generated_source(input: &Input) -> Option<String> {
+  let plugins = input.plugins();
+
+  if plugins.is_empty() {
+    return None;
+  }
+
+  let dir = input.path.parent()?;
+  let wanted = input.path.file_name()?.to_str()?;
+  let mut files: Vec<PathBuf> = fs::read_dir(dir)
+    .ok()?
+    .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+    .filter(|path| {
+      path.is_file() && path.extension().is_some_and(|e| e == "px")
+    })
+    .collect();
+
+  files.sort();
+
+  files.into_iter().find_map(|path| {
+    let text = fs::read_to_string(&path).ok()?;
+    let display = Path::new(&input.display)
+      .with_file_name(path.file_name()?)
+      .display()
+      .to_string();
+    let generated = crate::guard(&display, || {
+      polar_compiler::shared::modules::siblings(&text, &display, &plugins)
+    })
+    .ok()?;
+
+    generated
+      .into_iter()
+      .find(|(name, _)| {
+        polar_compiler::shared::modules::sibling_file(name) == wanted
+      })
+      .map(|(_, source)| source)
+  })
+}
+
+/// The modules the plugin zones in `input` generate next to it, as inputs to
+/// compile with it.
+///
+/// # Errors
+///
+/// Fails if a plugin panics, or a generated module's file already exists.
+pub fn siblings(input: &Input, text: &str) -> Result<Vec<Input>, CliError> {
+  let plugins = input.plugins();
+
+  if plugins.is_empty() {
+    return Ok(Vec::new());
+  }
+
+  let generated = crate::guard(&input.display, || {
+    polar_compiler::shared::modules::siblings(text, &input.display, &plugins)
+  })
+  .map_err(CliError::Ice)?;
+  let mut inputs = Vec::new();
+
+  for (name, _) in generated {
+    let file = polar_compiler::shared::modules::sibling_file(&name);
+    let path = input.path.with_file_name(&file);
+    let display =
+      Path::new(&input.display).with_file_name(&file).display().to_string();
+
+    if path.exists() {
+      return Err(CliError::Message(format!(
+        "`{}` generates the module `{name}` next to it, but `{display}` \
+         already exists; rename or remove that file",
+        input.display
+      )));
+    }
+
+    inputs.push(Input {
+      display,
+      path,
+      output: input.output.with_file_name(Path::new(&file).with_extension("")),
+      package: input.package.clone(),
+    });
+  }
+
+  Ok(inputs)
 }
 
 #[must_use]
