@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridges – Polar</title>
+<meta name="description" content="Call a Node effect from browser code over HTTP, with the same types and errors on both sides.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="bridges">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Bridges</h1>
+      <p class="lead">A bridge lets code on one host use an effect that lives on another. Browser code can call a Node effect as if it were local, and Polar handles the HTTP in between.</p>
+
+      <h2 id="problem">The problem</h2>
+      <p>In <a href="hosts.html#nowhere">Hosts</a>, we saw a function that used <code>Dom</code> and <code>Visits</code> together, and couldn't run anywhere. The browser has the DOM, and Node has the data. In most stacks, you'd now write an API endpoint, a fetch call, and JSON parsing on both ends, and keep them in sync by hand.</p>
+
+      <h2 id="declaring">Declaring a bridge</h2>
+      <p>In Polar, it's one line in <code>binds</code>:</p>
+<pre class="code" data-lang="polar"><code>uses
+  Std.Dom
+  Std.Json
+
+hosts
+  Browser
+  Node
+
+effects
+  Visits in Node {
+    count() -> Int
+  }
+
+binds
+  Visits in Node {
+    count() {
+      42
+    }
+  }
+
+  Visits in Browser from Node
+
+functions
+  start() -> {} / {Dom, Visits} {
+    Dom.append_text("p", "#{Visits.count()} visits so far")
+  }</code></pre>
+      <p><code>Visits in Browser from Node</code> means: in the browser, <code>Visits</code> is available, and calls go to the Node implementation. Now <code>start</code> runs in the browser, and the error from before is gone.</p>
+
+      <h2 id="what-crosses">What crosses the bridge</h2>
+      <ul>
+        <li><strong>Arguments and results</strong> are sent as JSON. That's why the module needs <code>uses Std.Json</code>, and why the types an operation takes and returns need <a href="json.html"><code>Json</code></a>. Polar tells you if one doesn't.</li>
+        <li><strong>Errors</strong> cross too. If the Node side throws a declared error, like <code>Throws&lt;Missing&gt;</code>, browser code can catch it with an ordinary <code>try</code>/<code>catch</code>.</li>
+        <li><strong>Types</strong> are shared, because both sides are compiled from the same code. Rename a field and both ends change together.</li>
+      </ul>
+      <div class="callout">
+        <p><span class="label">Note:</span> A bridge is not an emulation. It runs the real implementation on the real host, so <code>native</code> effects can be bridged without <code>force</code>.</p>
+      </div>
+
+      <h2 id="running">Running it</h2>
+      <p>The build writes two bundles, <code>dist/Browser/</code> and <code>dist/Node/</code>. The Node bundle includes <code>_polar/bridges.js</code>, which lists every bridged effect. The runtime serves it with Node's built-in <code>http</code> module:</p>
+<pre class="code"><code>import { createServer } from "node:http";
+import { bridges } from "./dist/Node/_polar/bridges.js";
+import { bridge } from "./dist/Node/_polar/runtime.js";
+
+createServer(bridge.nodeListener(bridges)).listen(3000);</code></pre>
+      <p>By default, browser code sends bridge calls to <code>/_polar/&lt;Effect&gt;/&lt;operation&gt;</code> on the same origin. If the server lives somewhere else, point the browser runtime at it before calling <code>start</code>:</p>
+<pre class="code"><code>import { bridge } from "./dist/Browser/_polar/runtime.js";
+
+bridge.configure({ base: "http://localhost:3000/_polar" });</code></pre>
+
+      <h2 id="example">A complete example</h2>
+      <p>The repository's <code>projects/bridge_posts</code> project bridges a <code>Posts</code> effect, including an error case. Its <code>e2e.mjs</code> script starts a bridge server, points the browser bundle at it and runs <code>start</code>:</p>
+<pre class="code out"><code><span class="pr">$</span> polar build --out /tmp/bp/dist
+<span class="pr">$</span> node e2e.mjs /tmp/bp/dist
+2 posts on the server
+1: Hello from the server
+2: Bridges forward effects
+no post 42
+the same post twice is equal: true</code></pre>
+      <p><code>no post 42</code> is a <code>Missing</code> error thrown in Node and caught in browser code.</p>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> For a full web app, the example <code>simple_framework</code> package does all of this wiring for you. Its launcher serves the browser bundle, the bridges and your routes from one server. See <code>projects/web_posts</code>, and <a href="modules-and-packages.html#launchers">Launchers</a>.</p>
+      </div>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

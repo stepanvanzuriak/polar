@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thinking in Polar – Polar</title>
+<meta name="description" content="Build a small command-line program step by step: model the data, write a pure core, parse input, handle errors and add effects at the edge.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="thinking-in-polar">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Thinking in Polar</h1>
+      <p class="lead">Let's build a real program and see how the pieces fit. We'll write <code>grades</code>, a command-line tool that turns scores into a report.</p>
+      <p>Here's what it will do when we're finished:</p>
+<pre class="code out"><code><span class="pr">$</span> polar run grades.px -- ann:93 bob:71 cat:85
+ann: 93 (A)
+bob: 71 (C)
+cat: 85 (B)
+Average: 83
+Best: ann</code></pre>
+      <p>Along the way, we'll follow the approach that works best in Polar: model the data first, keep the core of the program pure, and push effects to the edges.</p>
+
+      <h2 id="step-1">Step 1: Model the data</h2>
+      <p>Start with types, before any logic. What does the program work with? A score is a name and a number of points, and a grade is one of four letters:</p>
+<pre class="code" data-lang="polar"><code>types
+  Score = { name: String, points: Int }
+
+  Grade = A | B | C | F</code></pre>
+      <p><code>Score</code> is a <a href="records.html">record</a>, because every score has <em>both</em> fields. <code>Grade</code> is a <a href="variants-and-matching.html">variant</a>, because a grade is <em>one of</em> the cases. Getting this choice right makes the rest of the code simple.</p>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> Why not store grades as strings like <code>"A"</code>? Because then <code>"a"</code>, <code>"E"</code> and <code>""</code> would be grades too. With a variant, only real grades exist, and every <code>match</code> on one is checked for completeness.</p>
+      </div>
+
+      <h2 id="step-2">Step 2: Write the pure core</h2>
+      <p>Next, the logic. None of it needs the outside world, so these are all pure functions. They're easy to test, and they can run on any host.</p>
+<pre class="code" data-lang="polar"><code>grade(points: Int) -> Grade {
+  if points >= 90 { A } else if points >= 75 { B } else if points >= 60 { C } else { F }
+}
+
+letter(g: Grade) -> String {
+  match g {
+    A -> "A",
+    B -> "B",
+    C -> "C",
+    F -> "F",
+  }
+}
+
+average(scores: List&lt;Score&gt;) -> Int {
+  let total = List.fold(scores, 0, function(sum, s) { sum + s.points })
+
+  total / List.length(scores)
+}</code></pre>
+      <p>For the best score, there's a catch: an empty list has no best. So <code>best</code> returns an <a href="lists-options-results.html#option"><code>Option</code></a>, and the type reminds every caller to handle the empty case:</p>
+<pre class="code" data-lang="polar"><code>best(scores: List&lt;Score&gt;) -> Option&lt;Score&gt; {
+  List.fold(
+    scores,
+    None,
+    function(top, s) {
+      match top {
+        None -> Some(s),
+        Some(t) -> if s.points > t.points { Some(s) } else { top },
+      }
+    },
+  )
+}</code></pre>
+      <p>Then the report itself: one line per score, and a summary at the end.</p>
+<pre class="code" data-lang="polar"><code>line(s: Score) -> String {
+  "#{s.name}: #{s.points} (#{letter(grade(s.points))})"
+}
+
+report(scores: List&lt;Score&gt;) -> List&lt;String&gt; {
+  let top = Option.with_default(
+    Option.map(best(scores), function(s) { s.name }),
+    "nobody",
+  )
+  let summary = ["Average: #{average(scores)}", "Best: #{top}"]
+
+  List.append(List.map(scores, line), summary)
+}</code></pre>
+
+      <h2 id="step-3">Step 3: Parse the input, and fail clearly</h2>
+      <p>Input arrives as text like <code>ann:93</code>. Text can be wrong, so parsing can fail. We describe the failure as a type, and <a href="errors.html">throw</a> it:</p>
+<pre class="code" data-lang="polar"><code>types
+  BadInput = BadInput(String)
+
+functions
+  parse(arg: String) -> Score / {Throws&lt;BadInput&gt;} {
+    match String.split(arg, ":") {
+      [name, points] -> match Int.parse(points) {
+        Some(n) -> { name: name, points: n },
+        None -> throw BadInput(arg),
+      },
+      _ -> throw BadInput(arg),
+    }
+  }</code></pre>
+      <p>The patterns do most of the work. <code>[name, points]</code> only matches when the text splits into exactly two parts. <code>Int.parse</code> returns an <code>Option</code>, so the non-number case can't be forgotten.</p>
+
+      <h2 id="step-4">Step 4: Add effects at the edge</h2>
+      <p>Only now do we touch the outside world. <code>main</code> reads the command-line arguments with <a href="command-line-programs.html"><code>Std.Process</code></a>, runs the pure core, and sets an exit code:</p>
+<pre class="code" data-lang="polar"><code>main() -> {} / {Process} {
+  try {
+    let scores = List.map(Process.args(), parse)
+
+    if List.is_empty(scores) {
+      Log.error("usage: grades name:points ...")
+      Process.set_exit_code(2)
+    } else {
+      Log.info(List.join(report(scores), "\n"))
+    }
+  } catch {
+    BadInput(arg) -> {
+      Log.error("can't read `#{arg}`, expected name:points")
+      Process.set_exit_code(1)
+    }
+  }
+}</code></pre>
+      <p>Two things to notice:</p>
+      <ul>
+        <li><code>List.map(Process.args(), parse)</code> passes a throwing function to <code>List.map</code>. Because <code>map</code> passes effects through, the <code>Throws&lt;BadInput&gt;</code> reaches our <code>try</code>.</li>
+        <li>The signature says <code>/ {Process}</code> and nothing else. The <code>try</code> caught every <code>BadInput</code>, so no error can escape <code>main</code>.</li>
+      </ul>
+
+      <h2 id="step-5">Step 5: Check where it runs</h2>
+      <p>Ask Polar where each function can run:</p>
+<pre class="code out"><code><span class="pr">$</span> polar build grades.px --emit=hosts
+average : every host
+best    : every host
+grade   : every host
+letter  : every host
+line    : every host
+main    : {Node}
+parse   : every host
+report  : every host</code></pre>
+      <p>This is the payoff of keeping effects at the edge. Everything except <code>main</code> runs anywhere. If we later want a web version, the whole core moves to the browser unchanged, and only a new <code>main</code> needs to be written.</p>
+
+      <h2 id="the-whole-program">The whole program</h2>
+<pre class="code" data-lang="polar"><code>module Grades
+
+uses
+  Std.List
+  Std.Option
+  Std.Process
+
+hosts
+  Node
+
+types
+  Score = { name: String, points: Int }
+
+  Grade = A | B | C | F
+
+  BadInput = BadInput(String)
+
+functions
+  grade(points: Int) -> Grade {
+    if points >= 90 { A } else if points >= 75 { B } else if points >= 60 { C } else { F }
+  }
+
+  letter(g: Grade) -> String {
+    match g {
+      A -> "A",
+      B -> "B",
+      C -> "C",
+      F -> "F",
+    }
+  }
+
+  average(scores: List&lt;Score&gt;) -> Int {
+    let total = List.fold(scores, 0, function(sum, s) { sum + s.points })
+
+    total / List.length(scores)
+  }
+
+  best(scores: List&lt;Score&gt;) -> Option&lt;Score&gt; {
+    List.fold(
+      scores,
+      None,
+      function(top, s) {
+        match top {
+          None -> Some(s),
+          Some(t) -> if s.points > t.points { Some(s) } else { top },
+        }
+      },
+    )
+  }
+
+  parse(arg: String) -> Score / {Throws&lt;BadInput&gt;} {
+    match String.split(arg, ":") {
+      [name, points] -> match Int.parse(points) {
+        Some(n) -> { name: name, points: n },
+        None -> throw BadInput(arg),
+      },
+      _ -> throw BadInput(arg),
+    }
+  }
+
+  line(s: Score) -> String {
+    "#{s.name}: #{s.points} (#{letter(grade(s.points))})"
+  }
+
+  report(scores: List&lt;Score&gt;) -> List&lt;String&gt; {
+    let top = Option.with_default(
+      Option.map(best(scores), function(s) { s.name }),
+      "nobody",
+    )
+    let summary = ["Average: #{average(scores)}", "Best: #{top}"]
+
+    List.append(List.map(scores, line), summary)
+  }
+
+  main() -> {} / {Process} {
+    try {
+      let scores = List.map(Process.args(), parse)
+
+      if List.is_empty(scores) {
+        Log.error("usage: grades name:points ...")
+        Process.set_exit_code(2)
+      } else {
+        Log.info(List.join(report(scores), "\n"))
+      }
+    } catch {
+      BadInput(arg) -> {
+        Log.error("can't read `#{arg}`, expected name:points")
+        Process.set_exit_code(1)
+      }
+    }
+  }
+
+exports
+  main</code></pre>
+      <p>Try it with good input, bad input and no input:</p>
+<pre class="code out"><code><span class="pr">$</span> polar run grades.px -- ann:93 bob:71 cat:85
+ann: 93 (A)
+bob: 71 (C)
+cat: 85 (B)
+Average: 83
+Best: ann
+
+<span class="pr">$</span> polar run grades.px -- ann:93 bob
+can't read `bob`, expected name:points
+
+<span class="pr">$</span> polar run grades.px
+usage: grades name:points ...</code></pre>
+      <p>The three runs exit with codes 0, 1 and 2.</p>
+
+      <h2 id="what-next">Where to go from here</h2>
+      <p>That's the main concepts covered. The <a href="mutable-state.html">Advanced Guides</a> go deeper into specific tasks: storing state, <a href="json.html">JSON</a>, <a href="browser.html">running in the browser</a>, <a href="javascript-interop.html">calling JavaScript</a> and more. Each one stands on its own, so read them in any order.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

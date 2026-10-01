@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polar</title>
+<meta name="description" content="Polar is a statically typed, row-polymorphic language that compiles to JavaScript.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --snow: #f2f6f9;
+  --frost: #dde8ef;
+  --glacier: #8db9d4;
+  --current: #2c6e96;
+  --deep: #0d3557;
+  --abyss: #071e33;
+
+  --bg: var(--snow);
+  --surface: var(--frost);
+  --ink: var(--deep);
+  --muted: #47657d;
+  --link: var(--current);
+  --line: #c3d6e3;
+  --mark: var(--deep);
+  --reflection: var(--glacier);
+  --code-bg: var(--abyss);
+  --code-ink: #cfe3f0;
+  --code-kw: #8db9d4;
+  --code-type: #f2f6f9;
+  --code-str: #9fd9d2;
+  --code-dim: #5e7f99;
+  --deep-bg: var(--abyss);
+  --deep-ink: #cfe3f0;
+  --out-bg: #10304d;
+  --out-ink: #b9cfdf;
+  --out-line: #1c3c58;
+  --out-error: #ffb4a8;
+
+  --display: "Archivo", system-ui, sans-serif;
+  --mono: "Martian Mono", ui-monospace, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #081b2c;
+    --surface: #0d2a44;
+    --ink: #e6f0f7;
+    --muted: #94b2c7;
+    --link: #8db9d4;
+    --line: #1c3c58;
+    --mark: #f2f6f9;
+    --reflection: #3f86b0;
+    --code-bg: #04121f;
+    --deep-bg: #04121f;
+    --out-bg: #0a2338;
+    --out-line: #163450;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #081b2c;
+  --surface: #0d2a44;
+  --ink: #e6f0f7;
+  --muted: #94b2c7;
+  --link: #8db9d4;
+  --line: #1c3c58;
+  --mark: #f2f6f9;
+  --reflection: #3f86b0;
+  --code-bg: #04121f;
+  --deep-bg: #04121f;
+  --out-bg: #0a2338;
+  --out-line: #163450;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  font-variation-settings: "wdth" 100;
+}
+
+a { color: var(--link); text-underline-offset: 0.2em; }
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+@media (min-width: 48rem) { .wrap { padding: 0 2rem; } }
+
+.top {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.75rem;
+  padding-top: 1.5rem;
+  font-size: 0.9375rem;
+}
+.top a { color: var(--ink); text-decoration: none; }
+.top a:hover { text-decoration: underline; }
+
+.hero {
+  display: grid;
+  gap: 3.5rem;
+  padding-top: clamp(1rem, 2vw, 1.5rem);
+}
+@media (min-width: 60rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4rem;
+    align-items: start;
+  }
+}
+
+.brand { container-type: inline-size; }
+
+.mark {
+  margin: 0;
+  font-weight: 850;
+  font-size: 33.5cqi;
+  font-variation-settings: "wdth" 125;
+  letter-spacing: -0.045em;
+  line-height: 0.74;
+  color: var(--mark);
+  margin-left: -0.04em;
+}
+
+.water {
+  position: relative;
+  height: 0.6em;
+  overflow: hidden;
+  font-weight: 850;
+  font-size: 33.5cqi;
+  font-variation-settings: "wdth" 125;
+  letter-spacing: -0.045em;
+  line-height: 0.74;
+  margin-left: -0.04em;
+  margin-top: 0.20em;
+  user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.75), transparent 90%);
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.75), transparent 90%);
+}
+.water span {
+  display: block;
+  color: var(--reflection);
+  transform: scaleY(-1);
+  transform-origin: top;
+  margin-top: 0.895em;
+  filter: url(#ripple);
+}
+@media (prefers-reduced-motion: reduce) {
+  .water span { filter: none; }
+}
+
+.lede {
+  max-width: 38rem;
+  margin: clamp(1.5rem, 4vw, 2.5rem) 0 0;
+  font-size: clamp(1.375rem, 2.2vw, 1.75rem);
+  line-height: 1.3;
+  font-weight: 500;
+  font-variation-settings: "wdth" 92;
+}
+.sub {
+  max-width: 36rem;
+  margin: 1rem 0 0;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin-top: 2rem;
+}
+.button {
+  display: inline-block;
+  padding: 0.8rem 1.4rem;
+  background: var(--mark);
+  color: var(--bg);
+  text-decoration: none;
+  font-weight: 650;
+  border-radius: 999px;
+}
+.button:hover { background: var(--link); }
+
+.carousel { min-width: 0; }
+.track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  align-items: start;
+  transition: height 0.3s ease;
+}
+.track::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .track { scroll-behavior: auto; transition: none; }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+  min-width: 0;
+  padding: 1.5rem;
+  background: var(--surface);
+  border-radius: 10px;
+}
+.card h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  font-weight: 750;
+  font-variation-settings: "wdth" 112;
+  letter-spacing: -0.015em;
+}
+.card p {
+  margin: 0.6rem 0 1.25rem;
+  color: var(--muted);
+}
+.panes {
+  border-radius: 6px;
+  overflow: hidden;
+}
+.panes pre {
+  padding: 1.1rem 1rem;
+  border-radius: 0;
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  font-variation-settings: "wdth" 75;
+}
+.out {
+  margin: 0;
+  padding: 1rem 1.5rem;
+  background: var(--out-bg);
+  color: var(--out-ink);
+  border-top: 1px solid var(--out-line);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.out .pr { color: #5e7f99; }
+.out .er { color: var(--out-error); font-weight: 600; }
+.out .hl { color: #f2f6f9; }
+.card p code { color: var(--ink); }
+.card a { margin-top: auto; padding-top: 1.25rem; align-self: flex-start; font-weight: 600; }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.dots { display: flex; gap: 0.4rem; margin-right: auto; }
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+}
+.dot[aria-current="true"] { background: var(--ink); }
+.step {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.step:hover { border-color: var(--ink); }
+.step:disabled { opacity: 0.35; cursor: default; border-color: var(--line); }
+
+pre, code { font-family: var(--mono); }
+code { font-size: 0.9em; font-variation-settings: "wdth" 87.5; }
+
+.shell {
+  margin: 0;
+  padding: 0.75rem 1.1rem;
+  background: var(--surface);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  overflow-x: auto;
+}
+
+.features { margin-top: clamp(5rem, 12vw, 9rem); }
+
+.feature {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0;
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 60rem) {
+  .feature {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 4rem;
+    align-items: start;
+  }
+}
+
+.feature h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+  line-height: 1.1;
+  font-weight: 750;
+  font-variation-settings: "wdth" 112;
+  letter-spacing: -0.02em;
+}
+.feature p {
+  margin: 1rem 0 0;
+  max-width: 34rem;
+  color: var(--muted);
+}
+.feature p code { color: var(--ink); }
+
+.code {
+  margin: 0;
+  padding: 1.4rem 1.5rem;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  tab-size: 2;
+}
+.code .kw { color: var(--code-kw); }
+.code .ty { color: var(--code-type); font-weight: 600; }
+.code .st { color: var(--code-str); }
+.code .cm, .code .pr { color: var(--code-dim); }
+
+.depths {
+  margin-top: clamp(3rem, 8vw, 6rem);
+  background: var(--deep-bg);
+  color: var(--deep-ink);
+  padding: clamp(4rem, 10vw, 7rem) 0 3rem;
+}
+.depths h2 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  font-variation-settings: "wdth" 120;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #f2f6f9;
+}
+.depths p { max-width: 34rem; color: #94b2c7; }
+.depths a { color: #8db9d4; }
+.depths .code { background: #0d2a44; margin-top: 2rem; max-width: 44rem; }
+.depths .code .ty { color: #f2f6f9; }
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: clamp(4rem, 10vw, 6rem);
+  padding-top: 1.5rem;
+  border-top: 1px solid #1c3c58;
+  font-size: 0.875rem;
+  color: #94b2c7;
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="ripple" x="-5%" y="-50%" width="110%" height="200%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.004 0.09" numOctaves="2" seed="4">
+      <animate attributeName="baseFrequency" dur="14s" values="0.004 0.09;0.006 0.12;0.004 0.09" repeatCount="indefinite"/>
+    </feTurbulence>
+    <feDisplacementMap in="SourceGraphic" scale="14"/>
+  </filter>
+</svg>
+
+<header class="wrap">
+  <nav class="top" aria-label="Main">
+    <a href="#features">Features</a>
+    <a href="docs/getting-started.html">Docs</a>
+    <a href="#install">Install</a>
+    <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+  </nav>
+
+  <section class="hero">
+    <div class="brand">
+      <h1 class="mark">polar</h1>
+      <div class="water" aria-hidden="true"><span>polar</span></div>
+
+      <p class="lede">A statically typed language that compiles to JavaScript.</p>
+      <p class="sub">Records, effects and hosts are checked before anything runs. What you ship is plain JavaScript with source maps and type declarations.</p>
+
+      <div class="actions">
+        <a class="button" href="#install">Install Polar</a>
+        <a href="docs/getting-started.html">Read the docs</a>
+        <pre class="shell"><code>polar run hello.px</code></pre>
+      </div>
+    </div>
+
+    <div class="carousel" role="region" aria-roledescription="carousel" aria-label="Polar features">
+      <div class="controls">
+        <div class="dots"></div>
+        <button class="step" type="button" data-step="-1" aria-label="Previous feature">&#8249;</button>
+        <button class="step" type="button" data-step="1" aria-label="Next feature">&#8250;</button>
+      </div>
+      <div class="track" tabindex="0">
+        <article class="card" aria-roledescription="slide" aria-label="1 of 5">
+          <h3>Records that fit any shape</h3>
+          <p><code>title_of</code> asks for a <code>title</code> and nothing more. A <code>Task</code> works, an inline record works, and a record without a <code>title</code> is a compile error.</p>
+          <div class="panes">
+<pre class="code" data-lang="polar"><code>types
+  Task = { id: Int, title: String }
+
+functions
+  // `| rest` lets any other fields through
+  title_of(r: { title: String | rest }) -> String {
+    r.title
+  }
+
+  main() {
+    let task: Task = { id: 1, title: "Write docs" }
+
+    Log.info(title_of(task))
+    Log.info(title_of({ title: "Ship it", author: "Ann" }))
+  }</code></pre>
+<pre class="out"><code><span class="pr">$</span> polar run records.px
+Write docs
+Ship it</code></pre>
+          </div>
+          <a href="#records">More on records</a>
+        </article>
+        <article class="card" aria-roledescription="slide" aria-label="2 of 5">
+          <h3>Effects are in the signature</h3>
+          <p><code>/ {Clock}</code> says <code>stamp</code> reads the clock. <code>double</code> claims to be pure, so the compiler rejects the hidden call and says how to fix it.</p>
+          <div class="panes">
+<pre class="code" data-lang="polar"><code>effects
+  Clock in Node {
+    now() -> Int
+  }
+
+functions
+  stamp(label: String) -> String / {Clock} {
+    "#{label} at #{Clock.now()}"
+  }
+
+  double(n: Int) -> Int {
+    n * Clock.now()
+  }</code></pre>
+<pre class="out"><code><span class="pr">$</span> polar check clock.px
+<span class="er">error[POLAR0808]</span><span class="hl">: `double` uses `Clock`, but its signature says it is pure</span>
+  --> clock.px:17:9
+   |
+17 |     n * Clock.now()
+   |         ^^^^^^^^^^^ this uses `Clock`
+   |
+   = note: a signature with `->` and no `/ {…}` promises no effects
+   = help: add `/ {Clock}` after the return type</code></pre>
+          </div>
+          <a href="#effects">More on effects</a>
+        </article>
+        <article class="card" aria-roledescription="slide" aria-label="3 of 5">
+          <h3>Browser and server in one program</h3>
+          <p><code>Visits</code> lives in Node and <code>Dom</code> in the browser. The bridge line lets browser code call <code>Visits</code> over HTTP, and the build writes one bundle per host.</p>
+          <div class="panes">
+<pre class="code" data-lang="polar"><code>hosts
+  Browser
+  Node
+
+effects
+  Visits in Node {
+    count() -> Int
+  }
+
+binds
+  Visits in Node {
+    count() {
+      42
+    }
+  }
+
+  Visits in Browser from Node
+
+functions
+  start() -> {} / {Dom, Visits} {
+    Dom.append_text("p", "#{Visits.count()} visits so far")
+  }</code></pre>
+<pre class="out"><code><span class="pr">$</span> polar build
+built visits (1 file) for Browser into dist/Browser in 118ms
+built visits (1 file) for Node into dist/Node in 191ms</code></pre>
+          </div>
+          <a href="#hosts">More on hosts</a>
+        </article>
+        <article class="card" aria-roledescription="slide" aria-label="4 of 5">
+          <h3>Zones that extend the language</h3>
+          <p><code>routes</code> isn't built into Polar. The <code>simple_framework</code> package adds it with a Rust plugin. <code>:id</code> fills the handler's <code>id</code> parameter, and the generated router is type-checked like your own code.</p>
+          <div class="panes">
+<pre class="code" data-lang="polar"><code>routes
+  GET     /posts      -> index
+  GET     /posts/:id  -> show
+
+functions
+  index() -> Response / {Posts} {
+    Response.json(200, Posts.all())
+  }
+
+  show(id: Int) -> Response / {Posts} {
+    match Posts.find(Id(id)) {
+      Some(post) -> Response.json(200, post),
+      None -> Response.not_found(),
+    }
+  }</code></pre>
+          </div>
+          <a href="#zones">More on zones</a>
+        </article>
+        <article class="card" aria-roledescription="slide" aria-label="5 of 5">
+          <h3>Readable JavaScript out</h3>
+          <p>Each module becomes an ES module with a source map and a <code>.d.ts</code> file, so TypeScript code can import it with full types.</p>
+          <div class="panes">
+<pre class="code" data-lang="polar"><code>types
+  User = { name: String, admin: Bool }
+
+functions
+  greet(user: User) -> String {
+    if user.admin { "Admin #{user.name}" } else { user.name }
+  }</code></pre>
+<pre class="out"><code><span class="pr">$</span> polar build greet.px --out dist
+built 1 file in 5ms
+<span class="pr">$</span> cat dist/greet.js
+import * as $rt from "./_polar/runtime.js";
+
+export function greet(user) {
+  if (user.admin) {
+    return `Admin ${user.name}`;
+  } else {
+    return user.name;
+  }
+}
+//# sourceMappingURL=greet.js.map
+<span class="pr">$</span> cat dist/greet.d.ts
+export type User = { name: string; admin: boolean };
+
+export declare function greet(user: User): string;</code></pre>
+          </div>
+          <a href="#output">More on the output</a>
+        </article>
+      </div>
+    </div>
+  </section>
+</header>
+
+<main id="features" class="wrap features">
+
+  <section class="feature" id="records">
+    <div>
+      <h2>Functions ask only for the fields they use</h2>
+      <p>Records are row-polymorphic. <code>title_of</code> accepts any record with a <code>title</code>, whether it's a <code>Task</code>, a <code>Post</code> or one written inline, and every field access is still checked.</p>
+    </div>
+<pre class="code" data-lang="polar"><code>types
+  Task = { id: Int, title: String, done: Bool } derive(Eq, Json)
+
+functions
+  title_of(r: { title: String | rest }) -> String {
+    r.title
+  }
+
+  complete(t: Task) -> Task {
+    { ..t, done: true }
+  }</code></pre>
+  </section>
+
+  <section class="feature" id="effects">
+    <div>
+      <h2>Side effects are part of the type</h2>
+      <p><code>/ {Posts}</code> says this handler reads and writes posts, and nothing else. Functions without effects stay pure, and <code>List.map</code> passes its callback's effects through, so nothing slips past the checker.</p>
+    </div>
+<pre class="code" data-lang="polar"><code>effects
+  Db in Node {
+    find(id: Int) -> Option&lt;Post&gt;
+    count() -> Int
+  }
+
+functions
+  show(id: Int) -> Response / {Posts} {
+    match Posts.find(Id(id)) {
+      Some(post) -> Response.json(200, post),
+      None -> Response.not_found(),
+    }
+  }</code></pre>
+  </section>
+
+  <section class="feature" id="hosts">
+    <div>
+      <h2>One program for the browser and the server</h2>
+      <p>Declare the hosts your code runs on. <code>polar build</code> writes one bundle per host, each with only that host's bindings. A bridge lets the browser call an effect that lives in Node, with the same types on both ends.</p>
+    </div>
+<pre class="code" data-lang="polar"><code>hosts
+  Browser
+  Node
+
+schema
+  posts in Node
+    id         Id&lt;Post&gt;  primary
+    title      String
+    author_id  Id&lt;User&gt;  references users
+
+binds
+  Posts in Browser from Node</code></pre>
+  </section>
+
+  <section class="feature" id="zones">
+    <div>
+      <h2>Packages can add to the language</h2>
+      <p>A package can define new zones with a Rust plugin. The example web framework adds <code>schema</code>, <code>routes</code> and <code>views</code>, and the code they generate goes through the same type checker as yours.</p>
+    </div>
+<pre class="code" data-lang="polar"><code>routes
+  GET     /posts      -> index
+  GET     /posts/:id  -> show
+  POST    /posts      -> create
+
+views
+  card(post: Post)
+    &lt;article class="post"&gt;
+      &lt;h2&gt;{post.title}&lt;/h2&gt;
+      &lt;p&gt;Post #{post.id}&lt;/p&gt;
+    &lt;/article&gt;</code></pre>
+  </section>
+
+  <section class="feature" id="output">
+    <div>
+      <h2>JavaScript you can read</h2>
+      <p>The output is ES modules with source maps and <code>.d.ts</code> files, so Polar fits into an existing Node or browser project. The build folder runs on its own with <code>node dist/start.mjs</code>.</p>
+    </div>
+<pre class="code"><code><span class="pr">$</span> polar build src --out dist
+<span class="pr">$</span> ls dist
+main.js  main.js.map  main.d.ts  start.mjs
+
+<span class="pr">$</span> polar check src --watch
+<span class="pr">$</span> polar fmt src --check</code></pre>
+  </section>
+
+</main>
+
+<section id="install" class="depths">
+  <div class="wrap">
+    <h2>Build from source</h2>
+    <p>Polar needs Rust 1.85 or newer and Node.js. The <a href="docs/getting-started.html">docs</a> cover the language, projects, packages and the standard library.</p>
+<pre class="code" data-lang="polar"><code><span class="pr">$</span> git clone https://github.com/stepanvanzuriak/polar
+<span class="pr">$</span> cd polar
+<span class="pr">$</span> cargo install --path cli
+<span class="pr">$</span> polar run hello.px</code></pre>
+
+<pre class="code" data-lang="polar"><code>module Main
+
+functions
+  main() {
+    Log.info("Hello from Polar")
+  }
+
+exports
+  main</code></pre>
+
+    <footer class="foot">
+      <span>Polar is released under the MIT license.</span>
+      <a href="https://github.com/stepanvanzuriak/polar">github.com/stepanvanzuriak/polar</a>
+    </footer>
+  </div>
+</section>
+
+<script>
+(function () {
+  var track = document.querySelector(".track");
+  var cards = Array.prototype.slice.call(track.children);
+  var dots = document.querySelector(".dots");
+  var prev = document.querySelector('[data-step="-1"]');
+  var next = document.querySelector('[data-step="1"]');
+  var current = 0;
+
+  cards.forEach(function (card, i) {
+    var dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "dot";
+    dot.setAttribute("aria-label", "Show feature " + (i + 1));
+    dot.addEventListener("click", function () { go(i); });
+    dots.appendChild(dot);
+  });
+
+  function go(i) {
+    i = Math.max(0, Math.min(cards.length - 1, i));
+    track.scrollTo({ left: cards[i].offsetLeft - track.offsetLeft });
+  }
+
+  function update() {
+    var i = Math.round(track.scrollLeft / track.clientWidth);
+    current = Math.max(0, Math.min(cards.length - 1, i));
+    Array.prototype.forEach.call(dots.children, function (dot, k) {
+      dot.setAttribute("aria-current", k === current ? "true" : "false");
+    });
+    track.style.height = cards[current].offsetHeight + "px";
+    prev.disabled = current === 0;
+    next.disabled = current === cards.length - 1;
+  }
+
+  prev.addEventListener("click", function () { go(current - 1); });
+  next.addEventListener("click", function () { go(current + 1); });
+  track.addEventListener("scroll", update, { passive: true });
+  track.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") { e.preventDefault(); go(current + 1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); go(current - 1); }
+  });
+  window.addEventListener("resize", update);
+  if (window.ResizeObserver) {
+    var observer = new ResizeObserver(update);
+    cards.forEach(function (card) { observer.observe(card); });
+  }
+  if (document.fonts) document.fonts.ready.then(update);
+  update();
+})();
+
+(function () {
+  var keywords = ["module", "uses", "types", "functions", "effects", "binds", "hosts", "exports", "impls", "traits", "schema", "routes", "views", "constants", "let", "match", "if", "else", "function", "in", "from", "derive", "primary", "references"];
+  var pattern = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(&lt;|&gt;|&amp;)|\b([A-Z][A-Za-z0-9_]*)\b|\b([a-z_][A-Za-z0-9_]*)\b/g;
+  document.querySelectorAll('pre.code[data-lang="polar"] code').forEach(function (el) {
+    if (el.querySelector("span")) return;
+    el.innerHTML = el.innerHTML.replace(pattern, function (m, cm, st, ent, ty, id) {
+      if (cm) return '<span class="cm">' + cm + "</span>";
+      if (st) return '<span class="st">' + st + "</span>";
+      if (ent) return ent;
+      if (ty) return '<span class="ty">' + ty + "</span>";
+      if (keywords.indexOf(id) !== -1) return '<span class="kw">' + id + "</span>";
+      return m;
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Effects – Polar</title>
+<meta name="description" content="What effects are, declaring and using them, effect rows in signatures, pure functions, effect polymorphism and binds.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="effects">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Effects</h1>
+      <p class="lead">An <strong>effect</strong> is anything a function does besides computing a value: reading the clock, writing to the DOM, talking to a database, running a process. In Polar, effects are part of a function's type.</p>
+
+      <h2 id="why">Why put effects in the type?</h2>
+      <p>In JavaScript, any function can do anything. <code>formatPrice(x)</code> might also send a network request, and the only way to know is to read it, and everything it calls.</p>
+      <p>In Polar, you can tell from the signature. A function either lists the effects it uses, or it's pure. The compiler checks both directions: a pure function can't sneak in an effect, and a function can't use an effect it didn't declare. That makes code easier to test, easier to move around, and lets Polar decide <a href="hosts.html">where code can run</a>.</p>
+
+      <h2 id="declaring">Declaring an effect</h2>
+      <p>Effects go in the <code>effects</code> zone. An effect has a name, the host it lives on, and its operations:</p>
+<pre class="code" data-lang="polar"><code>hosts
+  Node
+
+effects
+  Clock in Node {
+    now() -> Int
+  }</code></pre>
+      <p>This declares a <code>Clock</code> effect, available on <code>Node</code>, with one operation, <code>now</code>. It doesn't say <em>how</em> to get the time yet. That comes later, in a bind.</p>
+
+      <h2 id="using">Using an effect</h2>
+      <p>Call an operation through the effect's name. A function that does this lists the effect after its return type, following a slash:</p>
+<pre class="code" data-lang="polar"><code>stamp(label: String) -> String / {Clock} {
+  "#{label} at #{Clock.now()}"
+}</code></pre>
+      <p>Read <code>-&gt; String / {Clock}</code> as "returns a String, and uses the Clock". A function can list several: <code>/ {Dom, Clock}</code>.</p>
+
+      <h3 id="pure">Pure means pure</h3>
+      <p>A function written with <code>-&gt;</code> and no <code>/ {…}</code> promises to use no effects. Here's what happens if it breaks that promise:</p>
+<pre class="code" data-lang="polar"><code>double(n: Int) -> Int {
+  n * Clock.now()
+}</code></pre>
+<pre class="code"><code><span class="er">error[POLAR0808]</span>: `double` uses `Clock`, but its signature says it is pure
+  --> clock.px:17:9
+   |
+17 |     n * Clock.now()
+   |         ^^^^^^^^^^^ this uses `Clock`
+   |
+   = note: a signature with `->` and no `/ {…}` promises no effects
+   = help: add `/ {Clock}` after the return type</code></pre>
+      <p>Effects also travel up. If <code>report</code> calls <code>stamp</code>, then <code>report</code> uses <code>Clock</code> too, and has to say so.</p>
+      <div class="callout">
+        <p><span class="label">Note:</span> A function with no return type at all, like <code>main()</code>, gets its effects inferred along with its return type. That's handy for small programs and for <code>main</code>, but writing signatures on everything else documents what your code does.</p>
+      </div>
+
+      <h2 id="binding">Binding an effect</h2>
+      <p>A declaration says what operations exist. A <strong>bind</strong> says how they work on a particular host. Binds go in the <code>binds</code> zone:</p>
+<pre class="code" data-lang="polar"><code>binds
+  Clock in Node {
+    now() {
+      1700000000
+    }
+  }</code></pre>
+      <p>This bind is written in Polar and always returns the same time, which is handy in tests. A real program would usually bind <code>Clock</code> to JavaScript instead. See <a href="javascript-interop.html#binding-to-a-file">JavaScript Interop</a>.</p>
+      <p>Separating the declaration from the bind is what makes effects useful. Code that uses <code>Clock</code> doesn't care where the time comes from, so you can swap the bind without touching it.</p>
+
+      <h2 id="passing-through">Effects that pass through</h2>
+      <p>What about a function like <code>List.map</code>? It's pure itself, but the function you give it might not be. Its signature handles both:</p>
+<pre class="code" data-lang="polar"><code>map(xs: List&lt;a&gt;, f: function(a) -> b / {| e}) -> List&lt;b&gt; / {| e}</code></pre>
+      <p><code>{| e}</code> means "whatever effects <code>f</code> has". Given a pure function, <code>List.map</code> is pure. Given <code>stamp</code>, it uses <code>Clock</code>. Write your own higher-order functions the same way, and they'll work with any callback.</p>
+
+      <h2 id="all-together">All together</h2>
+<pre class="code" data-lang="polar"><code>module Clock
+
+uses
+  Std.List
+
+hosts
+  Node
+
+effects
+  Clock in Node {
+    now() -> Int
+  }
+
+binds
+  Clock in Node {
+    now() {
+      1700000000
+    }
+  }
+
+functions
+  stamp(label: String) -> String / {Clock} {
+    "#{label} at #{Clock.now()}"
+  }
+
+  double(n: Int) -> Int {
+    n * 2
+  }
+
+  main() -> {} / {Clock} {
+    let labels = List.map(["start", "end"], stamp)
+
+    Log.info(List.join(labels, "\n"))
+    Log.info("#{double(21)}")
+  }
+
+exports
+  main</code></pre>
+<pre class="code out"><code><span class="pr">$</span> polar run clock.px
+start at 1700000000
+end at 1700000000
+42</code></pre>
+      <p>Errors are effects too, and they have some syntax of their own. That's next: <a href="errors.html">Handling Errors</a>.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

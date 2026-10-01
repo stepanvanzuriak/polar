@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Working with JSON – Polar</title>
+<meta name="description" content="Deriving the Json trait, encoding values, decoding text into typed values and reading decode errors.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="json">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Working with JSON</h1>
+      <p class="lead"><code>Std.Json</code> turns Polar values into JSON text and back. Decoding checks the shape of the data, so a decoded value really has the type you asked for.</p>
+
+      <h2 id="derive">Make a type encodable</h2>
+      <p>A type can be encoded once it has the <code>Json</code> trait. For your own types, derive it:</p>
+<pre class="code" data-lang="polar"><code>uses
+  Std.Json
+  Std.List
+  Std.Option
+  Std.Result
+
+types
+  Priority = Low | High derive(Eq, Json)
+
+  Note = {
+    id: Int,
+    text: String,
+    priority: Priority,
+    tags: List&lt;String&gt;,
+    due: Option&lt;String&gt;,
+  } derive(Json)</code></pre>
+      <p>Every field type needs <code>Json</code> too. The basic types, <code>List</code>, <code>Option</code> and <code>Result</code> already have it, and <code>Priority</code> derives it.</p>
+
+      <h2 id="encode">Encode</h2>
+      <p><code>Json.encode</code> turns a value into a string:</p>
+<pre class="code" data-lang="polar"><code>let note: Note = {
+  id: 1,
+  text: "Buy milk",
+  priority: High,
+  tags: ["home"],
+  due: None,
+}
+
+Log.info(Json.encode(note))</code></pre>
+<pre class="code out"><code>{"id":1,"text":"Buy milk","priority":{"$":"High"},"tags":["home"],"due":null}</code></pre>
+      <p>Records become objects, lists become arrays, and <code>None</code> becomes <code>null</code>. Variant cases become an object with a <code>"$"</code> key naming the case.</p>
+      <div class="callout">
+        <p><span class="label">Note:</span> The <code>let note: Note</code> annotation matters here. Without it, the literal is a plain record, not a <code>Note</code>, and has no <code>Json</code> implementation. See <a href="records.html#annotate">Records</a>.</p>
+      </div>
+
+      <h2 id="decode">Decode</h2>
+      <p><code>Json.decode</code> goes the other way. Decoding can fail, so it returns a <code>Result</code>. Tell Polar which type you expect by annotating the result:</p>
+<pre class="code" data-lang="polar"><code>let good: Result&lt;JsonError, Note&gt; = Json.decode(
+  "{\"id\": 2, \"text\": \"Call Bob\", \"priority\": {\"$\": \"Low\"}, \"tags\": [], \"due\": \"friday\"}",
+)
+
+match good {
+  Ok(n) -> Log.info("decoded #{n.text}, due #{Option.with_default(n.due, "whenever")}"),
+  Err(e) -> Log.info(Json.message(e)),
+}</code></pre>
+<pre class="code out"><code>decoded Call Bob, due friday</code></pre>
+
+      <h2 id="errors">Decode errors</h2>
+      <p>When the data doesn't fit the type, you get a <code>JsonError</code> saying where and why. <code>Json.message</code> turns it into readable text:</p>
+<pre class="code" data-lang="polar"><code>let bad: Result&lt;JsonError, Note&gt; = Json.decode("{\"id\": \"two\"}")</code></pre>
+<pre class="code out"><code>.id: expected Int, found a string</code></pre>
+      <p>A <code>JsonError</code> is a record with <code>path</code>, <code>expected</code> and <code>found</code> fields, if you want to build your own message.</p>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> Decode at the edges of your program, where data arrives from a request, a file or another service. After that, the rest of your code works with typed values and never needs to check them again.</p>
+      </div>
+
+      <h2 id="elsewhere">Where else JSON is used</h2>
+      <p><a href="bridges.html">Bridges</a> send values between browser and server as JSON, so the types they carry need <code>Json</code>. The example web framework's <code>Response.json</code> uses it to build API responses.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

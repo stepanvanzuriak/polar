@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Line – Polar</title>
+<meta name="description" content="Reference for every polar command and flag: run, check, build, fmt and start.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="cli">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Command Line</h1>
+      <p class="lead">Everything Polar does goes through one command, <code>polar</code>. This page lists every subcommand and flag.</p>
+<pre class="code"><code>Usage: polar [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  build
+  check
+  run
+  fmt
+  start</code></pre>
+      <p>Inside a <a href="first-project.html">project</a>, path arguments are optional: commands use the project you're in.</p>
+
+      <h2 id="run">polar run</h2>
+<pre class="code"><code>polar run [OPTIONS] [FILE] [-- &lt;ARGS&gt;...]</code></pre>
+      <p>Compiles a file or project and calls its exported <code>main</code>. Arguments after <code>--</code> reach the program as <a href="command-line-programs.html#arguments"><code>Process.args()</code></a>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--host &lt;HOST&gt;</code></td><td>Picks which host to run for, when there are several</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If the project sets a <a href="modules-and-packages.html#launchers">launcher</a> in <code>[run]</code>, <code>polar run</code> without <code>--host</code> builds every host and hands the build to the launcher instead.</p>
+
+      <h2 id="check">polar check</h2>
+<pre class="code"><code>polar check [OPTIONS] [PATHS]...</code></pre>
+      <p>Type-checks and reports errors without writing anything. It's the fastest way to see whether code compiles.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--watch</code></td><td>Checks again on every change</td></tr>
+            <tr><td><code>--out &lt;OUT&gt;</code></td><td>A folder to skip when looking for source files and watching for changes, like a build folder</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="build">polar build</h2>
+<pre class="code"><code>polar build [OPTIONS] [PATHS]...</code></pre>
+      <p>Writes <code>.js</code>, <code>.js.map</code> and <code>.d.ts</code> files, plus the runtime and a <code>start.mjs</code> entry point. With several hosts, it writes one folder per host: <code>dist/Browser/</code>, <code>dist/Node/</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--out &lt;OUT&gt;</code></td><td>Where to write. Defaults to the project's <code>out</code>, or <code>dist</code></td></tr>
+            <tr><td><code>--watch</code></td><td>Rebuilds on every change</td></tr>
+            <tr><td><code>--host &lt;HOST&gt;</code></td><td>Builds only one host, into <code>dist/</code></td></tr>
+            <tr><td><code>--emit &lt;STAGE&gt;</code></td><td>Prints one compiler stage for a single file instead of building</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>--emit</code> takes one of these stages:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Stage</th><th>Prints</th></tr></thead>
+          <tbody>
+            <tr><td><code>tokens</code></td><td>The tokens the lexer produced</td></tr>
+            <tr><td><code>ast</code></td><td>The parsed syntax tree</td></tr>
+            <tr><td><code>core</code></td><td>The simplified core language</td></tr>
+            <tr><td><code>types</code></td><td>The inferred type of every declaration</td></tr>
+            <tr><td><code>hosts</code></td><td>Where each function can run. See <a href="hosts.html#where-code-runs">Hosts</a></td></tr>
+            <tr><td><code>dictionaries</code></td><td>How trait implementations are passed around</td></tr>
+            <tr><td><code>js</code></td><td>The generated JavaScript</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> <code>--emit=types</code> is a quick way to see what Polar inferred for a function you didn't annotate.</p>
+      </div>
+
+      <h2 id="fmt">polar fmt</h2>
+<pre class="code"><code>polar fmt [OPTIONS] [PATHS]...</code></pre>
+      <p>Formats files in place in the standard layout.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--check</code></td><td>Only reports files that would change, and fails if there are any</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="start">polar start</h2>
+<pre class="code"><code>polar start [OPTIONS] [PATH] [-- &lt;ARGS&gt;...]</code></pre>
+      <p>Runs an existing build without compiling. It's the same as <code>node dist/start.mjs</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--host &lt;HOST&gt;</code></td><td>Picks which host's build to run</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="global">Global flags</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--color</code>, <code>--no-color</code></td><td>Forces colored error output on or off</td></tr>
+            <tr><td><code>-V</code>, <code>--version</code></td><td>Prints the version</td></tr>
+            <tr><td><code>-h</code>, <code>--help</code></td><td>Prints help, for <code>polar</code> or any subcommand</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="polar-toml">polar.toml</h2>
+      <p>The project file, for reference. Every key is described in <a href="first-project.html">Your First Project</a> and <a href="modules-and-packages.html">Modules and Packages</a>.</p>
+<pre class="code"><code>[project]                       <span class="cm"># or [package] for a library</span>
+name = "app"
+src = "src"
+out = "dist"
+main = "src/main.px"
+hosts = ["Browser", "Node"]
+
+[dependencies]
+shapes = { path = "../shapes" }
+
+[run]
+launcher = "simple_framework"
+options = { port = 3000 }
+
+<span class="cm"># packages only</span>
+[package]
+name = "simple_framework"
+module = "Framework"
+
+[launcher]
+script = "launcher/serve.mjs"
+
+[plugin]
+zones = ["schema"]
+dependencies = { regex = "1" }</code></pre>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Files and Zones – Polar</title>
+<meta name="description" content="How a Polar file is organized into zones, the order they appear in, and how comments work.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="zones">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Files and Zones</h1>
+      <p class="lead">A Polar file is a module, split into zones. Each zone holds one kind of declaration, so you always know where to look for something.</p>
+
+      <h2 id="a-full-file">A file with several zones</h2>
+<pre class="code" data-lang="polar"><code>module Todo
+
+uses
+  Std.List
+
+types
+  Task = { id: Int, title: String, done: Bool }
+
+functions
+  open_tasks(tasks: List&lt;Task&gt;) -> List&lt;Task&gt; {
+    List.filter(tasks, function(t) { !t.done })
+  }
+
+exports
+  open_tasks</code></pre>
+      <p>Reading from the top:</p>
+      <ul>
+        <li><code>uses</code> imports modules. <code>Std.List</code> is the standard list module.</li>
+        <li><code>types</code> declares the shape of a task.</li>
+        <li><code>functions</code> defines <code>open_tasks</code>, which keeps only the tasks that aren't done.</li>
+        <li><code>exports</code> makes <code>open_tasks</code> available to other modules.</li>
+      </ul>
+
+      <h2 id="every-zone">Every zone</h2>
+      <p>You only write the zones you need, but the ones you write must appear in this order, each at most once:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Zone</th><th>Holds</th><th>Covered in</th></tr></thead>
+          <tbody>
+            <tr><td><code>uses</code></td><td>Imported modules</td><td><a href="modules-and-packages.html">Modules and Packages</a></td></tr>
+            <tr><td><code>hosts</code></td><td>Where the code runs, like <code>Node</code> or <code>Browser</code></td><td><a href="hosts.html">Hosts</a></td></tr>
+            <tr><td><code>traits</code></td><td>Trait declarations</td><td><a href="traits.html">Traits</a></td></tr>
+            <tr><td><code>types</code></td><td>Records and variants</td><td><a href="records.html">Records</a>, <a href="variants-and-matching.html">Variants</a></td></tr>
+            <tr><td><code>constants</code></td><td>Named values with a type</td><td>Below</td></tr>
+            <tr><td><code>effects</code></td><td>Effect declarations</td><td><a href="effects.html">Effects</a></td></tr>
+            <tr><td><code>externs</code></td><td>Typed JavaScript functions</td><td><a href="javascript-interop.html">JavaScript Interop</a></td></tr>
+            <tr><td><code>binds</code></td><td>Effect implementations</td><td><a href="effects.html#binding">Effects</a></td></tr>
+            <tr><td><code>functions</code></td><td>Functions</td><td><a href="functions.html">Functions</a></td></tr>
+            <tr><td><code>impls</code></td><td>Trait implementations</td><td><a href="traits.html">Traits</a></td></tr>
+            <tr><td><code>exports</code></td><td>Public names</td><td><a href="modules-and-packages.html">Modules and Packages</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Put them out of order and the compiler tells you the right order:</p>
+<pre class="code"><code><span class="er">error[POLAR0208]</span>: the `traits` zone must come before `types`
+  --> traits.px:8:1
+   |
+ 8 | traits
+   | ^^^^^^
+ 9 |   Area&lt;a&gt; {
+10 |     area(shape: a) -> Float
+11 |   }
+   |   ^
+   |
+   = help: zones run `uses` -> `hosts` -> `traits` -> `types` -> `constants` -> `effects` -> `externs` -> `binds` -> `functions` -> `impls` -> `exports`, each at most once</code></pre>
+      <div class="callout">
+        <p><span class="label">Note:</span> Packages can add zones of their own, such as <code>routes</code> or <code>views</code>. See <a href="zone-plugins.html">Zone Plugins</a>.</p>
+      </div>
+
+      <h2 id="constants">Constants</h2>
+      <p>The <code>constants</code> zone holds values that never change. Each one has a name, a type and a value:</p>
+<pre class="code" data-lang="polar"><code>constants
+  pi: Float = 3.141592653589793
+  greeting: String = "hello"</code></pre>
+
+      <h2 id="comments">Comments</h2>
+      <p><code>//</code> starts a comment that runs to the end of the line. <code>///</code> starts a doc comment, which describes the declaration below it:</p>
+<pre class="code" data-lang="polar"><code>functions
+  /// Adds two numbers.
+  add(a: Int, b: Int) -> Int {
+    // no overflow checks here
+    a + b
+  }</code></pre>
+      <p>Now that we know where things go, let's look at what goes inside a function: <a href="values-and-expressions.html">values and expressions</a>.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>

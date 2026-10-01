@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Records – Polar</title>
+<meta name="description" content="Record types, field access, updating with spread, and row polymorphism.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="records">
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="wordmark" href="../index.html">polar</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Docs</a>
+      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout">
+  <main>
+    <article>
+      <h1>Records</h1>
+      <p class="lead">A record groups named values, like an object in JavaScript. Records are how you model most data in Polar.</p>
+
+      <h2 id="declaring">Declaring a record type</h2>
+      <p>Record types go in the <code>types</code> zone:</p>
+<pre class="code" data-lang="polar"><code>types
+  Task = { id: Int, title: String, done: Bool }
+
+  Post = { title: String, author: { name: String, email: String } }</code></pre>
+      <p>A field can hold any type, including another record, as <code>author</code> does here.</p>
+
+      <h2 id="creating">Creating and reading records</h2>
+      <p>Build a record with braces, and read a field with a dot:</p>
+<pre class="code" data-lang="polar"><code>let task: Task = { id: 1, title: "Write docs", done: false }
+
+Log.info(task.title)</code></pre>
+      <p>Every field has to be there. Leaving one out, or reading a field that doesn't exist, is a compile error.</p>
+
+      <h3 id="annotate">Why the <code>: Task</code>?</h3>
+      <p>On its own, <code>{ id: 1, title: "Write docs", done: false }</code> is just a record with three fields. Writing <code>: Task</code> tells Polar it's a <code>Task</code>, which matters once <code>Task</code> has abilities of its own, like turning into JSON. A parameter or return type of <code>Task</code> does the same, so you only need the annotation on <code>let</code>.</p>
+
+      <h2 id="updating">Updating a record</h2>
+      <p>Records can't be changed in place. To "update" one, make a copy with some fields replaced. <code>..t</code> copies every field of <code>t</code>, and the fields after it replace the old ones:</p>
+<pre class="code" data-lang="polar"><code>complete(t: Task) -> Task {
+  { ..t, done: true }
+}</code></pre>
+      <p>The original <code>task</code> is untouched. This makes it easy to reason about data: once you have a value, nothing else can change it behind your back.</p>
+
+      <h2 id="row-polymorphism">Asking only for what you need</h2>
+      <p>Here's where Polar's records get interesting. Say we want a function that returns a title. Both <code>Task</code> and <code>Post</code> have one. Instead of writing the function twice, we describe just the part we need:</p>
+<pre class="code" data-lang="polar"><code>title_of(r: { title: String | rest }) -> String {
+  r.title
+}</code></pre>
+      <p>Read <code>{ title: String | rest }</code> as "a record with a <code>title</code> of type <code>String</code>, and any other fields". <code>rest</code> stands for the other fields, whatever they are. This is called <strong>row polymorphism</strong>.</p>
+<pre class="code" data-lang="polar"><code>title_of(task)
+title_of(post)
+title_of({ title: "Inline", pages: 3 })</code></pre>
+      <p>All three calls work. A record <em>without</em> a title doesn't:</p>
+<pre class="code"><code><span class="er">error[POLAR0502]</span>: missing field `title`
+ --> records.px:9:23
+  |
+4 |   title_of(r: { title: String | rest }) -> String {
+  |            --------------------------- `title` is required here
+...
+9 |     Log.info(title_of({ name: "no title here" }))
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^ this record has no field `title`</code></pre>
+
+      <h3 id="keeping-the-rest">Keeping the rest</h3>
+      <p><code>rest</code> also works in return types. This function changes a title and hands back a record of the <em>same</em> shape, other fields included:</p>
+<pre class="code" data-lang="polar"><code>rename(r: { title: String | rest }, title: String) -> { title: String | rest } {
+  { ..r, title: title }
+}</code></pre>
+      <p>Rename a <code>Task</code> and you get a <code>Task</code> back, so <code>rename(task, "x").id</code> still type-checks.</p>
+      <div class="callout tip">
+        <p><span class="label">Tip:</span> Row types are a good default for helper functions. A function that takes <code>{ title: String | rest }</code> instead of <code>Task</code> keeps working as your types grow.</p>
+      </div>
+
+      <h2 id="all-together">All together</h2>
+<pre class="code" data-lang="polar"><code>module Records
+
+types
+  Task = { id: Int, title: String, done: Bool }
+
+  Post = { title: String, author: { name: String, email: String } }
+
+functions
+  complete(t: Task) -> Task {
+    { ..t, done: true }
+  }
+
+  title_of(r: { title: String | rest }) -> String {
+    r.title
+  }
+
+  rename(r: { title: String | rest }, title: String) -> { title: String | rest } {
+    { ..r, title: title }
+  }
+
+  main() {
+    let task: Task = { id: 1, title: "Write docs", done: false }
+    let post: Post = { title: "Hello", author: { name: "Ann", email: "ann@example.com" } }
+    let finished = complete(task)
+
+    Log.info("#{task.title}: done=#{task.done}, then done=#{finished.done}")
+    Log.info("#{post.title} by #{post.author.name}")
+    Log.info(title_of(task))
+    Log.info(title_of(post))
+    Log.info(title_of({ title: "Inline", pages: 3 }))
+    Log.info(rename(task, "Write better docs").title)
+    Log.info("#{rename(task, "x").id}")
+  }
+
+exports
+  main</code></pre>
+<pre class="code out"><code><span class="pr">$</span> polar run records.px
+Write docs: done=false, then done=true
+Hello by Ann
+Write docs
+Hello
+Inline
+Write better docs
+1</code></pre>
+      <p>Records describe data that has <em>all</em> of its fields. Next, <a href="variants-and-matching.html">variants</a> describe data that is <em>one of</em> several cases.</p>
+    </article>
+    <p class="edit" id="edit"></p>
+    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+</div>
+
+<script src="docs.js"></script>
+</body>
+</html>
