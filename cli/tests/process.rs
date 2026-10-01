@@ -954,3 +954,265 @@ fn run_with_several_configured_hosts_asks_for_one() {
     "error: this project builds for hosts `DOM`, `Node`; choose one with `--host`\n"
   );
 }
+
+fn process_args() -> TempDir {
+  let dir = tempfile::tempdir().unwrap();
+
+  copy_tree(
+    Path::new(concat!(
+      env!("CARGO_MANIFEST_DIR"),
+      "/tests/fixtures/process_args"
+    )),
+    dir.path(),
+  );
+  dir
+}
+
+fn in_project(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> Ran {
+  let tmp = tempfile::tempdir().unwrap();
+  let out = polar(dir, tmp.path(), args, env);
+
+  Ran {
+    code: out.status.code(),
+    out: String::from_utf8_lossy(&out.stdout).into_owned(),
+    err: String::from_utf8_lossy(&out.stderr).into_owned(),
+  }
+}
+
+fn built_process_args() -> TempDir {
+  let dir = process_args();
+  let built = in_project(dir.path(), &["build"], &[]);
+
+  assert_eq!(built.code, Some(0), "{}", built.err);
+  dir
+}
+
+fn node_start(dir: &Path, args: &[&str]) -> Ran {
+  let node = std::env::var("POLAR_NODE").unwrap_or_else(|_| "node".to_string());
+  let out = Command::new(node)
+    .arg(dir.join("dist/start.mjs"))
+    .args(args)
+    .current_dir(dir)
+    .output()
+    .unwrap();
+
+  Ran {
+    code: out.status.code(),
+    out: String::from_utf8_lossy(&out.stdout).into_owned(),
+    err: String::from_utf8_lossy(&out.stderr).into_owned(),
+  }
+}
+
+const PROCESS_PROGRAM: &str = "uses
+  Std.List
+  Std.Option
+  Std.Process
+
+hosts
+  Node
+
+functions
+  main() -> {} / {Process} {
+BODY
+  }
+
+exports
+  Node
+  main
+";
+
+fn run_process(body: &str) -> Ran {
+  run(&[("a.px", &PROCESS_PROGRAM.replace("BODY", body))], "a.px", &[])
+}
+
+#[test]
+fn args_after_dashdash_run() {
+  let dir = process_args();
+  let ran = in_project(dir.path(), &["run", "--", "a", "b c"], &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "[\"a\", \"b c\"]\n");
+}
+
+#[test]
+fn args_none() {
+  let dir = process_args();
+  let ran = in_project(dir.path(), &["run"], &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "[]\n");
+}
+
+#[test]
+fn args_start() {
+  let dir = built_process_args();
+  let ran = in_project(dir.path(), &["start", "--", "x"], &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "[\"x\"]\n");
+
+  for args in [&["--", "x"][..], &["x"]] {
+    let ran = node_start(dir.path(), args);
+
+    assert_eq!(ran.code, Some(0), "{}", ran.err);
+    assert_eq!(ran.out, "[\"x\"]\n", "{args:?}");
+  }
+
+  assert_eq!(node_start(dir.path(), &[]).out, "[]\n");
+}
+
+#[test]
+fn args_custom_launcher() {
+  let dir = project(&[
+    (
+      "kit/polar.toml",
+      "[package]\nname = \"kit\"\nmodule = \"Kit\"\n\n[launcher]\nscript = \"launch.mjs\"\n",
+    ),
+    ("kit/launch.mjs", "console.log(process.argv.slice(3).join(\" \"));\n"),
+    ("kit/src/.keep", ""),
+    (
+      "app/polar.toml",
+      "[project]\nname = \"app\"\n\n[run]\nlauncher = \"kit\"\n\n[dependencies]\nkit = { path = \"../kit\" }\n",
+    ),
+    (
+      "app/src/main.px",
+      "module Main\n\nfunctions\n  main() {\n    Log.info(\"main ran\")\n  }\n\nexports\n  main\n",
+    ),
+  ]);
+  let app = dir.path().join("app");
+  let ran = in_project(&app, &["run", "--", "x"], &[]);
+
+  assert_eq!((ran.code, ran.out.as_str()), (Some(0), "-- x\n"), "{}", ran.err);
+
+  let built = in_project(&app, &["build"], &[]);
+
+  assert_eq!(built.code, Some(0), "{}", built.err);
+
+  let ran = in_project(&app, &["start", "--", "x"], &[]);
+
+  assert_eq!((ran.code, ran.out.as_str()), (Some(0), "-- x\n"), "{}", ran.err);
+}
+
+#[test]
+fn env_unset_vs_empty() {
+  let dir = process_args();
+  let tmp = tempfile::tempdir().unwrap();
+  let out = Command::new(POLAR)
+    .args(["run", "--", "env", "X", "Y"])
+    .current_dir(dir.path())
+    .env("TMPDIR", tmp.path())
+    .env("X", "")
+    .env_remove("Y")
+    .output()
+    .unwrap();
+
+  assert_eq!(
+    String::from_utf8_lossy(&out.stdout),
+    "Some(\"\")\nNone\n",
+    "{}",
+    String::from_utf8_lossy(&out.stderr)
+  );
+}
+
+#[test]
+fn exit_code_set() {
+  let dir = built_process_args();
+
+  assert_eq!(
+    in_project(dir.path(), &["run", "--", "exit", "3"], &[]).code,
+    Some(3)
+  );
+  assert_eq!(
+    in_project(dir.path(), &["start", "--", "exit", "3"], &[]).code,
+    Some(3)
+  );
+  assert_eq!(node_start(dir.path(), &["exit", "3"]).code, Some(3));
+}
+
+#[test]
+fn exit_code_default() {
+  let dir = built_process_args();
+
+  assert_eq!(in_project(dir.path(), &["run", "--", "a"], &[]).code, Some(0));
+  assert_eq!(in_project(dir.path(), &["start", "--", "a"], &[]).code, Some(0));
+}
+
+#[test]
+fn exit_code_uncaught() {
+  let dir = built_process_args();
+
+  for args in [&["run", "--", "throw"][..], &["start", "--", "throw"]] {
+    let ran = in_project(dir.path(), args, &[]);
+
+    assert_eq!(ran.code, Some(1), "{args:?}");
+    assert_eq!(ran.err, "uncaught error: Failed(\"on purpose\")\n", "{args:?}");
+  }
+}
+
+#[test]
+fn run_inherits() {
+  let ran = run_process(
+    "    let code = Process.run(\"sh\", [\"-c\", \"echo hi; exit 4\"], Process.inherit())\n\n    Log.info(\"code #{code}\")",
+  );
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "hi\ncode 4\n");
+}
+
+#[test]
+fn run_in_dir_env() {
+  let dir = project(&[
+    (
+      "a.px",
+      &PROCESS_PROGRAM.replace(
+        "BODY",
+        "    let options = Process.inherit()\n      |> Process.in_dir(\"sub\")\n      |> Process.with_env(\"Z\", \"1\")\n\n    Process.set_exit_code(Process.run(\"sh\", [\"-c\", \"pwd; echo $Z\"], options))",
+      ),
+    ),
+    ("sub/.keep", ""),
+  ]);
+  let ran = in_project(dir.path(), &["run", "a.px"], &[]);
+  let sub = dir.path().join("sub").canonicalize().unwrap();
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, format!("{}\n1\n", sub.display()));
+}
+
+#[test]
+fn run_missing() {
+  let ran = run_process(
+    "    Log.info(\"#{Process.run(\"no-such-cmd\", [], Process.inherit())}\")\n    Log.info(\"#{Process.output(\"no-such-cmd\", [], Process.inherit()).code}\")",
+  );
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "127\n127\n");
+  assert_eq!(
+    ran.err,
+    "error: cannot run `no-such-cmd`: command not found\n".repeat(2)
+  );
+}
+
+#[test]
+fn output_captures() {
+  let ran = run_process(
+    "    let out = Process.output(\"sh\", [\"-c\", \"echo o; echo e >&2; exit 2\"], Process.inherit())\n\n    Log.info(\"#{out.code} #{String.length(out.stdout)} #{String.length(out.stderr)}\")\n    Log.info(String.concat(out.stdout, out.stderr))",
+  );
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "2 2 2\no\ne\n\n");
+  assert_eq!(ran.err, "");
+}
+
+#[test]
+fn browser_rejected() {
+  let src = "uses\n  Std.Dom\n  Std.Process\n\nhosts\n  Browser\n\nfunctions\n  main() {\n    Log.info(Process.cwd())\n  }\n\nexports\n  main\n";
+  let ran =
+    run_with_args(&[("a.px", src)], &["build", "a.px", "--out", "dist"]);
+
+  assert_eq!(ran.code, Some(1));
+  assert!(
+    ran.err.contains("`main` can't run on `Browser`: it uses `Process`"),
+    "{}",
+    ran.err
+  );
+}

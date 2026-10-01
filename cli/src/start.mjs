@@ -8,7 +8,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const config = JSON.parse(
   readFileSync(join(here, "_polar", "start.json"), "utf8"),
 );
-const extra = process.argv.slice(2);
+const given = process.argv.slice(2);
+const dashes = given.indexOf("--");
+const extra = dashes < 0 ? given : given.slice(dashes + 1);
 let scratch;
 let args;
 
@@ -30,7 +32,7 @@ if (config.manifest) {
 
 const child = spawn(
   process.execPath,
-  ["--enable-source-maps", join(here, config.launcher), ...args, ...extra],
+  ["--enable-source-maps", join(here, config.launcher), ...args, "--", ...extra],
   { stdio: "inherit" },
 );
 

@@ -1,0 +1,48 @@
+module Process
+
+uses
+  Std.List
+  Std.Option
+
+hosts
+  Node
+
+types
+  EnvVar = { name: String, value: String }
+
+  RunOptions = { cwd: Option<String>, env: List<EnvVar> }
+
+  Output = { code: Int, stdout: String, stderr: String }
+
+effects
+  Process in Node {
+    args() -> List<String>
+    env(name: String) -> Option<String>
+    cwd() -> String
+    set_exit_code(code: Int) -> {}
+    run(command: String, args: List<String>, options: RunOptions) -> Int
+    output(command: String, args: List<String>, options: RunOptions) -> Output
+  }
+
+binds
+  Process in Node = "./bindings/Process.js"
+
+functions
+  inherit() -> RunOptions {
+    { cwd: None, env: [] }
+  }
+
+  in_dir(options: RunOptions, dir: String) -> RunOptions {
+    { ..options, cwd: Some(dir) }
+  }
+
+  with_env(options: RunOptions, name: String, value: String) -> RunOptions {
+    { ..options, env: List.append(options.env, [{ name: name, value: value }]) }
+  }
+
+exports
+  Node
+  Process
+  inherit
+  in_dir
+  with_env

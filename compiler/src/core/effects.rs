@@ -296,12 +296,20 @@ impl Lowerer<'_> {
   pub(super) fn effect_target(&self, field: &FieldAccess) -> Option<String> {
     match &*field.target {
       crate::syntax::ast::Expr::Var(var)
-        if self.effects.effects.contains_key(&var.name.text) =>
+        if self.effects.effects.contains_key(&var.name.text)
+          && !self.module_member(&var.name.text, &field.field.text) =>
       {
         Some(var.name.text.clone())
       }
       _ => None,
     }
+  }
+
+  fn module_member(&self, effect: &str, member: &str) -> bool {
+    self.effects.effects[effect].arity(member).is_none()
+      && self.imports.get(effect).is_some_and(|(_, interface)| {
+        interface.function(member).is_some() || interface.constant(member)
+      })
   }
 
   pub(super) fn operation(

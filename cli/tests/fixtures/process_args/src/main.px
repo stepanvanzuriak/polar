@@ -1,0 +1,51 @@
+module Main
+
+uses
+  Std.List
+  Std.Option
+  Std.Process
+
+hosts
+  Node
+
+types
+  Failed = Failed(String)
+
+functions
+  quoted(args: List<String>) -> String {
+    "[#{List.join(List.map(args, function(arg) { "\"#{arg}\"" }), ", ")}]"
+  }
+
+  shown(value: Option<String>) -> String {
+    match value {
+      None -> "None",
+      Some(text) -> "Some(\"#{text}\")",
+    }
+  }
+
+  print_env(names: List<String>) -> {} / {Process} {
+    match names {
+      [] -> {},
+      [name, ..rest] -> {
+        Log.info(shown(Process.env(name)))
+        print_env(rest)
+      }
+    }
+  }
+
+  fail() -> {} / {Throws<Failed>} {
+    throw Failed("on purpose")
+  }
+
+  main() -> {} / {Process, Throws<Failed>} {
+    match Process.args() {
+      ["env", ..names] -> print_env(names),
+      ["exit", "3"] -> Process.set_exit_code(3),
+      ["throw"] -> fail(),
+      args -> Log.info(quoted(args)),
+    }
+  }
+
+exports
+  Node
+  main
