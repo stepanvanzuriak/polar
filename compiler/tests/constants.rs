@@ -244,6 +244,25 @@ mod lowering {
     );
     assert_eq!(diagnostics[0].help.as_deref(), Some("did you mean `a`?"));
   }
+
+  #[test]
+  fn exported_type() {
+    for ty in ["Pair = { name: String }", "Tag = Tag(Int)"] {
+      let name = &ty[..ty.find(' ').unwrap()];
+      let (_, diagnostics) =
+        lower_src(&format!("types\n  {ty}\n\nexports\n  {name}\n"));
+
+      assert_eq!(codes(&diagnostics), [UnknownName]);
+      assert_eq!(
+        diagnostics[0].message,
+        format!("`{name}` is a type, and types are always exported")
+      );
+      assert_eq!(
+        diagnostics[0].help.as_deref(),
+        Some("remove it from `exports`")
+      );
+    }
+  }
 }
 
 mod emission {

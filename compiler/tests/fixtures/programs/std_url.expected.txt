@@ -1,0 +1,11 @@
+decode_utf8: café
+decode_plus_untouched: a+b
+decode_malformed: %E0%A4%A %zz
+encode_reserved: a%20b%26c%3Dd%2F%C3%A9
+encode_unreserved: Az09-_.!~*'()
+query_empty: [] []
+query_pairs: [a="1", b="x y!"]
+query_first_equals: [q="a=b"]
+query_bare_and_empty: [flag="", x=""]
+query_duplicates_kept: [a="1", a="2"]
+build_query: a%20b=x%26y&c=

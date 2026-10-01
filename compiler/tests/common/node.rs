@@ -310,6 +310,13 @@ pub fn run_program_plugins(
 
     std::fs::write(std_dir.join(format!("{name}.js")), &out.js)
       .expect("write a std module");
+    for (path, text) in std.files {
+      let target = std_dir.join(path);
+
+      std::fs::create_dir_all(target.parent().expect("a parent directory"))
+        .expect("create a std file's directory");
+      std::fs::write(target, text).expect("write a std module's file");
+    }
     todo.extend(out.std_imports);
     done.push(name);
   }

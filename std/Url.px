@@ -1,0 +1,69 @@
+module Url
+
+uses
+  Std.List
+
+types
+  Pair = { name: String, value: String } derive(Eq, Show)
+
+externs
+  decode_component(text: String) -> String = "./bindings/Url.js" decode
+  encode_component(text: String) -> String = "./bindings/Url.js" encode
+
+functions
+  decode(text: String) -> String {
+    decode_component(text)
+  }
+
+  encode(text: String) -> String {
+    encode_component(text)
+  }
+
+  parse_query(text: String) -> List<Pair> {
+    let body = if String.starts_with(text, "?") {
+      String.slice(text, 1, String.length(text))
+    } else {
+      text
+    }
+
+    pairs(String.split(body, "&"))
+  }
+
+  pairs(pieces: List<String>) -> List<Pair> {
+    match pieces {
+      [] -> [],
+      [piece, ..rest] -> if piece == "" {
+        pairs(rest)
+      } else {
+        [pair(piece), ..pairs(rest)]
+      },
+    }
+  }
+
+  pair(piece: String) -> Pair {
+    match String.split(piece, "=") {
+      [] -> { name: "", value: "" },
+      [name] -> { name: form_decode(name), value: "" },
+      [name, ..rest] -> {
+        name: form_decode(name),
+        value: form_decode(List.join(rest, "=")),
+      },
+    }
+  }
+
+  form_decode(text: String) -> String {
+    decode(String.replace(text, "+", " "))
+  }
+
+  build_query(pairs: List<Pair>) -> String {
+    List.join(
+      List.map(pairs, function(p) { "#{encode(p.name)}=#{encode(p.value)}" }),
+      "&",
+    )
+  }
+
+exports
+  build_query
+  decode
+  encode
+  parse_query
