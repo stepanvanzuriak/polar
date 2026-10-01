@@ -48,6 +48,24 @@ polar start --host Node -- arg  # pick a host's build; args after `--` go to the
 `dist/` is self-contained: `node dist/start.mjs` runs it anywhere. See
 [`projects/`](projects/) for examples.
 
+## Standard library
+
+`uses Std.<Name>` imports a module from [`std/`](std/):
+
+| Module | What |
+|---|---|
+| `Assert` | `assert` |
+| `Dom` | the `Browser` host and its `Dom` effect |
+| `Http` | `Request`, `Response`, `Header`, `header` lookup |
+| `Id` | typed ids, `Id<a>` |
+| `Json` | the `Json` trait, `encode`/`decode` |
+| `List`, `Map`, `Option`, `Result` | collections and their combinators |
+| `Math` | `pi` |
+| `Prelude` | `Eq` and `Show` (always in scope) |
+| `Ref` | mutable cells under the `Mut` effect |
+| `Table` | in-memory tables |
+| `Url` | `decode`/`encode` (percent-encoding, never throws), `parse_query`/`build_query` |
+
 ## License
 
 [MIT](LICENSE)

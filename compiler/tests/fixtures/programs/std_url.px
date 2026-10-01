@@ -1,0 +1,34 @@
+module StdUrl
+
+uses
+  Std.List
+  Std.Url
+
+functions
+  pairs(text: String) -> String {
+    let shown = List.map(
+      Url.parse_query(text),
+      function(p: Pair) { "#{p.name}=\"#{p.value}\"" },
+    )
+
+    "[#{List.join(shown, ", ")}]"
+  }
+
+  main() {
+    Log.info("decode_utf8: #{Url.decode("caf%C3%A9")}")
+    Log.info("decode_plus_untouched: #{Url.decode("a+b")}")
+    Log.info("decode_malformed: #{Url.decode("%E0%A4%A")} #{Url.decode("%zz")}")
+    Log.info("encode_reserved: #{Url.encode("a b&c=d/é")}")
+    Log.info("encode_unreserved: #{Url.encode("Az09-_.!~*'()")}")
+    Log.info("query_empty: #{pairs("")} #{pairs("?")}")
+    Log.info("query_pairs: #{pairs("?a=1&b=x+y%21")}")
+    Log.info("query_first_equals: #{pairs("q=a=b")}")
+    Log.info("query_bare_and_empty: #{pairs("flag&&x=")}")
+    Log.info("query_duplicates_kept: #{pairs("a=1&a=2")}")
+    Log.info(
+      "build_query: #{Url.build_query([{ name: "a b", value: "x&y" }, { name: "c", value: "" }])}",
+    )
+  }
+
+exports
+  main

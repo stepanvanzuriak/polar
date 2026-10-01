@@ -461,6 +461,12 @@ impl Lowerer<'_> {
             )),
           );
         }
+        None if self.local_types.contains(&name.text) => self.error(
+          UnknownName,
+          format!("`{}` is a type, and types are always exported", name.text),
+          name.span.clone(),
+          Some("remove it from `exports`".to_string()),
+        ),
         None => self.unknown_name(name, "function or constant", "to export"),
       }
 
