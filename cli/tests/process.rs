@@ -189,7 +189,7 @@ fn unfiltered_fallback() {
       "main.js",
       "export async function main() { throw new TypeError(\"synthetic\"); }\n",
     ),
-    ("launcher.mjs", include_str!("../src/launcher.mjs")),
+    ("launcher.mjs", include_str!("../src/js/launcher.mjs")),
   ]);
   let node = std::env::var("POLAR_NODE").unwrap_or_else(|_| "node".to_string());
   let out = Command::new(node)
