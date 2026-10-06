@@ -2,7 +2,7 @@
   "name": "polar-lang",
   "displayName": "Polar",
   "description": "Syntax highlighting for the Polar language (.px)",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "polar-lang",
   "license": "MIT",
   "engines": { "vscode": "^1.75.0" },
