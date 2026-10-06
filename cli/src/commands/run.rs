@@ -203,10 +203,10 @@ pub(crate) fn launch(
   Ok(status.code().map_or(1, |code| u8::try_from(code).unwrap_or(1)))
 }
 
-fn needs_node(ctx: &Ctx<'_, '_>) -> Result<PathBuf, CliError> {
+pub(crate) fn needs_node(ctx: &Ctx<'_, '_>) -> Result<PathBuf, CliError> {
   node::locate(ctx.io.env).ok_or_else(|| {
     CliError::Message(
-      "`polar run` needs Node.js (set POLAR_NODE or add `node` to PATH)"
+      "Polar needs Node.js to run programs (set POLAR_NODE or add `node` to PATH)"
         .to_string(),
     )
   })

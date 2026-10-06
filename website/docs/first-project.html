@@ -1,56 +1,86 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your First Project – Polar</title>
-<meta name="description" content="Set up a Polar project with polar.toml, split code across files, and build it into a self-contained dist folder.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="first-project">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your First Project – Polar</title>
+    <meta
+      name="description"
+      content="Set up a Polar project with polar.toml, split code across files, and build it into a self-contained dist folder."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="first-project">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Your First Project</h1>
+          <p class="lead">
+            A single <code>.px</code> file is enough to try things out. Real
+            programs live in a <strong>project</strong>: a folder with a
+            <code>polar.toml</code> file and a <code>src</code> directory.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Your First Project</h1>
-      <p class="lead">A single <code>.px</code> file is enough to try things out. Real programs live in a <strong>project</strong>: a folder with a <code>polar.toml</code> file and a <code>src</code> directory.</p>
-
-      <h2 id="create">Create the project</h2>
-      <p><code>polar init shop</code> makes the folder, <code>polar.toml</code>, <code>src/main.px</code> and a <code>.gitignore</code> for you. To see what it writes, here is the same thing by hand.</p>
-      <p>Let's make a project called <code>shop</code> that adds up prices. Make this layout:</p>
-<pre class="code"><code>shop/
+          <h2 id="create">Create the project</h2>
+          <p>
+            <code>polar init shop</code> makes the folder,
+            <code>polar.toml</code>, <code>src/main.px</code> and a
+            <code>.gitignore</code> for you. To see what it writes, here is the
+            same thing by hand.
+          </p>
+          <p>
+            Let's make a project called <code>shop</code> that adds up prices.
+            Make this layout:
+          </p>
+          <pre class="code"><code>shop/
 ├── polar.toml
 └── src/
     ├── main.px
     └── money.px</code></pre>
-      <p><code>polar.toml</code> only needs a name:</p>
-<pre class="code"><code>[project]
+          <p><code>polar.toml</code> only needs a name:</p>
+          <pre class="code"><code>[project]
 name = "shop"</code></pre>
-      <p>Polar fills in the rest with defaults. Here they are written out, in case you want to change them:</p>
-<pre class="code"><code>[project]
+          <p>
+            Polar fills in the rest with defaults. Here they are written out, in
+            case you want to change them:
+          </p>
+          <pre class="code"><code>[project]
 name = "shop"
 src = "src"              <span class="cm"># where the .px files live</span>
 out = "dist"             <span class="cm"># where polar build writes</span>
 main = "src/main.px"     <span class="cm"># what polar run runs</span></code></pre>
 
-      <h2 id="modules">Split code into modules</h2>
-      <p>Each file is one module. Put the money helpers in <code>src/money.px</code>:</p>
-<pre class="code" data-lang="polar"><code>module Money
+          <h2 id="modules">Split code into modules</h2>
+          <p>
+            Each file is one module. Put the money helpers in
+            <code>src/money.px</code>:
+          </p>
+          <pre class="code" data-lang="polar"><code>module Money
 
 types
   Money = { cents: Int }
@@ -75,8 +105,8 @@ exports
   cents
   add
   format</code></pre>
-      <p>And use them from <code>src/main.px</code>:</p>
-<pre class="code" data-lang="polar"><code>module Main
+          <p>And use them from <code>src/main.px</code>:</p>
+          <pre class="code" data-lang="polar"><code>module Main
 
 uses
   Money as M
@@ -92,38 +122,56 @@ functions
 
 exports
   main</code></pre>
-      <p><code>uses Money</code> loads <code>src/money.px</code>. The <code>as M</code> part is optional: it lets us write <code>M.add</code> instead of <code>Money.add</code>. Only names listed under <code>exports</code> can be used from other modules.</p>
+          <p>
+            <code>uses Money</code> loads <code>src/money.px</code>. The
+            <code>as M</code> part is optional: it lets us write
+            <code>M.add</code> instead of <code>Money.add</code>. Only names
+            listed under <code>exports</code> can be used from other modules.
+          </p>
 
-      <h2 id="run">Run it</h2>
-      <p>Inside a project, commands don't need a path:</p>
-<pre class="code"><code><span class="pr">$</span> cd shop
+          <h2 id="run">Run it</h2>
+          <p>Inside a project, commands don't need a path:</p>
+          <pre class="code"><code><span class="pr">$</span> cd shop
 <span class="pr">$</span> polar run
 total: $22.54</code></pre>
 
-      <h2 id="build">Build it</h2>
-      <p><code>polar build</code> writes JavaScript into <code>dist/</code>:</p>
-<pre class="code"><code><span class="pr">$</span> polar build
+          <h2 id="build">Build it</h2>
+          <p>
+            <code>polar build</code> writes JavaScript into <code>dist/</code>:
+          </p>
+          <pre class="code"><code><span class="pr">$</span> polar build
 built shop (2 files) into dist in 43ms</code></pre>
-<pre class="code"><code>dist/
+          <pre class="code"><code>dist/
 ├── main.js      main.js.map      main.d.ts
 ├── money.js     money.js.map     money.d.ts
 ├── start.mjs
 └── _polar/</code></pre>
-      <p>Every module becomes a <code>.js</code> file with a source map and a <code>.d.ts</code> type declaration. <code>_polar/</code> holds the small runtime. <code>dist/</code> is self-contained, so you can copy it anywhere and run it with Node:</p>
-<pre class="code"><code><span class="pr">$</span> node dist/start.mjs
+          <p>
+            Every module becomes a <code>.js</code> file with a source map and a
+            <code>.d.ts</code> type declaration. <code>_polar/</code> holds the
+            small runtime. <code>dist/</code> is self-contained, so you can copy
+            it anywhere and run it with Node:
+          </p>
+          <pre class="code"><code><span class="pr">$</span> node dist/start.mjs
 total: $22.54</code></pre>
-      <p><code>polar start</code> does the same thing: it runs the existing build without compiling again.</p>
+          <p>
+            <code>polar start</code> does the same thing: it runs the existing
+            build without compiling again.
+          </p>
 
-      <h2 id="use-from-js">Use it from JavaScript</h2>
-      <p>The built modules are ordinary ES modules, so JavaScript can import them directly:</p>
-<pre class="code"><code><span class="cm">// use.mjs</span>
+          <h2 id="use-from-js">Use it from JavaScript</h2>
+          <p>
+            The built modules are ordinary ES modules, so JavaScript can import
+            them directly:
+          </p>
+          <pre class="code"><code><span class="cm">// use.mjs</span>
 import { cents, add, format } from "./dist/money.js";
 
 console.log(format(add(cents(1050), cents(99))));</code></pre>
-<pre class="code out"><code><span class="pr">$</span> node use.mjs
+          <pre class="code out"><code><span class="pr">$</span> node use.mjs
 $11.49</code></pre>
-      <p>TypeScript sees the types from <code>money.d.ts</code>:</p>
-<pre class="code"><code>export type Money = { cents: number };
+          <p>TypeScript sees the types from <code>money.d.ts</code>:</p>
+          <pre class="code"><code>export type Money = { cents: number };
 
 export declare function cents(n: number): Money;
 
@@ -131,18 +179,24 @@ export declare function add(a: Money, b: Money): Money;
 
 export declare function format(m: Money): string;</code></pre>
 
-      <h2 id="watch">Keep it building</h2>
-      <p>While you work, <code>--watch</code> rebuilds on every save:</p>
-<pre class="code"><code><span class="pr">$</span> polar check --watch      <span class="cm"># report errors only</span>
+          <h2 id="watch">Keep it building</h2>
+          <p>While you work, <code>--watch</code> rebuilds on every save:</p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar check --watch      <span class="cm"># report errors only</span>
 <span class="pr">$</span> polar build --watch      <span class="cm"># rebuild dist/ too</span></code></pre>
-      <p>Next, let's <a href="editor-setup.html">set up your editor</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>Next, let's <a href="editor-setup.html">set up your editor</a>.</p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

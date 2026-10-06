@@ -1,0 +1,7 @@
+equal_ints: ok
+equal_ints_differ: failed: expected 4, got 3
+equal_strings_differ: failed: expected b, got a
+not_equal_differ: ok
+not_equal_same: failed: expected a value other than 1
+fail: failed: boom
+assert_false: failed: false

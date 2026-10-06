@@ -1,38 +1,54 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zone Plugins – Polar</title>
-<meta name="description" content="Add a new zone to Polar with a Rust plugin: declare it in polar.toml, expand entries into Polar code, report errors and format the zone.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="zone-plugins">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zone Plugins – Polar</title>
+    <meta
+      name="description"
+      content="Add a new zone to Polar with a Rust plugin: declare it in polar.toml, expand entries into Polar code, report errors and format the zone."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="zone-plugins">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Zone Plugins</h1>
+          <p class="lead">
+            A package can teach Polar new zones. A plugin is a small piece of
+            Rust that reads the entries of a zone and turns them into ordinary
+            Polar code, which is then type-checked like everything else.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Zone Plugins</h1>
-      <p class="lead">A package can teach Polar new zones. A plugin is a small piece of Rust that reads the entries of a zone and turns them into ordinary Polar code, which is then type-checked like everything else.</p>
-
-      <h2 id="example">What we'll build</h2>
-      <p>We'll write a <code>notes</code> zone for named strings:</p>
-<pre class="code" data-lang="polar"><code>module Main
+          <h2 id="example">What we'll build</h2>
+          <p>We'll write a <code>notes</code> zone for named strings:</p>
+          <pre class="code" data-lang="polar"><code>module Main
 
 notes
   greeting = "hello"
@@ -45,29 +61,53 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run
+          <pre class="code out"><code><span class="pr">$</span> polar run
 hello, then goodbye</code></pre>
-      <p>The plugin turns each <code>name = value</code> line into a constant: <code>greeting: String = "hello"</code>. It's a tiny zone, but it uses every part of the plugin API.</p>
+          <p>
+            The plugin turns each <code>name = value</code> line into a
+            constant: <code>greeting: String = "hello"</code>. It's a tiny zone,
+            but it uses every part of the plugin API.
+          </p>
 
-      <h2 id="package">Step 1: Make a package</h2>
-      <p>Plugins live in <a href="modules-and-packages.html#packages">packages</a>. Make a <code>notes</code> package, and list the zones its plugin defines:</p>
-<pre class="code"><code>notes/
+          <h2 id="package">Step 1: Make a package</h2>
+          <p>
+            Plugins live in
+            <a href="modules-and-packages.html#packages">packages</a>. Make a
+            <code>notes</code> package, and list the zones its plugin defines:
+          </p>
+          <pre class="code"><code>notes/
 ├── polar.toml
 ├── plugin/
 │   └── lib.rs
 └── src/</code></pre>
-<pre class="code"><code>[package]
+          <pre class="code"><code>[package]
 name = "notes"
 module = "Notes"
 
 [plugin]
 zones = ["notes"]</code></pre>
-      <p>If <code>plugin/lib.rs</code> doesn't exist yet, Polar writes a stub for each listed zone the first time it builds. If the plugin needs crates from crates.io, add <code>dependencies = { regex = "1" }</code> under <code>[plugin]</code>.</p>
-      <p>For a project, the quickest start is <code>polar init --zone notes</code>: it writes <code>polar.toml</code> with the <code>[plugin]</code> section, the <code>plugin/lib.rs</code> stub and the <code>.polar/</code> folder, without building anything.</p>
+          <p>
+            If <code>plugin/lib.rs</code> doesn't exist yet, Polar writes a stub
+            for each listed zone the first time it builds. If the plugin needs
+            crates from crates.io, add
+            <code>dependencies = { regex = "1" }</code> under
+            <code>[plugin]</code>.
+          </p>
+          <p>
+            For a project, the quickest start is
+            <code>polar init --zone notes</code>: it writes
+            <code>polar.toml</code> with the <code>[plugin]</code> section, the
+            <code>plugin/lib.rs</code> stub and the <code>.polar/</code> folder,
+            without building anything.
+          </p>
 
-      <h2 id="describe">Step 2: Describe the zone</h2>
-      <p>A plugin implements the <code>ZonePlugin</code> trait from the <code>polar_plugin</code> crate. First, <code>zone</code> says what the zone is called, and which built-in zone it sits after:</p>
-<pre class="code"><code>use polar_plugin::{
+          <h2 id="describe">Step 2: Describe the zone</h2>
+          <p>
+            A plugin implements the <code>ZonePlugin</code> trait from the
+            <code>polar_plugin</code> crate. First, <code>zone</code> says what
+            the zone is called, and which built-in zone it sits after:
+          </p>
+          <pre class="code"><code>use polar_plugin::{
   Diagnostic, Entry, Expansion, Module, Source, Span, Zone, ZonePlugin, export,
 };
 
@@ -82,9 +122,16 @@ impl ZonePlugin for Notes {
     }
   }</code></pre>
 
-      <h2 id="expand">Step 3: Expand entries into Polar</h2>
-      <p><code>expand</code> receives the zone's entries. Each <code>Entry</code> has its source text and its tokens. The plugin builds Polar source for each one, and says which zone the generated code belongs in:</p>
-<pre class="code"><code>  fn expand(&amp;self, _zone: Span, entries: &amp;[Entry], _module: &amp;Module) -> Expansion {
+          <h2 id="expand">Step 3: Expand entries into Polar</h2>
+          <p>
+            <code>expand</code> receives the zone's entries. Each
+            <code>Entry</code> has its source text and its tokens. The plugin
+            builds Polar source for each one, and says which zone the generated
+            code belongs in:
+          </p>
+          <pre
+            class="code"
+          ><code>  fn expand(&amp;self, _zone: Span, entries: &amp;[Entry], _module: &amp;Module) -> Expansion {
     let mut out = Expansion::default();
 
     for entry in entries {
@@ -114,22 +161,39 @@ impl ZonePlugin for Notes {
 }
 
 export!(Notes);</code></pre>
-      <p>Two details make plugins pleasant to use:</p>
-      <ul>
-        <li><code>Source::from</code> copies text <em>together with its location</em>. If the generated constant has a type error, the error points at the user's <code>notes</code> line, not at generated code.</li>
-        <li><code>out.error</code> reports a problem in the same style as the compiler's own errors.</li>
-      </ul>
-      <p><code>export!</code> registers the plugin. A package with several zones passes them all: <code>export!(Schema, Routes, Views)</code>.</p>
+          <p>Two details make plugins pleasant to use:</p>
+          <ul>
+            <li>
+              <code>Source::from</code> copies text
+              <em>together with its location</em>. If the generated constant has
+              a type error, the error points at the user's
+              <code>notes</code> line, not at generated code.
+            </li>
+            <li>
+              <code>out.error</code> reports a problem in the same style as the
+              compiler's own errors.
+            </li>
+          </ul>
+          <p>
+            <code>export!</code> registers the plugin. A package with several
+            zones passes them all: <code>export!(Schema, Routes, Views)</code>.
+          </p>
 
-      <h2 id="use-it">Step 4: Use it from a project</h2>
-      <p>Any project that depends on the package gets its zones:</p>
-<pre class="code"><code>[project]
+          <h2 id="use-it">Step 4: Use it from a project</h2>
+          <p>Any project that depends on the package gets its zones:</p>
+          <pre class="code"><code>[project]
 name = "app"
 
 [dependencies]
 notes = { path = "../notes" }</code></pre>
-      <p>The first build compiles the plugin with <code>cargo</code>, inside the package's <code>.polar/</code> folder, which Polar manages and git ignores. Later builds reuse it. A bad entry gets a proper error:</p>
-<pre class="code"><code><span class="er">error[POLAR0901]</span>: a note is `name = value`
+          <p>
+            The first build compiles the plugin with <code>cargo</code>, inside
+            the package's <code>.polar/</code> folder, which Polar manages and
+            git ignores. Later builds reuse it. A bad entry gets a proper error:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="er">error[POLAR0901]</span>: a note is `name = value`
  --> src/main.px:6:3
   |
 6 |   oops
@@ -137,12 +201,22 @@ notes = { path = "../notes" }</code></pre>
   |
   = help: write it like `greeting = "hello"`</code></pre>
 
-      <h2 id="formatting">Formatting</h2>
-      <p><code>polar fmt</code> asks the plugin how to print its zone, through the optional <code>print</code> method. The default re-indents each entry as written. The <code>polar_plugin</code> crate also has an <code>align</code> helper for zones laid out in columns.</p>
+          <h2 id="formatting">Formatting</h2>
+          <p>
+            <code>polar fmt</code> asks the plugin how to print its zone,
+            through the optional <code>print</code> method. The default
+            re-indents each entry as written. The
+            <code>polar_plugin</code> crate also has an
+            <code>align</code> helper for zones laid out in columns.
+          </p>
 
-      <h2 id="real-zones">Bigger examples</h2>
-      <p>The repository's <code>projects/simple_framework</code> package defines three zones for web apps. Reading its plugins is the best next step:</p>
-<pre class="code" data-lang="polar"><code>schema
+          <h2 id="real-zones">Bigger examples</h2>
+          <p>
+            The repository's <code>projects/simple_framework</code> package
+            defines three zones for web apps. Reading its plugins is the best
+            next step:
+          </p>
+          <pre class="code" data-lang="polar"><code>schema
   posts in Node
     id         Id&lt;Post&gt;  primary
     title      String
@@ -157,18 +231,36 @@ views
     &lt;article class="post"&gt;
       &lt;h2&gt;{post.title}&lt;/h2&gt;
     &lt;/article&gt;</code></pre>
-      <ul>
-        <li><code>schema</code> turns each table into a record type, an insert type without the primary key, and an effect with <code>find</code>, <code>all</code>, <code>insert</code>, <code>update</code> and <code>delete</code>.</li>
-        <li><code>routes</code> becomes an exported <code>router</code>. A <code>:id</code> segment fills the handler parameter called <code>id</code>, and an <code>Int</code> segment that doesn't parse doesn't match.</li>
-        <li><code>views</code> is JSX-style markup. Each view becomes a function returning <code>Html</code>, and every <code>{…}</code> hole is type-checked.</li>
-      </ul>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <ul>
+            <li>
+              <code>schema</code> turns each table into a record type, an insert
+              type without the primary key, and an effect with
+              <code>find</code>, <code>all</code>, <code>insert</code>,
+              <code>update</code> and <code>delete</code>.
+            </li>
+            <li>
+              <code>routes</code> becomes an exported <code>router</code>. A
+              <code>:id</code> segment fills the handler parameter called
+              <code>id</code>, and an <code>Int</code> segment that doesn't
+              parse doesn't match.
+            </li>
+            <li>
+              <code>views</code> is JSX-style markup. Each view becomes a
+              function returning <code>Html</code>, and every
+              <code>{…}</code> hole is type-checked.
+            </li>
+          </ul>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

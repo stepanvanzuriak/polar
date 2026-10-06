@@ -1,58 +1,104 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Modules and Packages – Polar</title>
-<meta name="description" content="Importing modules, aliases and method imports, exports, packages, path dependencies and launchers.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="modules-and-packages">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Modules and Packages – Polar</title>
+    <meta
+      name="description"
+      content="Importing modules, aliases and method imports, exports, packages, path dependencies and launchers."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="modules-and-packages">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Modules and Packages</h1>
+          <p class="lead">
+            Every Polar file is a module. Modules are grouped into projects,
+            which you run, and packages, which other projects depend on.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Modules and Packages</h1>
-      <p class="lead">Every Polar file is a module. Modules are grouped into projects, which you run, and packages, which other projects depend on.</p>
-
-      <h2 id="uses">Importing with uses</h2>
-      <p>The <code>uses</code> zone lists the modules a file needs. There are three forms:</p>
-<pre class="code" data-lang="polar"><code>uses
+          <h2 id="uses">Importing with uses</h2>
+          <p>
+            The <code>uses</code> zone lists the modules a file needs. There are
+            three forms:
+          </p>
+          <pre class="code" data-lang="polar"><code>uses
   Std.List
   Money as M
   Std.Prelude { show }</code></pre>
-      <ul>
-        <li><code>Std.List</code> imports the module under its last name, so you write <code>List.map</code>.</li>
-        <li><code>Money as M</code> picks a different name, so you write <code>M.add</code>.</li>
-        <li><code>Std.Prelude { show }</code> also brings trait methods into scope, so you can call <code>show(x)</code> without a prefix.</li>
-      </ul>
+          <ul>
+            <li>
+              <code>Std.List</code> imports the module under its last name, so
+              you write <code>List.map</code>.
+            </li>
+            <li>
+              <code>Money as M</code> picks a different name, so you write
+              <code>M.add</code>.
+            </li>
+            <li>
+              <code>Std.Prelude { show }</code> also brings trait methods into
+              scope, so you can call <code>show(x)</code> without a prefix.
+            </li>
+          </ul>
 
-      <h3 id="resolution">Where modules come from</h3>
-      <ul>
-        <li>Paths starting with <code>Std.</code> come from the <a href="standard-library.html">standard library</a>.</li>
-        <li>Paths starting with a dependency's module name come from that package.</li>
-        <li>Everything else comes from your project's <code>src</code>. <code>uses Money</code> loads <code>src/money.px</code>, which declares <code>module Money</code>.</li>
-      </ul>
+          <h3 id="resolution">Where modules come from</h3>
+          <ul>
+            <li>
+              Paths starting with <code>Std.</code> come from the
+              <a href="standard-library.html">standard library</a>.
+            </li>
+            <li>
+              Paths starting with a dependency's module name come from that
+              package.
+            </li>
+            <li>
+              Everything else comes from your project's <code>src</code>.
+              <code>uses Money</code> loads <code>src/money.px</code>, which
+              declares <code>module Money</code>.
+            </li>
+          </ul>
 
-      <h2 id="exports">Exports</h2>
-      <p>The <code>exports</code> zone lists the functions, constants, effects and hosts that other modules can use. Anything not listed stays private to the file.</p>
-      <p>Types are different: they're always exported, so they never go in the list. If you add one anyway, Polar tells you to remove it:</p>
-<pre class="code"><code><span class="er">error[POLAR0301]</span>: `Shape` is a type, and types are always exported
+          <h2 id="exports">Exports</h2>
+          <p>
+            The <code>exports</code> zone lists the functions, constants,
+            effects and hosts that other modules can use. Anything not listed
+            stays private to the file.
+          </p>
+          <p>
+            Types are different: they're always exported, so they never go in
+            the list. If you add one anyway, Polar tells you to remove it:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="er">error[POLAR0301]</span>: `Shape` is a type, and types are always exported
    --> tour.px:115:3
     |
 115 |   Shape
@@ -60,46 +106,89 @@
     |
     = help: remove it from `exports`</code></pre>
 
-      <h2 id="packages">Packages</h2>
-      <p>A package is a library: it's checked and depended on, but not run by itself. Its <code>polar.toml</code> has a <code>[package]</code> section instead of <code>[project]</code>, and claims one top-level module name:</p>
-<pre class="code"><code>[package]
+          <h2 id="packages">Packages</h2>
+          <p>
+            A package is a library: it's checked and depended on, but not run by
+            itself. Its <code>polar.toml</code> has a
+            <code>[package]</code> section instead of <code>[project]</code>,
+            and claims one top-level module name:
+          </p>
+          <pre class="code"><code>[package]
 name = "simple_framework"
 module = "Framework"   <span class="cm"># claims every `uses Framework.…`</span></code></pre>
-      <p>Inside the package, file names leave out the claimed name: <code>src/html.px</code> is <code>module Html</code>, and everyone imports it as <code>Framework.Html</code>, including the package's own files.</p>
+          <p>
+            Inside the package, file names leave out the claimed name:
+            <code>src/html.px</code> is <code>module Html</code>, and everyone
+            imports it as <code>Framework.Html</code>, including the package's
+            own files.
+          </p>
 
-      <h2 id="dependencies">Dependencies</h2>
-      <p>Projects and packages list their dependencies by path:</p>
-<pre class="code"><code>[dependencies]
+          <h2 id="dependencies">Dependencies</h2>
+          <p>Projects and packages list their dependencies by path:</p>
+          <pre class="code"><code>[dependencies]
 simple_framework = { path = "../simple_framework" }</code></pre>
-      <p>Paths are relative to the <code>polar.toml</code>. Dependencies compile into <code>dist/_deps/&lt;package&gt;/</code>, so the build stays self-contained.</p>
+          <p>
+            Paths are relative to the <code>polar.toml</code>. Dependencies
+            compile into <code>dist/_deps/&lt;package&gt;/</code>, so the build
+            stays self-contained.
+          </p>
 
-      <h2 id="launchers">Launchers</h2>
-      <p>Some programs need more than <code>main</code> to start. A web app built for <code>Browser</code> and <code>Node</code> needs a server that hands out the browser bundle, answers <a href="bridges.html">bridge</a> calls and runs routes. A package can provide that as a <strong>launcher</strong>, a Node script:</p>
-<pre class="code"><code><span class="cm"># in the package</span>
+          <h2 id="launchers">Launchers</h2>
+          <p>
+            Some programs need more than <code>main</code> to start. A web app
+            built for <code>Browser</code> and <code>Node</code> needs a server
+            that hands out the browser bundle, answers
+            <a href="bridges.html">bridge</a> calls and runs routes. A package
+            can provide that as a <strong>launcher</strong>, a Node script:
+          </p>
+          <pre class="code"><code><span class="cm"># in the package</span>
 [launcher]
 script = "launcher/serve.mjs"</code></pre>
-      <p>A project picks a launcher from one of its direct dependencies, and can pass it options:</p>
-<pre class="code"><code><span class="cm"># in the project</span>
+          <p>
+            A project picks a launcher from one of its direct dependencies, and
+            can pass it options:
+          </p>
+          <pre class="code"><code><span class="cm"># in the project</span>
 [run]
 launcher = "simple_framework"
 options = { port = 3000 }</code></pre>
-      <p>Now <code>polar run</code> builds every host and hands the result to the launcher. The launcher receives a manifest file describing the build:</p>
-<pre class="code"><code>{ "version": 1, "project": "web_posts", "root": "/abs/projects/web_posts",
+          <p>
+            Now <code>polar run</code> builds every host and hands the result to
+            the launcher. The launcher receives a manifest file describing the
+            build:
+          </p>
+          <pre
+            class="code"
+          ><code>{ "version": 1, "project": "web_posts", "root": "/abs/projects/web_posts",
   "out": "/tmp/polar-run-…/dist", "main": "main.js",
   "hosts": { "Browser": "/tmp/…/dist/Browser", "Node": "/tmp/…/dist/Node" },
   "options": { "port": 3000 } }</code></pre>
-      <p><code>polar build</code> bundles the launcher too, so <code>polar start</code> or <code>node dist/start.mjs</code> runs the built app without compiling again.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> The launcher script is copied on its own, so it can't import files that sit next to it.</p>
-      </div>
-      <p>Packages can also add new zones to the language. That's the last guide: <a href="zone-plugins.html">Zone Plugins</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>
+            <code>polar build</code> bundles the launcher too, so
+            <code>polar start</code> or <code>node dist/start.mjs</code> runs
+            the built app without compiling again.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> The launcher script is copied on
+              its own, so it can't import files that sit next to it.
+            </p>
+          </div>
+          <p>
+            Packages can also add new zones to the language. That's the last
+            guide: <a href="zone-plugins.html">Zone Plugins</a>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

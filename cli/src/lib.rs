@@ -147,6 +147,11 @@ pub(crate) enum Command {
     #[arg(last = true)]
     args: Vec<String>,
   },
+  Test {
+    path: Option<PathBuf>,
+    #[arg(last = true)]
+    args: Vec<String>,
+  },
   Init {
     dir: Option<PathBuf>,
     #[arg(long)]

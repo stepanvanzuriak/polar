@@ -1,58 +1,105 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Editor Setup – Polar</title>
-<meta name="description" content="Syntax highlighting for VS Code, formatting with polar fmt, and errors on save with polar check --watch.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="editor-setup">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Editor Setup – Polar</title>
+    <meta
+      name="description"
+      content="Syntax highlighting for VS Code, formatting with polar fmt, and errors on save with polar check --watch."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="editor-setup">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Editor Setup</h1>
+          <p class="lead">
+            Polar ships a VS Code extension for syntax highlighting, and a
+            formatter you can run from any editor.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Editor Setup</h1>
-      <p class="lead">Polar ships a VS Code extension for syntax highlighting, and a formatter you can run from any editor.</p>
-
-      <h2 id="vscode">VS Code</h2>
-      <p>The extension lives in the repository at <code>editor/vscode</code>. It highlights zone names, keywords, comments, strings with <code>#{…}</code> interpolation, numbers, operators, and type and constructor names in <code>.px</code> files.</p>
-      <p>The quickest way to install it is to link the folder into your extensions directory. Run this from the repository root, then reload the VS Code window:</p>
-<pre class="code"><code><span class="pr">$</span> ln -s "$PWD/editor/vscode" ~/.vscode/extensions/polar-lang</code></pre>
-      <p>Or package it and install the result:</p>
-<pre class="code"><code><span class="pr">$</span> cd editor/vscode
+          <h2 id="vscode">VS Code</h2>
+          <p>
+            The extension lives in the repository at <code>editor/vscode</code>.
+            It highlights zone names, keywords, comments, strings with
+            <code>#{…}</code> interpolation, numbers, operators, and type and
+            constructor names in <code>.px</code> files.
+          </p>
+          <p>
+            The quickest way to install it is to link the folder into your
+            extensions directory. Run this from the repository root, then reload
+            the VS Code window:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> ln -s "$PWD/editor/vscode" ~/.vscode/extensions/polar-lang</code></pre>
+          <p>Or package it and install the result:</p>
+          <pre class="code"><code><span class="pr">$</span> cd editor/vscode
 <span class="pr">$</span> npx @vscode/vsce package
 <span class="pr">$</span> code --install-extension polar-lang-0.0.1.vsix</code></pre>
 
-      <h2 id="formatting">Formatting</h2>
-      <p>Polar has one standard layout, and <code>polar fmt</code> applies it. You don't have to argue about style or configure anything.</p>
-<pre class="code"><code><span class="pr">$</span> polar fmt src            <span class="cm"># rewrite files in place</span>
+          <h2 id="formatting">Formatting</h2>
+          <p>
+            Polar has one standard layout, and <code>polar fmt</code> applies
+            it. You don't have to argue about style or configure anything.
+          </p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar fmt src            <span class="cm"># rewrite files in place</span>
 <span class="pr">$</span> polar fmt --check src    <span class="cm"># only report files that would change</span></code></pre>
-      <p><code>--check</code> exits with an error when a file isn't formatted, which makes it handy in CI.</p>
-      <div class="callout tip">
-        <p><span class="label">Tip:</span> The formatter keeps short expressions on one line and splits long ones. If you're unsure how to lay something out, write it any way that parses and let <code>polar fmt</code> decide.</p>
-      </div>
+          <p>
+            <code>--check</code> exits with an error when a file isn't
+            formatted, which makes it handy in CI.
+          </p>
+          <div class="callout tip">
+            <p>
+              <span class="label">Tip:</span> The formatter keeps short
+              expressions on one line and splits long ones. If you're unsure how
+              to lay something out, write it any way that parses and let
+              <code>polar fmt</code> decide.
+            </p>
+          </div>
 
-      <h2 id="errors-on-save">Errors on save</h2>
-      <p>Keep a terminal open next to your editor with:</p>
-<pre class="code"><code><span class="pr">$</span> polar check --watch</code></pre>
-      <p>Every time you save, Polar re-checks the project and prints any errors. Each error points at the exact code, says what's wrong, and often suggests a fix:</p>
-<pre class="code"><code><span class="er">error[POLAR0501]</span>: mismatched types
+          <h2 id="errors-on-save">Errors on save</h2>
+          <p>Keep a terminal open next to your editor with:</p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar check --watch</code></pre>
+          <p>
+            Every time you save, Polar re-checks the project and prints any
+            errors. Each error points at the exact code, says what's wrong, and
+            often suggests a fix:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="er">error[POLAR0501]</span>: mismatched types
  --> mismatch.px:9:20
   |
 4 |   greet(name: String) -> String {
@@ -60,14 +107,21 @@
 ...
 9 |     Log.info(greet(42))
   |                    ^^ expected `String`, found `Int`</code></pre>
-      <p>That's the setup done. Now let's write some Polar, starting with <a href="hello-world.html">Hello World</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>
+            That's the setup done. Now let's write some Polar, starting with
+            <a href="hello-world.html">Hello World</a>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

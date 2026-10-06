@@ -84,7 +84,9 @@
     });
   }
 
-  var index = flat.findIndex(function (p) { return p.slug === current; });
+  var index = flat.findIndex(function (p) {
+    return p.slug === current;
+  });
   var pager = document.getElementById("pager");
   if (pager && index !== -1) {
     var add = function (page, dir, cls) {
@@ -102,28 +104,74 @@
 
   var edit = document.getElementById("edit");
   if (edit && current) {
-    edit.innerHTML = '<a href="' + REPO + current + '.html">Edit this page on GitHub</a>';
+    edit.innerHTML =
+      '<a href="' + REPO + current + '.html">Edit this page on GitHub</a>';
   }
 
-  document.querySelectorAll("article h2[id], article h3[id]").forEach(function (h) {
-    var a = document.createElement("a");
-    a.className = "anchor";
-    a.href = "#" + h.id;
-    a.setAttribute("aria-label", "Link to this section");
-    a.textContent = "#";
-    h.appendChild(a);
-  });
-
-  var keywords = ["module", "uses", "types", "functions", "effects", "binds", "hosts", "exports", "impls", "traits", "externs", "constants", "schema", "routes", "views", "notes", "let", "match", "if", "else", "function", "in", "from", "derive", "primary", "references", "where", "as", "try", "catch", "throw", "native", "force", "true", "false"];
-  var pattern = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(&lt;|&gt;|&amp;)|\b([A-Z][A-Za-z0-9_]*)\b|\b([a-z_][A-Za-z0-9_]*)\b/g;
-  document.querySelectorAll('pre.code[data-lang="polar"] code').forEach(function (el) {
-    el.innerHTML = el.innerHTML.replace(pattern, function (m, cm, st, ent, ty, id) {
-      if (cm) return '<span class="cm">' + cm + "</span>";
-      if (st) return '<span class="st">' + st + "</span>";
-      if (ent) return ent;
-      if (ty) return '<span class="ty">' + ty + "</span>";
-      if (keywords.indexOf(id) !== -1) return '<span class="kw">' + id + "</span>";
-      return m;
+  document
+    .querySelectorAll("article h2[id], article h3[id]")
+    .forEach(function (h) {
+      var a = document.createElement("a");
+      a.className = "anchor";
+      a.href = "#" + h.id;
+      a.setAttribute("aria-label", "Link to this section");
+      a.textContent = "#";
+      h.appendChild(a);
     });
-  });
+
+  var keywords = [
+    "module",
+    "uses",
+    "types",
+    "functions",
+    "effects",
+    "binds",
+    "hosts",
+    "exports",
+    "impls",
+    "traits",
+    "externs",
+    "constants",
+    "schema",
+    "routes",
+    "views",
+    "notes",
+    "let",
+    "match",
+    "if",
+    "else",
+    "function",
+    "in",
+    "from",
+    "derive",
+    "primary",
+    "references",
+    "where",
+    "as",
+    "try",
+    "catch",
+    "throw",
+    "native",
+    "force",
+    "true",
+    "false",
+  ];
+  var pattern =
+    /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(&lt;|&gt;|&amp;)|\b([A-Z][A-Za-z0-9_]*)\b|\b([a-z_][A-Za-z0-9_]*)\b/g;
+  document
+    .querySelectorAll('pre.code[data-lang="polar"] code')
+    .forEach(function (el) {
+      el.innerHTML = el.innerHTML.replace(
+        pattern,
+        function (m, cm, st, ent, ty, id) {
+          if (cm) return '<span class="cm">' + cm + "</span>";
+          if (st) return '<span class="st">' + st + "</span>";
+          if (ent) return ent;
+          if (ty) return '<span class="ty">' + ty + "</span>";
+          if (keywords.indexOf(id) !== -1)
+            return '<span class="kw">' + id + "</span>";
+          return m;
+        },
+      );
+    });
 })();

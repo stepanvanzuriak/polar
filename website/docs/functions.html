@@ -1,84 +1,151 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Functions – Polar</title>
-<meta name="description" content="Declaring functions, type inference, anonymous functions, passing functions around, generics and destructuring.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="functions">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Functions – Polar</title>
+    <meta
+      name="description"
+      content="Declaring functions, type inference, anonymous functions, passing functions around, generics and destructuring."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="functions">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Functions</h1>
+          <p class="lead">
+            Functions live in the <code>functions</code> zone. This page shows
+            how to write them, pass them around and make them work for many
+            types.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Functions</h1>
-      <p class="lead">Functions live in the <code>functions</code> zone. This page shows how to write them, pass them around and make them work for many types.</p>
-
-      <h2 id="declaring">Declaring a function</h2>
-<pre class="code" data-lang="polar"><code>functions
+          <h2 id="declaring">Declaring a function</h2>
+          <pre class="code" data-lang="polar"><code>functions
   add(a: Int, b: Int) -> Int {
     a + b
   }</code></pre>
-      <p>A function has a name, typed parameters, an optional return type after <code>-&gt;</code>, and a body. The body's last expression is the result.</p>
-      <p>Parameters always need types. The return type is optional: leave it out and Polar works it out from the body.</p>
-<pre class="code" data-lang="polar"><code>double(n: Int) {
+          <p>
+            A function has a name, typed parameters, an optional return type
+            after <code>-&gt;</code>, and a body. The body's last expression is
+            the result.
+          </p>
+          <p>
+            Parameters always need types. The return type is optional: leave it
+            out and Polar works it out from the body.
+          </p>
+          <pre class="code" data-lang="polar"><code>double(n: Int) {
   n * 2
 }</code></pre>
-      <div class="callout">
-        <p><span class="label">Note:</span> Writing the return type does one more thing: it promises the function is pure, unless you list its effects too. We'll come back to this in <a href="effects.html">Effects</a>. For now, a good habit is to write return types on exported functions.</p>
-      </div>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> Writing the return type does one
+              more thing: it promises the function is pure, unless you list its
+              effects too. We'll come back to this in
+              <a href="effects.html">Effects</a>. For now, a good habit is to
+              write return types on exported functions.
+            </p>
+          </div>
 
-      <h2 id="calling">Calling functions</h2>
-      <p>Call a function with parentheses. Functions from other modules are reached through the module name, like <code>List.map</code>. Functions can call themselves:</p>
-<pre class="code" data-lang="polar"><code>factorial(n: Int) -> Int {
+          <h2 id="calling">Calling functions</h2>
+          <p>
+            Call a function with parentheses. Functions from other modules are
+            reached through the module name, like <code>List.map</code>.
+            Functions can call themselves:
+          </p>
+          <pre class="code" data-lang="polar"><code>factorial(n: Int) -> Int {
   if n &lt;= 1 { 1 } else { n * factorial(n - 1) }
 }</code></pre>
 
-      <h2 id="anonymous">Anonymous functions</h2>
-      <p><code>function(…) { … }</code> makes a function without a name. You'll mostly use these as arguments:</p>
-<pre class="code" data-lang="polar"><code>List.filter(tasks, function(t) { !t.done })</code></pre>
-      <p>Their parameter types are usually inferred from where they're used, so you rarely write them. You can also store one in a <code>let</code>:</p>
-<pre class="code" data-lang="polar"><code>let shout = function(s) { String.uppercase(s) }</code></pre>
+          <h2 id="anonymous">Anonymous functions</h2>
+          <p>
+            <code>function(…) { … }</code> makes a function without a name.
+            You'll mostly use these as arguments:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>List.filter(tasks, function(t) { !t.done })</code></pre>
+          <p>
+            Their parameter types are usually inferred from where they're used,
+            so you rarely write them. You can also store one in a
+            <code>let</code>:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>let shout = function(s) { String.uppercase(s) }</code></pre>
 
-      <h2 id="functions-as-values">Functions are values</h2>
-      <p>A named function can be passed anywhere a function is expected, without wrapping it:</p>
-<pre class="code" data-lang="polar"><code>[1, 2, 3] |> List.map(double) |> List.map(Int.to_string)</code></pre>
-      <p>A function type is written <code>function(Int) -&gt; Int</code>. Here's a function that takes another function:</p>
-<pre class="code" data-lang="polar"><code>apply_twice(f: function(Int) -> Int, x: Int) -> Int {
+          <h2 id="functions-as-values">Functions are values</h2>
+          <p>
+            A named function can be passed anywhere a function is expected,
+            without wrapping it:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>[1, 2, 3] |> List.map(double) |> List.map(Int.to_string)</code></pre>
+          <p>
+            A function type is written <code>function(Int) -&gt; Int</code>.
+            Here's a function that takes another function:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>apply_twice(f: function(Int) -> Int, x: Int) -> Int {
   f(f(x))
 }</code></pre>
-      <p><code>apply_twice(double, 5)</code> is <code>20</code>.</p>
+          <p><code>apply_twice(double, 5)</code> is <code>20</code>.</p>
 
-      <h2 id="generics">Generic functions</h2>
-      <p>A lowercase name in a type, like <code>a</code>, is a <strong>type variable</strong>. It stands for "any type", so the function works for all of them. You don't declare type variables; you just use them.</p>
-<pre class="code" data-lang="polar"><code>types
+          <h2 id="generics">Generic functions</h2>
+          <p>
+            A lowercase name in a type, like <code>a</code>, is a
+            <strong>type variable</strong>. It stands for "any type", so the
+            function works for all of them. You don't declare type variables;
+            you just use them.
+          </p>
+          <pre class="code" data-lang="polar"><code>types
   Pair&lt;a&gt; = { first: a, second: a }
 
 functions
   swap(p: Pair&lt;a&gt;) -> Pair&lt;a&gt; {
     { first: p.second, second: p.first }
   }</code></pre>
-      <p><code>swap</code> works on a <code>Pair&lt;Int&gt;</code>, a <code>Pair&lt;String&gt;</code> and so on. The type checker makes sure both fields have the same type, and that the result does too.</p>
+          <p>
+            <code>swap</code> works on a <code>Pair&lt;Int&gt;</code>, a
+            <code>Pair&lt;String&gt;</code> and so on. The type checker makes
+            sure both fields have the same type, and that the result does too.
+          </p>
 
-      <h2 id="destructuring">Destructuring parameters</h2>
-      <p>A parameter can be a pattern that pulls fields out of a record:</p>
-<pre class="code" data-lang="polar"><code>types
+          <h2 id="destructuring">Destructuring parameters</h2>
+          <p>A parameter can be a pattern that pulls fields out of a record:</p>
+          <pre class="code" data-lang="polar"><code>types
   Entry = { key: String, value: Int }
 
 functions
@@ -86,8 +153,8 @@ functions
     "#{k}=#{v}"
   }</code></pre>
 
-      <h2 id="all-together">All together</h2>
-<pre class="code" data-lang="polar"><code>module Funcs
+          <h2 id="all-together">All together</h2>
+          <pre class="code" data-lang="polar"><code>module Funcs
 
 uses
   Std.List
@@ -136,21 +203,30 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run funcs.px
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run funcs.px
 5 42 20
 QUIET
 2, 4, 6
 a=1
 right
 10! = 3628800</code></pre>
-      <p>Next: <a href="records.html">records</a>, the main way to group data in Polar.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>
+            Next: <a href="records.html">records</a>, the main way to group data
+            in Polar.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

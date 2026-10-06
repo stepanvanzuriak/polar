@@ -8,5 +8,28 @@ functions
     if !check { throw Failed(Bool.to_string(check)) } else { {} }
   }
 
+  equal(actual: a, expected: a) -> {} / {Throws<Failed>} where Eq<a>, Show<a> {
+    if actual == expected {
+      {}
+    } else {
+      throw Failed("expected #{expected}, got #{actual}")
+    }
+  }
+
+  not_equal(actual: a, other: a) -> {} / {Throws<Failed>} where Eq<a>, Show<a> {
+    if actual != other {
+      {}
+    } else {
+      throw Failed("expected a value other than #{other}")
+    }
+  }
+
+  fail(message: String) -> a / {Throws<Failed>} {
+    throw Failed(message)
+  }
+
 exports
   assert
+  equal
+  not_equal
+  fail

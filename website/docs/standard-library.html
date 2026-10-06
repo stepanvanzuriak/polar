@@ -314,6 +314,9 @@ effects
           <thead><tr><th>Function</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code class="sig">assert(check: Bool) -> {} / {Throws&lt;Failed&gt;}</code></td><td>Throws <code>Failed</code> when <code>check</code> is false</td></tr>
+            <tr><td><code class="sig">equal(actual: a, expected: a) -> {} / {Throws&lt;Failed&gt;} where Eq&lt;a&gt;, Show&lt;a&gt;</code></td><td>Throws <code>Failed("expected &lt;expected&gt;, got &lt;actual&gt;")</code> when the values differ</td></tr>
+            <tr><td><code class="sig">not_equal(actual: a, other: a) -> {} / {Throws&lt;Failed&gt;} where Eq&lt;a&gt;, Show&lt;a&gt;</code></td><td>Throws <code>Failed("expected a value other than &lt;other&gt;")</code> when the values are equal</td></tr>
+            <tr><td><code class="sig">fail(message: String) -> a / {Throws&lt;Failed&gt;}</code></td><td>Always throws <code>Failed(message)</code>. It has any type, so it fits any <code>match</code> arm</td></tr>
           </tbody>
         </table>
       </div>
