@@ -1,0 +1,17 @@
+recent: true
+iso_epoch: 1970-01-01T00:00:00.000Z
+iso_millis: 2026-10-02T09:30:00.123Z
+round_trip: true
+round_trip_big: true
+offset: 2026-10-02T09:30:00.000Z
+no_millis: 2026-10-02T09:30:00.000Z
+sqlite: 2026-10-02T09:30:00.000Z 2026-10-02T09:30:00.250Z
+rejects: None None None None None
+compact: 20261002_093000
+json: {"at":"2026-10-02T09:30:00.123Z"}
+decoded: true
+.at: expected an ISO-8601 time, found a number
+.at: expected an ISO-8601 time, found "soon"
+compare: -1 1 0
+before: true false true false
+show: 1970-01-01T00:00:00.000Z

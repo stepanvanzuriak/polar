@@ -1,7 +1,5 @@
 use crate::{
-  shared::codes::DiagnosticCode::{
-    NestingTooDeep, PluginKeywordAsName, UnexpectedToken,
-  },
+  shared::codes::DiagnosticCode::{NestingTooDeep, UnexpectedToken},
   shared::diagnostic::{Diagnostic, DiagnosticBag, Label},
   shared::ice::invariant,
   shared::source::{SourceFile, Span},
@@ -240,29 +238,10 @@ impl<'a> Parser<'a> {
       Some(span) => {
         let text = self.file.slice(&span).to_string();
 
-        if kind == Lower {
-          self.keyword_as_name(&text, &span);
-        }
-
         Name { text, span }
       }
       None => Name { text: String::new(), span: self.missing_span() },
     }
-  }
-
-  pub(crate) fn keyword_as_name(&mut self, text: &str, span: &Span) {
-    if !self.enabled.iter().any(|id| plugins::keyword(*id) == text) {
-      return;
-    }
-
-    self.diagnostics.push(
-      Diagnostic::error(
-        PluginKeywordAsName,
-        format!("`{text}` is a zone keyword in this project, from a plugin"),
-        Label::new(span.clone()),
-      )
-      .with_help("choose another name"),
-    );
   }
 
   pub(crate) fn at_from(&self, n: usize) -> bool {
