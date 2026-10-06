@@ -1114,6 +1114,57 @@ effects
             </table>
           </div>
 
+          <h2 id="crypto">Crypto</h2>
+          <p>
+            Hashing, signing and random tokens over <code>node:crypto</code>.
+            <code>Crypto</code> works on <code>Node</code> only, so a
+            <code>Browser</code> build can't use <code>Random</code>.
+            Randomness is the <code>Random</code> effect, so a function that
+            makes a token says so in its type, and a program can bind
+            <code>Random</code> to a fixed value in a test. There is no
+            <code>Bytes</code> type: random bytes are a hex string.
+          </p>
+          <pre class="code" data-lang="polar"><code>effects
+  Random {
+    bytes(count: Int) -&gt; String
+  }</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="sig">sha256(text: String) -&gt; String</code></td>
+                  <td>Lowercase hex SHA-256 of the string's UTF-8 bytes</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">hmac_sha256(key: String, text: String) -&gt; String</code></td>
+                  <td>Lowercase hex HMAC-SHA-256 of <code>text</code> under <code>key</code></td>
+                </tr>
+                <tr>
+                  <td><code class="sig">equal(a: String, b: String) -&gt; Bool</code></td>
+                  <td>Constant-time comparison; <code>false</code> for different lengths. Use it to check a signature</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">base64url(text: String) -&gt; String</code></td>
+                  <td>URL-safe base64 of the UTF-8 bytes, no padding</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">from_base64url(text: String) -&gt; Option&lt;String&gt;</code></td>
+                  <td>Decodes <code>base64url</code> output; <code>None</code> for invalid text</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">Random.bytes(count: Int) -&gt; String</code></td>
+                  <td><code>count</code> random bytes as <code>2 × count</code> lowercase hex characters</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <h2 id="assert">Assert</h2>
           <pre
             class="code"
