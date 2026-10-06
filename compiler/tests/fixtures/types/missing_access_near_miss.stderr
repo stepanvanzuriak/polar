@@ -1,0 +1,9 @@
+error[POLAR0502]: missing field `nmae`
+ --> missing_access_near_miss.px:6:10
+  |
+6 |     user.nmae
+  |          ^^^^ the type `{ email: String, name: String }` has no field `nmae`
+  |
+  = help: did you mean `name`?
+
+error: aborting due to 1 error
