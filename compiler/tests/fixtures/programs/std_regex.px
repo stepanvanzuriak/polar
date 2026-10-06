@@ -1,0 +1,65 @@
+module StdRegex
+
+uses
+  Std.List
+  Std.Option
+  Std.Regex
+  Std.Result
+
+hosts
+  Node
+
+functions
+  compiled(pattern: String) -> String {
+    match Regex.compile(pattern) {
+      Ok(re) -> "ok #{Regex.pattern(re)}",
+      Err(message) -> if message == "" { "err empty" } else { "err" },
+    }
+  }
+
+  first(pattern: String, text: String) -> String {
+    match Regex.compile(pattern) {
+      Err(_) -> "bad",
+      Ok(re) -> match Regex.find(re, text) {
+        None -> "None",
+        Some(m) -> "Some(#{m})",
+      },
+    }
+  }
+
+  all(pattern: String, text: String) -> String {
+    match Regex.compile(pattern) {
+      Err(_) -> "bad",
+      Ok(re) -> List.join(Regex.find_all(re, text), ","),
+    }
+  }
+
+  swap(pattern: String, text: String, with: String) -> String {
+    match Regex.compile(pattern) {
+      Err(_) -> "bad",
+      Ok(re) -> Regex.replace(re, text, with),
+    }
+  }
+
+  main() -> {} {
+    Log.info("compile_ok: #{compiled("[a-z]+")}")
+    Log.info("compile_errors: #{compiled("(")} #{compiled("[a-")} #{compiled("*")}")
+    Log.info("unanchored: #{Regex.matches("[0-9]+", "ab12")}")
+    Log.info(
+      "anchored: #{Regex.matches("^[a-z0-9-]+$", "my-post-1")} #{Regex.matches("^[a-z0-9-]+$", "My Post")} #{Regex.matches("^[a-z0-9-]+$", "")}",
+    )
+    Log.info("bad_pattern: #{Regex.matches("(", "x")}")
+    Log.info(
+      "unicode: #{Regex.matches("^.$", "😀")} #{Regex.matches("^\\p{L}+$", "café")}",
+    )
+    Log.info("find: #{first("[0-9]+", "a12b345")} #{first("[0-9]+", "abc")}")
+    Log.info("find_empty: #{first("x*", "abc")}")
+    Log.info("find_all: [#{all("[0-9]+", "a12b345c6")}] [#{all("[0-9]+", "abc")}]")
+    Log.info("find_all_empty: #{List.length(Regex.find_all(Regex("x*"), "abc")) > 0}")
+    Log.info("replace: #{swap("[0-9]+", "a12b3", "$1")} #{swap("[0-9]+", "a1", "$&")}")
+    Log.info("replace_none: #{swap("z", "abc", "-")}")
+    Log.info("show: #{Regex("a+")} #{Regex("a+") == Regex("a+")}")
+  }
+
+exports
+  main
