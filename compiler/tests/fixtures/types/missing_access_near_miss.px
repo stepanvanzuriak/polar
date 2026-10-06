@@ -1,0 +1,7 @@
+types
+  User = { name: String, email: String }
+
+functions
+  label(user: User) -> String {
+    user.nmae
+  }

@@ -292,10 +292,12 @@ impl Report<'_> {
     };
 
     if let Some(near) = suggest(&labels[0], have) {
-      diagnostic = diagnostic.with_help(format!(
-        "the record has `{near}`; did you mean `{}`?",
-        labels[0]
-      ));
+      let help = match &self.because {
+        Because::Access => format!("did you mean `{near}`?"),
+        _ => format!("the record has `{near}`; did you mean `{}`?", labels[0]),
+      };
+
+      diagnostic = diagnostic.with_help(help);
     }
 
     match &self.because {
