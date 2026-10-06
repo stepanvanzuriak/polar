@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>We are setting out – Polar</title>
+    <meta name="description" content="The Polar expedition begins. Era one is Icebreaker, our basecamp before the mountain. Version 0.1.0 is out." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../docs/docs.css" />
+    <link rel="stylesheet" href="blog.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="../docs/getting-started.html">Docs</a>
+          <a href="index.html">Blog</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <a class="back" href="index.html">← Blog</a>
+      <h1>We are setting out for Polar</h1>
+      <p class="meta">Dispatch 1 · October 6, 2026</p>
+      <p class="lead">
+        We are moving out on an expedition to Polar: a statically typed language
+        that compiles to JavaScript, built so that the code you write tells you
+        the truth about what it does. The summit is a language you can trust
+        for a whole product. Today we leave the harbor.
+      </p>
+
+      <h2>Era one: Icebreaker</h2>
+      <p>
+        Every expedition is made of stages, and ours has eras. The first is
+        <strong>Icebreaker</strong>. An icebreaker doesn't reach the pole. It
+        goes first, cuts a channel through the ice, and makes the way passable
+        for everyone behind it.
+      </p>
+      <p>
+        That is the work of the 0.x versions. Icebreaker is our basecamp before
+        the mountain: a compiler, a formatter, a standard library, a package
+        system and a real web framework, all pitched on solid ground. Nothing
+        here is the summit. It is where we gather the gear, test the ropes and
+        learn the weather, before the climb to 1.0.
+      </p>
+      <p>
+        It is early, and the language will change. That is what a first era is
+        for. Version 0.1.0, the first Icebreaker release, is out today.
+      </p>
+
+      <h2>What we are carrying</h2>
+      <p>
+        Polar lets you write programs for Node and the browser with a type
+        checker that catches mistakes before your code runs. JavaScript is
+        everywhere, and TypeScript made large codebases bearable. But some
+        questions are still answered only by reading code. Does this function
+        touch the network? Will this record have the field I need? Can this
+        module run in the browser? Polar puts the answers in the types.
+      </p>
+
+      <h2>Records that fit any shape</h2>
+      <p>
+        A function can ask for just the fields it reads, and accept any record
+        that has them. Polar's records are row-polymorphic, so there is no need
+        to declare an interface for every combination. Variants and pattern
+        matching come with exhaustiveness checks, so adding a case shows you
+        every place that needs to handle it.
+      </p>
+
+      <h2>Effects in the type</h2>
+      <p>
+        An effect is anything a function does besides computing a value: reading
+        the clock, writing to the DOM, talking to a database. In Polar, a
+        function's signature says which ones it uses:
+      </p>
+<pre class="code"><code>stamp(label: String) -> String / {Clock} {
+  "#{label} at #{Clock.now()}"
+}</code></pre>
+      <p>
+        Read <code>/ {Clock}</code> as "uses the Clock". A function written
+        without a <code>/ {…}</code> is pure, and the compiler checks it in both
+        directions. A pure function can't sneak in an effect, and a function
+        can't use one it didn't declare. That makes code easier to test and
+        easier to move around.
+      </p>
+
+      <h2>Hosts</h2>
+      <p>
+        Effects live on hosts, such as <code>Browser</code> and
+        <code>Node</code>. One program can target both. Polar works out where
+        each function can run, and writes one bundle per host.
+      </p>
+
+      <h2>Plain JavaScript out</h2>
+      <p>
+        The output is readable ES modules, with source maps and
+        <code>.d.ts</code> files, so it fits into existing projects. Polar also
+        calls into JavaScript, so you can use the packages you already know.
+      </p>
+
+      <h2>First steps</h2>
+<pre class="code"><code>module Main
+
+hosts
+  Node
+
+functions
+  main() {
+    Log.info("Hello from Polar")
+  }
+
+exports
+  main</code></pre>
+
+      <h2>What Icebreaker ships in 0.1.0</h2>
+      <ul>
+        <li>
+          A CLI with <code>run</code>, <code>check</code>, <code>build</code>,
+          <code>fmt</code>, <code>init</code>, <code>test</code> and
+          <code>repl</code>
+        </li>
+        <li>Projects and packages through <code>polar.toml</code></li>
+        <li>
+          A formatter that keeps your comments, and a VS Code grammar
+        </li>
+        <li>
+          A standard library: <code>List</code>, <code>Map</code>,
+          <code>Option</code>, <code>Result</code>, <code>Json</code>,
+          <code>Fs</code>, <code>Path</code>, <code>Process</code>,
+          <code>Time</code>, <code>Regex</code>, <code>Crypto</code>,
+          <code>Url</code> and more
+        </li>
+        <li>
+          Zones, including plugins written in Rust that generate code, which
+          then goes through the same type checker as yours
+        </li>
+      </ul>
+
+      <h2>Every expedition needs a ticket</h2>
+      <p>
+        No one boards without one. Ours is
+        <a href="https://ticket-polar.vercel.app/">Ticket</a>, a Rails-shaped
+        web framework written in Polar, for Polar projects. It is both the
+        pass for your own journey and the proof that the language can carry
+        real weight.
+        <a href="your-lucky-ticket.html">Read about Ticket</a>.
+      </p>
+
+      <h2>Join the crew</h2>
+<pre class="code"><code><span class="pr">$</span> curl -fsSL https://polar-lang.vercel.app/install.sh | sh
+<span class="pr">$</span> polar --version</code></pre>
+      <p>
+        You need <a href="https://nodejs.org/">Node.js</a> to run the code
+        Polar writes. Start with the
+        <a href="../docs/getting-started.html">docs</a>, and tell us what you
+        find out there. Polar is MIT licensed, and issues, ideas and bug
+        reports are welcome on
+        <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>.
+      </p>
+      <p>See you on the ice.</p>
+
+      <nav class="pager" aria-label="Posts">
+        <a href="your-lucky-ticket.html">Next: Your lucky ticket →</a>
+      </nav>
+    </main>
+  </body>
+</html>

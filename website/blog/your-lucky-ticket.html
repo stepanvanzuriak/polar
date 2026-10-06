@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your lucky ticket – Polar</title>
+    <meta name="description" content="Ticket is a Rails-shaped web framework written in Polar." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../docs/docs.css" />
+    <link rel="stylesheet" href="blog.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="../docs/getting-started.html">Docs</a>
+          <a href="index.html">Blog</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <a class="back" href="index.html">← Blog</a>
+      <h1>Your lucky ticket</h1>
+      <p class="meta">Dispatch 2 · October 6, 2026</p>
+      <p class="lead">
+        Every expedition needs a ticket. On the
+        <a href="introducing-polar.html">Polar expedition</a>, in the Icebreaker
+        era, that ticket is <a href="https://ticket-polar.vercel.app/">Ticket</a>:
+        a Rails-shaped web framework written in Polar, for Polar projects.
+        It is the pass for your own journey, and it is also the best test of
+        the language we have: a real framework, written in the language it
+        serves.
+      </p>
+
+      <h2>What you get</h2>
+      <p>
+        Controllers, views and components, resource routing, SQLite with
+        migrations and typed queries, validations, forms, sessions, flash and
+        CSRF protection, generators and a test runner. All of it is Polar.
+      </p>
+<pre class="code"><code><span class="pr">$</span> ticket new blog
+<span class="pr">$</span> cd blog
+<span class="pr">$</span> ticket server        <span class="cm"># http://127.0.0.1:3000</span></code></pre>
+
+      <h2>Routes</h2>
+      <p>
+        A <code>routes</code> zone turns a few lines into a router, a route
+        table and path helpers:
+      </p>
+<pre class="code"><code>routes
+  root  -> PostsController.index
+
+  resources posts       -> PostsController
+    resources comments  -> CommentsController  only create destroy</code></pre>
+
+      <h2>The schema is migrations</h2>
+      <p>
+        You write the schema as migrations. Each table gets a record, an insert
+        type and a typed constant for every column, and each migration's
+        <code>down</code> is worked out for you:
+      </p>
+<pre class="code"><code>migrations
+  20261001_120000 create_table users
+    name   String
+    email  String  unique
+
+  20261001_130000 create_table posts
+    title      String
+    published  Bool              default false
+    author_id  Option&lt;Id&lt;User&gt;&gt;  references users</code></pre>
+      <p>
+        Queries are typed. A column from another table, or a value of the wrong
+        type, is a compile error, not a runtime surprise:
+      </p>
+<pre class="code"><code>let posts = Posts.filter(
+  [Query.eq(Schema.post_published, true)],
+  [Query.order_desc(Schema.post_id)],
+)</code></pre>
+
+      <h2>Validations and effects</h2>
+      <p>
+        Validations read like Rails'
+        <code>validates</code>, and they report every message at once:
+      </p>
+<pre class="code"><code>validations
+  title   presence  length 3..120
+  status  inclusion "draft" "live"
+  slug    presence  format "^[a-z0-9-]+$"  uniqueness</code></pre>
+      <p>
+        Because Polar tracks effects, a controller action says what it needs in
+        its signature, such as <code>Posts</code>,
+        <code>Throws&lt;DbFailure&gt;</code> or <code>Clock</code>. Tests bind
+        those effects to something else, like an in-memory database, without
+        mocking anything.
+      </p>
+
+      <h2>Generators</h2>
+      <p>
+        <code>ticket g scaffold Post title:String body:String?</code> writes the
+        migration, a model with validations, a controller with the seven
+        actions, views, a test and the route.
+      </p>
+
+      <h2>Still in the ice</h2>
+      <p>
+        Ticket is at version 0.1.0, like the rest of Icebreaker, and
+        its APIs will change between milestones. It needs the <code>polar</code> toolchain and Node 22.5 or
+        newer. Read the <a href="https://ticket-polar.vercel.app/">Ticket
+        site</a> for the docs, or the source on
+        <a href="https://github.com/stepanvanzuriak/ticket">GitHub</a>. If you
+        haven't met the language yet, read
+        <a href="introducing-polar.html">why we are setting out</a>. Grab your
+        ticket, and we'll see you at the next camp.
+      </p>
+
+      <nav class="pager" aria-label="Posts">
+        <a href="introducing-polar.html">← Previous: We are setting out for Polar</a>
+      </nav>
+    </main>
+  </body>
+</html>
