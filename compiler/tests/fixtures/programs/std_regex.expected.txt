@@ -1,0 +1,13 @@
+compile_ok: ok [a-z]+
+compile_errors: err err err
+unanchored: true
+anchored: true false false
+bad_pattern: false
+unicode: true true
+find: Some(12) None
+find_empty: Some()
+find_all: [12,345,6] []
+find_all_empty: true
+replace: a$1b$1 a$&
+replace_none: abc
+show: /a+/ true

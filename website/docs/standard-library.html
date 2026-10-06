@@ -967,6 +967,73 @@ effects
             </table>
           </div>
 
+          <h2 id="regex">Regex</h2>
+          <p>
+            Regular expressions, using the host's JavaScript syntax with the
+            <code>u</code> flag and no other flags. Matching is unanchored, so
+            write <code>^…$</code> to match the whole text. It works on both
+            <code>Node</code> and <code>Browser</code>. A pattern with
+            catastrophic backtracking, like <code>(a+)+$</code>, hangs as it
+            does in JavaScript. <code>Regex</code> has <code>Eq</code> and
+            <code>Show</code>, shown as <code>/pattern/</code>.
+          </p>
+          <pre class="code" data-lang="polar"><code>types
+  Regex = Regex(String)</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code class="sig">compile(pattern: String) -&gt; Result&lt;String, Regex&gt;</code>
+                  </td>
+                  <td><code>Ok</code> for a valid pattern, or <code>Err</code> with the engine's message</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">pattern(regex: Regex) -&gt; String</code>
+                  </td>
+                  <td>The string given to <code>compile</code></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">is_match(regex: Regex, text: String) -&gt; Bool</code>
+                  </td>
+                  <td>Whether the pattern matches anywhere in <code>text</code></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">find(regex: Regex, text: String) -&gt; Option&lt;String&gt;</code>
+                  </td>
+                  <td>The first match's text, or <code>None</code>. An empty match is <code>Some("")</code></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">find_all(regex: Regex, text: String) -&gt; List&lt;String&gt;</code>
+                  </td>
+                  <td>Every non-overlapping match, in order</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">replace(regex: Regex, text: String, with: String) -&gt; String</code>
+                  </td>
+                  <td>Replaces every match with <code>with</code> verbatim; <code>$1</code> is not expanded</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">matches(pattern: String, text: String) -&gt; Bool</code>
+                  </td>
+                  <td><code>is_match</code> of <code>compile(pattern)</code>, and <code>false</code> for a bad pattern</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <h2 id="time">Time</h2>
           <p>
             An instant in UTC, held as milliseconds since the Unix epoch, and
