@@ -30,8 +30,12 @@ functions
     Log.info("sha_abc: #{Crypto.sha256("abc")}")
     Log.info("hmac: #{Crypto.hmac_sha256("Jefe", "what do ya want for nothing?")}")
     Log.info("utf8: #{Crypto.sha256("é")}")
-    Log.info("equal: #{Crypto.equal("ab", "ab")} #{Crypto.equal("ab", "ac")} #{Crypto.equal("ab", "abc")} #{Crypto.equal("", "")}")
-    Log.info("round_trip: #{round_trip("")} #{round_trip("hello")} #{round_trip("héllo ✓")} #{round_trip("???>>>")}")
+    Log.info(
+      "equal: #{Crypto.equal("ab", "ab")} #{Crypto.equal("ab", "ac")} #{Crypto.equal("ab", "abc")} #{Crypto.equal("", "")}",
+    )
+    Log.info(
+      "round_trip: #{round_trip("")} #{round_trip("hello")} #{round_trip("héllo ✓")} #{round_trip("???>>>")}",
+    )
     Log.info("clean: #{clean("???>>>")} #{clean("a")}")
     Log.info("invalid: #{decoded("a")} #{decoded("!!")} #{decoded("ab+/")}")
     Log.info("valid: #{decoded("aGVsbG8")}")
