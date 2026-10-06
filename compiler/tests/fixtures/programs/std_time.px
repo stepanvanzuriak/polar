@@ -1,0 +1,78 @@
+module StdTime
+
+uses
+  Std.Json
+  Std.Option
+  Std.Result
+  Std.Time
+
+hosts
+  Node
+
+types
+  Event = { at: Time } derive(Json)
+
+functions
+  decode_event(text: String) -> Result<JsonError, Event> {
+    Json.decode(text)
+  }
+
+  iso(text: String) -> String {
+    match Time.from_iso(text) {
+      None -> "None",
+      Some(t) -> Time.to_iso(t),
+    }
+  }
+
+  main() -> {} / {Clock} {
+    let t = Time.from_millis(1790933400123)
+    let drift = Time.millis(Clock.now())
+
+    Log.info("recent: #{drift > 1700000000000}")
+    let event: Event = { at: t }
+
+    Log.info("iso_epoch: #{Time.to_iso(Time.from_millis(0))}")
+    Log.info("iso_millis: #{Time.to_iso(t)}")
+    Log.info(
+      "round_trip: #{Time.from_iso(Time.to_iso(Time.from_millis(-86400001))) == Some(Time.from_millis(-86400001))}",
+    )
+    Log.info(
+      "round_trip_big: #{Time.from_iso(Time.to_iso(Time.from_millis(253402300799999))) == Some(Time.from_millis(253402300799999))}",
+    )
+    Log.info("offset: #{iso("2026-10-02T11:30:00+02:00")}")
+    Log.info("no_millis: #{iso("2026-10-02T09:30:00Z")}")
+    Log.info("sqlite: #{iso("2026-10-02 09:30:00")} #{iso("2026-10-02 09:30:00.250")}")
+    Log.info(
+      "rejects: #{iso("")} #{iso("2026-10-02")} #{iso("2026-10-02T09:30:00")} #{iso("2026-02-30T00:00:00Z")} #{iso("yesterday")}",
+    )
+    Log.info("compact: #{Time.compact(t)}")
+    Log.info("json: #{Json.encode(event)}")
+
+    match decode_event("{\"at\":\"2026-10-02T09:30:00.123Z\"}") {
+      Ok(e) -> Log.info("decoded: #{e.at == t}"),
+      Err(error) -> Log.info("decode failed: #{Json.message(error)}"),
+    }
+
+    match decode_event("{\"at\": 5}") {
+      Ok(e) -> Log.info("unexpected #{e.at}"),
+      Err(error) -> Log.info(Json.message(error)),
+    }
+
+    match decode_event("{\"at\": \"soon\"}") {
+      Ok(e) -> Log.info("unexpected #{e.at}"),
+      Err(error) -> Log.info(Json.message(error)),
+    }
+
+    let later = Time.from_millis(1790933400124)
+
+    Log.info(
+      "compare: #{Time.compare(t, later)} #{Time.compare(later, t)} #{Time.compare(t, t)}",
+    )
+    Log.info(
+      "before: #{Time.before(t, later)} #{Time.before(later, t)} #{t == t} #{t == later}",
+    )
+    Log.info("show: #{Time.from_millis(0)}")
+  }
+
+exports
+  main

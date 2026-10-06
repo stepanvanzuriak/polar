@@ -1,0 +1,111 @@
+module Time
+
+uses
+  Std.Json
+  Std.Option
+  Std.Result
+
+hosts
+  Node
+  Browser
+
+types
+  Time = Time(Int)
+
+effects
+  Clock {
+    now() -> Time
+  }
+
+externs
+  format_iso(ms: Int) -> String = "./bindings/Time.js" format_iso
+  format_compact(ms: Int) -> String = "./bindings/Time.js" format_compact
+  parse_iso(text: String) -> Option<Int> = "./bindings/Time.js" parse_iso
+
+binds
+  Clock in Node = "./bindings/Time.js"
+
+  Clock in Browser = "./bindings/Time.js"
+
+functions
+  from_millis(ms: Int) -> Time {
+    Time(ms)
+  }
+
+  millis(time: Time) -> Int {
+    match time {
+      Time(ms) -> ms,
+    }
+  }
+
+  to_iso(time: Time) -> String {
+    format_iso(millis(time))
+  }
+
+  from_iso(text: String) -> Option<Time> {
+    match parse_iso(text) {
+      None -> None,
+      Some(ms) -> Some(Time(ms)),
+    }
+  }
+
+  compact(time: Time) -> String {
+    format_compact(millis(time))
+  }
+
+  compare(a: Time, b: Time) -> Int {
+    if millis(a) < millis(b) { -1 } else if millis(a) > millis(b) { 1 } else { 0 }
+  }
+
+  before(a: Time, b: Time) -> Bool {
+    millis(a) < millis(b)
+  }
+
+impls
+  Eq for Time {
+    eq(x, y) {
+      millis(x) == millis(y)
+    }
+  }
+
+  Show for Time {
+    show(time) {
+      to_iso(time)
+    }
+  }
+
+  Json for Time {
+    to_json(time) {
+      Json.to_json(to_iso(time))
+    }
+
+    from_json(json, path) {
+      match json {
+        JString(text) -> match from_iso(text) {
+          Some(time) -> Ok(time),
+          None -> Err({ path: path, expected: "an ISO-8601 time", found: "\"#{text}\"" }),
+        },
+        JNull -> Err({ path: path, expected: "an ISO-8601 time", found: "null" }),
+        JBool(_) -> Err({ path: path, expected: "an ISO-8601 time", found: "a boolean" }),
+        JNumber(_) -> Err(
+          { path: path, expected: "an ISO-8601 time", found: "a number" },
+        ),
+        JArray(_) -> Err({ path: path, expected: "an ISO-8601 time", found: "an array" }),
+        JObject(_) -> Err(
+          { path: path, expected: "an ISO-8601 time", found: "an object" },
+        ),
+      }
+    }
+  }
+
+exports
+  Node
+  Browser
+  Clock
+  from_millis
+  millis
+  to_iso
+  from_iso
+  compact
+  compare
+  before

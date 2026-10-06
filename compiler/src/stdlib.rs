@@ -105,6 +105,11 @@ pub const MODULES: &[StdModule] = &[
     files: &[],
   },
   StdModule {
+    name: "Time",
+    source: include_str!("../../std/Time.px"),
+    files: &[("bindings/Time.js", include_str!("../../std/bindings/Time.js"))],
+  },
+  StdModule {
     name: "Url",
     source: include_str!("../../std/Url.px"),
     files: &[("bindings/Url.js", include_str!("../../std/bindings/Url.js"))],
@@ -119,6 +124,20 @@ pub fn module(name: &str) -> Option<&'static StdModule> {
 #[must_use]
 pub fn filename(name: &str) -> String {
   format!("std/{name}.px")
+}
+
+#[must_use]
+pub fn compile_options(name: &str, runtime: &str) -> crate::CompileOptions {
+  let host = interface(name)
+    .filter(|i| i.hosts.len() > 1)
+    .and_then(|i| i.hosts.first().cloned());
+
+  crate::CompileOptions {
+    runtime: runtime.to_string(),
+    host: host
+      .map_or(crate::HostOption::Auto, |h| crate::HostOption::Fixed(Some(h))),
+    ..crate::CompileOptions::default()
+  }
 }
 
 #[must_use]

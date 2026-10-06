@@ -40,10 +40,7 @@ mod modules {
   #[test]
   fn every_module_compiles_cleanly() {
     for m in MODULES {
-      let options = CompileOptions {
-        runtime: "../runtime.js".to_string(),
-        ..CompileOptions::default()
-      };
+      let options = stdlib::compile_options(m.name, "../runtime.js");
       let out = compile(m.source, &stdlib::filename(m.name), &options);
 
       assert!(

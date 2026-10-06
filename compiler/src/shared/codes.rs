@@ -54,7 +54,6 @@ diagnostic_codes! {
   ModifierWrongZone           = 224,
   ExternTarget                = 225,
   BridgeWithBody              = 226,
-  PluginKeywordAsName         = 227,
   UnknownName                 = 301,
   DuplicateDefinition         = 302,
   UnknownUppercaseName        = 303,

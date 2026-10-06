@@ -686,7 +686,15 @@ impl Lowerer<'_> {
       .find(|x| x.effect == b.effect.text && x.host == b.host.text)
       .cloned();
 
-    if let Some(first) = first {
+    if let Some(first) = &first
+      && first.span.is_none()
+    {
+      self.effects.binds.retain(|x| {
+        !(x.effect == b.effect.text
+          && x.host == b.host.text
+          && x.span.is_none())
+      });
+    } else if let Some(first) = first {
       let mut diagnostic = Diagnostic::error(
         DuplicateBind,
         format!("`{}` is already bound in `{}`", b.effect.text, b.host.text),

@@ -4,8 +4,8 @@ use common::{node::run_program_plugins, notes_plugin};
 use polar_compiler::{
   CompileOptions, Stage, compile, dump_stage_with, format_plugins,
   shared::codes::DiagnosticCode::{
-    ExpectedDeclaration, PluginError, PluginKeywordAsName, TypeMismatch,
-    ZoneDuplicate, ZoneOutOfOrder,
+    ExpectedDeclaration, PluginError, TypeMismatch, ZoneDuplicate,
+    ZoneOutOfOrder,
   },
   shared::diagnostic::Diagnostic,
   syntax::ast::{Builtin, ZoneKind},
@@ -155,17 +155,65 @@ fn notes_twice_is_a_duplicate() {
   assert_eq!(diagnostics(src, &["test"])[0].code, ZoneDuplicate);
 }
 
-#[test]
-fn an_enabled_keyword_is_not_a_function_name() {
-  let src = "functions\n  notes() { 1 }\n";
+fn clean(src: &str) {
   let out = diagnostics(src, &["test"]);
 
-  assert_eq!(out[0].code, PluginKeywordAsName, "{out:#?}");
-  assert!(
-    out[0].message.contains("`notes` is a zone keyword in this project"),
-    "{:#?}",
-    out[0]
+  assert!(out.is_empty(), "{out:#?}");
+}
+
+#[test]
+fn keyword_as_function() {
+  clean("functions\n  notes() { 1 }\n");
+}
+
+#[test]
+fn keyword_as_field() {
+  clean(
+    "types\n  T = { notes: Int }\n\nfunctions\n  get(t: T) -> Int { t.notes }\n",
   );
+}
+
+#[test]
+fn keyword_as_parameter_and_let() {
+  clean(
+    "functions\n  f(notes: Int) -> Int {\n    let notes = notes + 1\n    notes\n  }\n",
+  );
+}
+
+#[test]
+fn keyword_qualified() {
+  let a = "module A\n\nfunctions\n  notes() -> Int { 1 }\n\nexports\n  notes\n";
+  let b = "module B\n\nuses\n  A\n\nfunctions\n  f() -> Int { A.notes() }\n";
+  let modules = [polar_compiler::shared::modules::ModuleSource {
+    path: "A".to_string(),
+    source: a.to_string(),
+    specifier: "./A.js".to_string(),
+    plugins: Vec::new(),
+  }];
+  let out = compile(
+    b,
+    "b.px",
+    &CompileOptions { modules: modules.to_vec(), ..options(&["test"]) },
+  );
+
+  assert!(out.diagnostics.is_empty(), "{:#?}", out.diagnostics);
+}
+
+#[test]
+fn keyword_still_opens_zone() {
+  let src = "notes\n  greeting = 42\n\nfunctions\n  main() { greeting }\n";
+  let out = dump_stage_with(src, "test.px", Stage::Ast, &options(&["test"]));
+
+  assert!(out.diagnostics.is_empty(), "{:#?}", out.diagnostics);
+  assert!(out.output.unwrap().contains("greeting"));
+}
+
+#[test]
+fn indented_keyword_is_a_name() {
+  let src = "functions\n  notes() { 1 }\n  main() { notes() }\n";
+
+  clean(src);
+  assert_eq!(ast(src, &["test"]).matches("notes").count(), 2);
 }
 
 #[test]

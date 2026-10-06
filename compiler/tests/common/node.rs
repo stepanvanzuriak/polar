@@ -295,10 +295,7 @@ pub fn run_program_plugins(
     }
 
     let std = stdlib::module(&name).expect("a std module");
-    let std_options = CompileOptions {
-      runtime: "../runtime.js".to_string(),
-      ..CompileOptions::default()
-    };
+    let std_options = stdlib::compile_options(&name, "../runtime.js");
     let out = compile(std.source, &stdlib::filename(&name), &std_options);
 
     if !out.diagnostics.is_empty() {

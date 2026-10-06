@@ -313,10 +313,7 @@ pub(crate) fn write_std(
     };
     let std = stdlib::module(&name)
       .ok_or_else(|| ice(format!("no std module `{name}`")))?;
-    let options = CompileOptions {
-      runtime: "../runtime.js".to_string(),
-      ..CompileOptions::default()
-    };
+    let options = stdlib::compile_options(&name, "../runtime.js");
     let output =
       guard(&filename, || (compiler.compile)(std.source, &filename, &options))
         .map_err(CliError::Ice)?;
