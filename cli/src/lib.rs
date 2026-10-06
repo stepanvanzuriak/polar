@@ -152,6 +152,13 @@ pub(crate) enum Command {
     #[arg(last = true)]
     args: Vec<String>,
   },
+  Repl {
+    path: Option<PathBuf>,
+    #[arg(long)]
+    setup: Option<String>,
+    #[arg(short = 'e', long = "eval")]
+    expr: Option<String>,
+  },
   Init {
     dir: Option<PathBuf>,
     #[arg(long)]

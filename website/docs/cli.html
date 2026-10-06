@@ -265,6 +265,89 @@ Commands:
             into the <code>.px</code> file.
           </p>
 
+          <h2 id="repl">polar repl</h2>
+          <pre
+            class="code"
+          ><code>polar repl [OPTIONS] [PATH]</code></pre>
+          <p>
+            Loads a project and evaluates one expression or binding at a time on
+            Node. Every project module is in scope, along with the modules your
+            files import and a few pure standard ones (<code>List</code>,
+            <code>Option</code>, <code>Result</code>, <code>Map</code>,
+            <code>Json</code>, <code>Ref</code>, <code>Table</code>,
+            <code>Math</code>).
+          </p>
+          <pre
+            class="code out"
+          ><code>$ polar repl
+polar&gt; let post = Greet.post()
+post: { id: Int, title: String } as Post = { id: 1, title: "Hi" }
+polar&gt; post.title
+String = "Hi"
+polar&gt; :type Greet.hello
+function(String) -> String</code></pre>
+          <p>
+            An expression prints its type and its value, using
+            <code>Show</code>, or the derived <code>Json</code> when there is no
+            <code>Show</code>, or <code>&lt;no Show for T&gt;</code>. A
+            <code>let</code> prints the name, type and value, stays in scope for
+            later lines, and a later <code>let</code> of the same name shadows
+            it. A line with a parse or type error prints the diagnostic and
+            keeps the session going. Bindings are replayed ahead of each new
+            line, so an effectful <code>let</code> runs again every time.
+          </p>
+          <p>
+            Effects run under the binds the project declares. An effect with no
+            bind is reported as a diagnostic on the line.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Flag or command</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>--setup &lt;MODULE.FUNCTION&gt;</code></td>
+                  <td>
+                    Runs a <code>() -> {}</code> function once before the first
+                    prompt, such as one that connects a database. If it fails,
+                    the exit code is 1 and the prompt never starts
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>-e, --eval &lt;EXPRESSION&gt;</code></td>
+                  <td>Evaluates the expression, prints, and exits</td>
+                </tr>
+                <tr>
+                  <td><code>:type &lt;expr&gt;</code></td>
+                  <td>Prints the type without evaluating</td>
+                </tr>
+                <tr>
+                  <td><code>:reload</code></td>
+                  <td>
+                    Recompiles the project and keeps the bindings that still
+                    type check
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>:help</code>, <code>:quit</code></td>
+                  <td>Show the commands, or leave. Ctrl-D leaves too</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Piped input works the same as typing:
+            <code>echo '1+1' | polar repl</code> prints
+            <code>Int = 2</code>. When input is piped or given with
+            <code>-e</code>, the exit code is 1 if any line errored. There is no
+            line editing or multi-line input; wrap the command in
+            <code>rlwrap</code> for history.
+          </p>
+
           <h2 id="start">polar start</h2>
           <pre
             class="code"
