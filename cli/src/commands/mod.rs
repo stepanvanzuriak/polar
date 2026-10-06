@@ -2,6 +2,7 @@ mod build;
 mod check;
 mod fmt;
 mod init;
+mod repl;
 mod run;
 mod start;
 mod testing;
@@ -87,6 +88,9 @@ pub(crate) fn dispatch(
       start::start(ctx, path.as_deref(), host.as_deref(), &args)
     }
     Command::Test { path, args } => testing::test(ctx, path.as_deref(), &args),
+    Command::Repl { path, setup, expr } => {
+      repl::repl(ctx, path.as_deref(), setup.as_deref(), expr.as_deref())
+    }
     Command::Init { dir, name, zones } => {
       init::init(ctx, dir.as_deref(), name.as_deref(), &zones)
     }
@@ -255,6 +259,17 @@ pub(crate) fn compile_input(
   plan: &Plan,
 ) -> Result<Compiled, CliError> {
   let source = read_source(input)?;
+
+  compile_source(compiler, input, source, runtime, plan)
+}
+
+pub(crate) fn compile_source(
+  compiler: crate::Compiler,
+  input: &Input,
+  source: crate::files::Source,
+  runtime: String,
+  plan: &Plan,
+) -> Result<Compiled, CliError> {
   let file = SourceFile::new(input.display.clone(), source.text.clone());
 
   if let Some(invalid) = source.invalid {
