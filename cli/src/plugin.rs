@@ -66,22 +66,15 @@ pub fn prepare(
     return Ok(path);
   }
 
-  let root = dir.join(DIR);
-  let manifest = root.join("plugin").join("Cargo.toml");
-  let lib = dir.join(SOURCE).join("lib.rs");
+  let manifest = dir.join(DIR).join("plugin").join("Cargo.toml");
 
-  sync_api(&root.join("api"))?;
-
-  if !lib.is_file() {
-    scaffold(&lib, zones)?;
+  if write_files(dir, package, zones, dependencies)? {
     notice(format!(
       "note: created {} with a stub for the zones {}; implement them there",
       display.join(SOURCE).join("lib.rs").display(),
       zones.iter().map(|z| format!("`{z}`")).collect::<Vec<_>>().join(", "),
     ));
   }
-
-  write_if_changed(&manifest, &cargo_manifest(package, dependencies))?;
 
   let library = build(&manifest, &display.join(SOURCE))?;
   let defined = polar_compiler::syntax::plugins::load(&library)
@@ -111,6 +104,30 @@ pub fn prepare(
   }
 
   Ok(library)
+}
+
+pub(crate) fn write_files(
+  dir: &Path,
+  package: &str,
+  zones: &[String],
+  dependencies: &BTreeMap<String, toml::Value>,
+) -> Result<bool, CliError> {
+  let root = dir.join(DIR);
+  let lib = dir.join(SOURCE).join("lib.rs");
+  let created = !lib.is_file();
+
+  sync_api(&root.join("api"))?;
+
+  if created {
+    scaffold(&lib, zones)?;
+  }
+
+  write_if_changed(
+    &root.join("plugin").join("Cargo.toml"),
+    &cargo_manifest(package, dependencies),
+  )?;
+
+  Ok(created)
 }
 
 fn write_if_changed(path: &Path, text: &str) -> Result<(), CliError> {

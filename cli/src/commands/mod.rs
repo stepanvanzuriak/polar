@@ -1,6 +1,7 @@
 mod build;
 mod check;
 mod fmt;
+mod init;
 mod run;
 mod start;
 
@@ -83,6 +84,9 @@ pub(crate) fn dispatch(
     }
     Command::Start { path, host, args } => {
       start::start(ctx, path.as_deref(), host.as_deref(), &args)
+    }
+    Command::Init { dir, name, zones } => {
+      init::init(ctx, dir.as_deref(), name.as_deref(), &zones)
     }
   }
 }
