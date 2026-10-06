@@ -1,82 +1,176 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Getting Started – Polar</title>
-<meta name="description" content="What Polar is, how these docs are organized, and how to install the compiler.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="getting-started">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Getting Started – Polar</title>
+    <meta
+      name="description"
+      content="What Polar is, how these docs are organized, and how to install the compiler."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="getting-started">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Getting Started</h1>
+          <p class="lead">
+            Polar is a statically typed language that compiles to JavaScript.
+            This page is an overview of the docs and of what you need to start.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Getting Started</h1>
-      <p class="lead">Polar is a statically typed language that compiles to JavaScript. This page is an overview of the docs and of what you need to start.</p>
+          <h2 id="what-is-polar">What is Polar?</h2>
+          <p>
+            Polar lets you write programs for Node and the browser with a type
+            checker that catches mistakes before your code runs. A few ideas set
+            it apart:
+          </p>
+          <ul>
+            <li>
+              <strong>Records that fit any shape.</strong> A function can ask
+              for just the fields it reads, and accept any record that has them.
+            </li>
+            <li>
+              <strong>Effects in the type.</strong> A function's signature says
+              whether it touches the outside world, like the DOM, a database or
+              the clock. Pure functions stay pure, and the compiler checks it.
+            </li>
+            <li>
+              <strong>Hosts.</strong> One program can target the browser and the
+              server. Polar works out where each function can run, and writes
+              one bundle per host.
+            </li>
+            <li>
+              <strong>Plain JavaScript out.</strong> The output is readable ES
+              modules, with source maps and <code>.d.ts</code> files, so it fits
+              into existing projects.
+            </li>
+          </ul>
 
-      <h2 id="what-is-polar">What is Polar?</h2>
-      <p>Polar lets you write programs for Node and the browser with a type checker that catches mistakes before your code runs. A few ideas set it apart:</p>
-      <ul>
-        <li><strong>Records that fit any shape.</strong> A function can ask for just the fields it reads, and accept any record that has them.</li>
-        <li><strong>Effects in the type.</strong> A function's signature says whether it touches the outside world, like the DOM, a database or the clock. Pure functions stay pure, and the compiler checks it.</li>
-        <li><strong>Hosts.</strong> One program can target the browser and the server. Polar works out where each function can run, and writes one bundle per host.</li>
-        <li><strong>Plain JavaScript out.</strong> The output is readable ES modules, with source maps and <code>.d.ts</code> files, so it fits into existing projects.</li>
-      </ul>
-
-      <h2 id="try-polar">Try Polar</h2>
-      <p>Polar is built from source. You need <a href="https://www.rust-lang.org/tools/install">Rust</a> 1.85 or newer to build the compiler, and <a href="https://nodejs.org/">Node.js</a> to run the JavaScript it writes.</p>
-<pre class="code"><code><span class="pr">$</span> git clone https://github.com/stepanvanzuriak/polar
+          <h2 id="try-polar">Try Polar</h2>
+          <p>
+            Polar is built from source. You need
+            <a href="https://www.rust-lang.org/tools/install">Rust</a> 1.85 or
+            newer to build the compiler, and
+            <a href="https://nodejs.org/">Node.js</a> to run the JavaScript it
+            writes.
+          </p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> git clone https://github.com/stepanvanzuriak/polar
 <span class="pr">$</span> cd polar
 <span class="pr">$</span> cargo install --path cli</code></pre>
-      <p>This builds the compiler and puts the <code>polar</code> command on your <code>PATH</code>. Check that it worked:</p>
-<pre class="code"><code><span class="pr">$</span> polar --version</code></pre>
-      <div class="callout tip">
-        <p><span class="label">Tip:</span> If you only want to try things out, <code>cargo build</code> also works. The compiler ends up at <code>target/debug/polar</code>, and you can run it from there.</p>
-      </div>
+          <p>
+            This builds the compiler and puts the <code>polar</code> command on
+            your <code>PATH</code>. Check that it worked:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar --version</code></pre>
+          <div class="callout tip">
+            <p>
+              <span class="label">Tip:</span> If you only want to try things
+              out, <code>cargo build</code> also works. The compiler ends up at
+              <code>target/debug/polar</code>, and you can run it from there.
+            </p>
+          </div>
 
-      <h2 id="learn-polar">Learn Polar</h2>
-      <p>People come to Polar from different backgrounds, so these docs give you two ways in.</p>
-      <ul>
-        <li>If you like to <strong>learn concepts step by step</strong>, start with <a href="hello-world.html">Hello World</a> and read the Main Concepts pages in order. Each one builds on the last.</li>
-        <li>If you prefer to <strong>learn by doing</strong>, jump to <a href="thinking-in-polar.html">Thinking in Polar</a>. It builds a small command-line program from scratch, and links back to the concepts as it uses them.</li>
-      </ul>
-      <p>The docs are split into four groups, listed in the sidebar:</p>
-      <ul>
-        <li><strong>Installation</strong> covers setup: this page, <a href="first-project.html">your first project</a> and <a href="editor-setup.html">editor support</a>.</li>
-        <li><strong>Main Concepts</strong> introduces the language one idea at a time.</li>
-        <li><strong>Advanced Guides</strong> go deeper into specific tasks, like <a href="json.html">JSON</a>, <a href="browser.html">running in the browser</a> and <a href="zone-plugins.html">writing zone plugins</a>.</li>
-        <li><strong>API Reference</strong> lists every <a href="cli.html">command</a>, <a href="standard-library.html">standard library module</a> and <a href="builtins.html">built-in function</a>.</li>
-      </ul>
-      <div class="callout">
-        <p><span class="label">Note:</span> Every example in these docs is checked against the current compiler. Outputs and error messages are copied from real runs.</p>
-      </div>
+          <h2 id="learn-polar">Learn Polar</h2>
+          <p>
+            People come to Polar from different backgrounds, so these docs give
+            you two ways in.
+          </p>
+          <ul>
+            <li>
+              If you like to <strong>learn concepts step by step</strong>, start
+              with <a href="hello-world.html">Hello World</a> and read the Main
+              Concepts pages in order. Each one builds on the last.
+            </li>
+            <li>
+              If you prefer to <strong>learn by doing</strong>, jump to
+              <a href="thinking-in-polar.html">Thinking in Polar</a>. It builds
+              a small command-line program from scratch, and links back to the
+              concepts as it uses them.
+            </li>
+          </ul>
+          <p>The docs are split into four groups, listed in the sidebar:</p>
+          <ul>
+            <li>
+              <strong>Installation</strong> covers setup: this page,
+              <a href="first-project.html">your first project</a> and
+              <a href="editor-setup.html">editor support</a>.
+            </li>
+            <li>
+              <strong>Main Concepts</strong> introduces the language one idea at
+              a time.
+            </li>
+            <li>
+              <strong>Advanced Guides</strong> go deeper into specific tasks,
+              like <a href="json.html">JSON</a>,
+              <a href="browser.html">running in the browser</a> and
+              <a href="zone-plugins.html">writing zone plugins</a>.
+            </li>
+            <li>
+              <strong>API Reference</strong> lists every
+              <a href="cli.html">command</a>,
+              <a href="standard-library.html">standard library module</a> and
+              <a href="builtins.html">built-in function</a>.
+            </li>
+          </ul>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> Every example in these docs is
+              checked against the current compiler. Outputs and error messages
+              are copied from real runs.
+            </p>
+          </div>
 
-      <h2 id="what-you-should-know">What you should know first</h2>
-      <p>The docs assume you've written some JavaScript or TypeScript. You don't need experience with typed functional languages: we'll explain types, pattern matching and effects as we meet them.</p>
-      <p>Ready? Let's start with <a href="hello-world.html">Hello World</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <h2 id="what-you-should-know">What you should know first</h2>
+          <p>
+            The docs assume you've written some JavaScript or TypeScript. You
+            don't need experience with typed functional languages: we'll explain
+            types, pattern matching and effects as we meet them.
+          </p>
+          <p>
+            Ready? Let's start with <a href="hello-world.html">Hello World</a>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

@@ -1,38 +1,57 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Command-Line Programs – Polar</title>
-<meta name="description" content="Read arguments and environment variables, set exit codes and run other programs with Std.Process.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="command-line-programs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Command-Line Programs – Polar</title>
+    <meta
+      name="description"
+      content="Read arguments and environment variables, set exit codes and run other programs with Std.Process."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="command-line-programs">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Command-Line Programs</h1>
+          <p class="lead">
+            <code>Std.Process</code> gives Node programs what a command-line
+            tool needs: arguments, environment variables, exit codes and child
+            processes.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Command-Line Programs</h1>
-      <p class="lead"><code>Std.Process</code> gives Node programs what a command-line tool needs: arguments, environment variables, exit codes and child processes.</p>
-
-      <h2 id="setup">Set up</h2>
-      <p>Import the module and target the <code>Node</code> host. Functions that use it list the <code>Process</code> effect:</p>
-<pre class="code" data-lang="polar"><code>module Tool
+          <h2 id="setup">Set up</h2>
+          <p>
+            Import the module and target the <code>Node</code> host. Functions
+            that use it list the <code>Process</code> effect:
+          </p>
+          <pre class="code" data-lang="polar"><code>module Tool
 
 uses
   Std.List
@@ -55,20 +74,31 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run tool.px -- x y
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run tool.px -- x y
 args: 2
 mode: development
 echo said: hello from echo (exit 0)
 error: cannot run `no-such-command`: command not found
 missing: 127</code></pre>
 
-      <h2 id="arguments">Arguments</h2>
-      <p><code>Process.args()</code> returns the arguments after <code>--</code>, as a <code>List&lt;String&gt;</code>. It works the same whichever way the program is started:</p>
-<pre class="code"><code><span class="pr">$</span> polar run tool.px -- a b
+          <h2 id="arguments">Arguments</h2>
+          <p>
+            <code>Process.args()</code> returns the arguments after
+            <code>--</code>, as a <code>List&lt;String&gt;</code>. It works the
+            same whichever way the program is started:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar run tool.px -- a b
 <span class="pr">$</span> polar start -- a b
 <span class="pr">$</span> node dist/start.mjs -- a b</code></pre>
-      <p>All three pass <code>["a", "b"]</code>. List patterns make argument handling pleasant:</p>
-<pre class="code" data-lang="polar"><code>match Process.args() {
+          <p>
+            All three pass <code>["a", "b"]</code>. List patterns make argument
+            handling pleasant:
+          </p>
+          <pre class="code" data-lang="polar"><code>match Process.args() {
   ["build", ..rest] -> {
     let code = Process.run("polar", ["build", ..rest], Process.inherit())
 
@@ -77,31 +107,71 @@ missing: 127</code></pre>
   _ -> Process.set_exit_code(2),
 }</code></pre>
 
-      <h2 id="environment">Environment</h2>
-      <ul>
-        <li><code>Process.env(name)</code> returns an <code>Option&lt;String&gt;</code>, since the variable might not be set.</li>
-        <li><code>Process.cwd()</code> returns the current directory.</li>
-      </ul>
+          <h2 id="environment">Environment</h2>
+          <ul>
+            <li>
+              <code>Process.env(name)</code> returns an
+              <code>Option&lt;String&gt;</code>, since the variable might not be
+              set.
+            </li>
+            <li><code>Process.cwd()</code> returns the current directory.</li>
+          </ul>
 
-      <h2 id="exit-codes">Exit codes</h2>
-      <p><code>Process.set_exit_code(code)</code> sets the code the process exits with once <code>main</code> returns. It doesn't stop the program. An uncaught error exits with code 1.</p>
+          <h2 id="exit-codes">Exit codes</h2>
+          <p>
+            <code>Process.set_exit_code(code)</code> sets the code the process
+            exits with once <code>main</code> returns. It doesn't stop the
+            program. An uncaught error exits with code 1.
+          </p>
 
-      <h2 id="running-programs">Running other programs</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Does</th></tr></thead>
-          <tbody>
-            <tr><td><code>Process.run(cmd, args, options)</code></td><td>Runs a program, streaming its output to yours, and returns its exit code</td></tr>
-            <tr><td><code>Process.output(cmd, args, options)</code></td><td>Runs a program and captures <code>{ code, stdout, stderr }</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>A command that can't be started returns 127, the same code a shell uses. Options say where and with what environment to run:</p>
-<pre class="code" data-lang="polar"><code>Process.inherit() |> Process.in_dir("sub") |> Process.with_env("NAME", "value")</code></pre>
-      <p><code>Process.inherit()</code> starts from the current directory and environment. <code>in_dir</code> and <code>with_env</code> each return new options, so they chain with the pipe.</p>
-      <h2 id="files">Files and paths</h2>
-      <p><code>Std.Fs</code> reads and writes text files, and <code>Std.Path</code> takes paths apart. Operations that can fail return a <code>Result</code> whose error is an <code>FsError</code>, so they chain with <code>Result.and_then</code>:</p>
-<pre class="code" data-lang="polar"><code>uses
+          <h2 id="running-programs">Running other programs</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Process.run(cmd, args, options)</code></td>
+                  <td>
+                    Runs a program, streaming its output to yours, and returns
+                    its exit code
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>Process.output(cmd, args, options)</code></td>
+                  <td>
+                    Runs a program and captures
+                    <code>{ code, stdout, stderr }</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            A command that can't be started returns 127, the same code a shell
+            uses. Options say where and with what environment to run:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>Process.inherit() |> Process.in_dir("sub") |> Process.with_env("NAME", "value")</code></pre>
+          <p>
+            <code>Process.inherit()</code> starts from the current directory and
+            environment. <code>in_dir</code> and <code>with_env</code> each
+            return new options, so they chain with the pipe.
+          </p>
+          <h2 id="files">Files and paths</h2>
+          <p>
+            <code>Std.Fs</code> reads and writes text files, and
+            <code>Std.Path</code> takes paths apart. Operations that can fail
+            return a <code>Result</code> whose error is an <code>FsError</code>,
+            so they chain with <code>Result.and_then</code>:
+          </p>
+          <pre class="code" data-lang="polar"><code>uses
   Std.Fs
   Std.Path
   Std.Result
@@ -115,18 +185,36 @@ functions
       Fs.mkdir_all(Path.dirname(to)) |> Result.and_then(function(_) { Fs.write(to, text) })
     })
   }</code></pre>
-      <p>Match on the error's <code>code</code> to handle a particular failure, such as <code>ENOENT</code> for a missing file. <code>Fs.list</code> and <code>Fs.walk</code> return sorted names, so output built from them is the same on every run. See <a href="standard-library.html#fs">the reference</a> for every operation.</p>
+          <p>
+            Match on the error's <code>code</code> to handle a particular
+            failure, such as <code>ENOENT</code> for a missing file.
+            <code>Fs.list</code> and <code>Fs.walk</code> return sorted names,
+            so output built from them is the same on every run. See
+            <a href="standard-library.html#fs">the reference</a> for every
+            operation.
+          </p>
 
-      <div class="callout tip">
-        <p><span class="label">Tip:</span> Do the real work in pure functions that take the arguments as a list, and keep <code>main</code> thin. You can then test the logic without starting a process. <a href="thinking-in-polar.html">Thinking in Polar</a> builds a whole tool this way.</p>
-      </div>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <div class="callout tip">
+            <p>
+              <span class="label">Tip:</span> Do the real work in pure functions
+              that take the arguments as a list, and keep
+              <code>main</code> thin. You can then test the logic without
+              starting a process.
+              <a href="thinking-in-polar.html">Thinking in Polar</a> builds a
+              whole tool this way.
+            </p>
+          </div>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

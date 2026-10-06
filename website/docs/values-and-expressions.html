@@ -1,35 +1,50 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Values and Expressions – Polar</title>
-<meta name="description" content="Polar&#x27;s basic types, string interpolation, operators, the pipe, let, blocks and if.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="values-and-expressions">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Values and Expressions – Polar</title>
+    <meta
+      name="description"
+      content="Polar&#x27;s basic types, string interpolation, operators, the pipe, let, blocks and if."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="values-and-expressions">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
-
-<div class="layout">
-  <main>
-    <article>
-      <h1>Values and Expressions</h1>
-      <p class="lead">This page covers the building blocks: numbers, strings and booleans, how to combine them, and how to name the results.</p>
-<pre class="code" data-lang="polar"><code>module Values
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Values and Expressions</h1>
+          <p class="lead">
+            This page covers the building blocks: numbers, strings and booleans,
+            how to combine them, and how to name the results.
+          </p>
+          <pre class="code" data-lang="polar"><code>module Values
 
 functions
   main() {
@@ -48,7 +63,9 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run values.px
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run values.px
 Ann has 1000000 points
 Two of them cost 39.98
 Ready? true
@@ -56,94 +73,216 @@ Ready? true
 Half of 7 is 3.5
 hello-world</code></pre>
 
-      <h2 id="basic-types">The basic types</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Type</th><th>Examples</th></tr></thead>
-          <tbody>
-            <tr><td><code>Int</code></td><td><code>0</code>, <code>42</code>, <code>-7</code>, <code>1_000_000</code></td></tr>
-            <tr><td><code>Float</code></td><td><code>3.14</code>, <code>2.0</code>, <code>1.5e3</code></td></tr>
-            <tr><td><code>String</code></td><td><code>"hello"</code></td></tr>
-            <tr><td><code>Bool</code></td><td><code>true</code>, <code>false</code></td></tr>
-            <tr><td><code>{}</code></td><td>The empty record: "no useful value", like <code>void</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>Underscores in numbers are only there to make them easier to read.</p>
+          <h2 id="basic-types">The basic types</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Examples</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Int</code></td>
+                  <td>
+                    <code>0</code>, <code>42</code>, <code>-7</code>,
+                    <code>1_000_000</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>Float</code></td>
+                  <td>
+                    <code>3.14</code>, <code>2.0</code>, <code>1.5e3</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>String</code></td>
+                  <td><code>"hello"</code></td>
+                </tr>
+                <tr>
+                  <td><code>Bool</code></td>
+                  <td><code>true</code>, <code>false</code></td>
+                </tr>
+                <tr>
+                  <td><code>{}</code></td>
+                  <td>
+                    The empty record: "no useful value", like <code>void</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Underscores in numbers are only there to make them easier to read.
+          </p>
 
-      <h3 id="int-and-float">Int and Float don't mix</h3>
-      <p><code>7 / 2</code> is integer division, so it gives <code>3</code>. To get <code>3.5</code>, both sides need to be <code>Float</code>. Polar never converts between the two for you:</p>
-<pre class="code"><code><span class="er">error[POLAR0501]</span>: mismatched types
+          <h3 id="int-and-float">Int and Float don't mix</h3>
+          <p>
+            <code>7 / 2</code> is integer division, so it gives <code>3</code>.
+            To get <code>3.5</code>, both sides need to be <code>Float</code>.
+            Polar never converts between the two for you:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="er">error[POLAR0501]</span>: mismatched types
  --> mix.px:5:9
   |
 5 |     n / 2.0
   |         ^^^ expected `Int`, found `Float`</code></pre>
-      <p>Convert explicitly with <code>Int.to_float</code> or <code>Float.to_int</code>. It's a little more typing, but you never get a surprise rounding.</p>
+          <p>
+            Convert explicitly with <code>Int.to_float</code> or
+            <code>Float.to_int</code>. It's a little more typing, but you never
+            get a surprise rounding.
+          </p>
 
-      <h2 id="strings">Strings and interpolation</h2>
-      <p><code>#{…}</code> inside a string inserts the value of any expression. It works with numbers and booleans too, not only strings:</p>
-<pre class="code" data-lang="polar"><code>"#{name} has #{count} points"</code></pre>
-      <p>Interpolation works for any type that knows how to show itself, which is the <code>Show</code> trait. You'll see how to give your own types <code>Show</code> in <a href="traits.html#deriving">Traits</a>.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> There's no <code>+</code> for strings. Use interpolation, or <code>String.concat(a, b)</code>.</p>
-      </div>
+          <h2 id="strings">Strings and interpolation</h2>
+          <p>
+            <code>#{…}</code> inside a string inserts the value of any
+            expression. It works with numbers and booleans too, not only
+            strings:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>"#{name} has #{count} points"</code></pre>
+          <p>
+            Interpolation works for any type that knows how to show itself,
+            which is the <code>Show</code> trait. You'll see how to give your
+            own types <code>Show</code> in
+            <a href="traits.html#deriving">Traits</a>.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> There's no <code>+</code> for
+              strings. Use interpolation, or <code>String.concat(a, b)</code>.
+            </p>
+          </div>
 
-      <h2 id="operators">Operators</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Operators</th><th>Meaning</th></tr></thead>
-          <tbody>
-            <tr><td><code>+ - * / %</code></td><td>Arithmetic on <code>Int</code> or on <code>Float</code></td></tr>
-            <tr><td><code>== !=</code></td><td>Equality, for any type with <code>Eq</code></td></tr>
-            <tr><td><code>&lt; &lt;= &gt; &gt;=</code></td><td>Comparison on numbers and strings</td></tr>
-            <tr><td><code>&amp;&amp; || !</code></td><td>And, or, not</td></tr>
-            <tr><td><code>&amp; | ^ ~</code></td><td>Bitwise and, or, xor and not on <code>Int</code></td></tr>
-            <tr><td><code>|&gt;</code></td><td>The pipe</td></tr>
-          </tbody>
-        </table>
-      </div>
+          <h2 id="operators">Operators</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Operators</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>+ - * / %</code></td>
+                  <td>
+                    Arithmetic on <code>Int</code> or on <code>Float</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>== !=</code></td>
+                  <td>Equality, for any type with <code>Eq</code></td>
+                </tr>
+                <tr>
+                  <td><code>&lt; &lt;= &gt; &gt;=</code></td>
+                  <td>Comparison on numbers and strings</td>
+                </tr>
+                <tr>
+                  <td><code>&amp;&amp; || !</code></td>
+                  <td>And, or, not</td>
+                </tr>
+                <tr>
+                  <td><code>&amp; | ^ ~</code></td>
+                  <td>Bitwise and, or, xor and not on <code>Int</code></td>
+                </tr>
+                <tr>
+                  <td><code>|&gt;</code></td>
+                  <td>The pipe</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-      <h3 id="pipe">The pipe</h3>
-      <p><code>x |&gt; f(y)</code> means <code>f(x, y)</code>: the left side becomes the first argument. It turns nested calls inside out, so you can read them top to bottom:</p>
-<pre class="code" data-lang="polar"><code>String.replace(String.lowercase("Hello World"), " ", "-")
+          <h3 id="pipe">The pipe</h3>
+          <p>
+            <code>x |&gt; f(y)</code> means <code>f(x, y)</code>: the left side
+            becomes the first argument. It turns nested calls inside out, so you
+            can read them top to bottom:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>String.replace(String.lowercase("Hello World"), " ", "-")
 
 "Hello World" |> String.lowercase |> String.replace(" ", "-")</code></pre>
-      <p>Both lines give <code>"hello-world"</code>.</p>
+          <p>Both lines give <code>"hello-world"</code>.</p>
 
-      <h2 id="let">Naming values with let</h2>
-      <p><code>let</code> gives a value a name for the rest of the block. Polar works out the type, so you don't have to write it. You can if you want to: <code>let count: Int = 0</code>.</p>
-      <p>Names can't be reassigned. Instead of changing a value, make a new one with a new name. For the rare cases where you really need something to change, there's <a href="mutable-state.html">mutable state</a>.</p>
+          <h2 id="let">Naming values with let</h2>
+          <p>
+            <code>let</code> gives a value a name for the rest of the block.
+            Polar works out the type, so you don't have to write it. You can if
+            you want to: <code>let count: Int = 0</code>.
+          </p>
+          <p>
+            Names can't be reassigned. Instead of changing a value, make a new
+            one with a new name. For the rare cases where you really need
+            something to change, there's
+            <a href="mutable-state.html">mutable state</a>.
+          </p>
 
-      <h2 id="blocks">Blocks have values</h2>
-      <p>A block is a sequence of lines in braces, and its value is the value of its last line. That's why functions have no <code>return</code>:</p>
-<pre class="code" data-lang="polar"><code>area(width: Int, height: Int) -> Int {
+          <h2 id="blocks">Blocks have values</h2>
+          <p>
+            A block is a sequence of lines in braces, and its value is the value
+            of its last line. That's why functions have no <code>return</code>:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>area(width: Int, height: Int) -> Int {
   let w = width + 2
   let h = height + 2
 
   w * h
 }</code></pre>
 
-      <h2 id="if">if is an expression</h2>
-      <p><code>if</code> gives back a value, like the ternary operator in JavaScript:</p>
-<pre class="code" data-lang="polar"><code>let mark = if done { "x" } else { " " }</code></pre>
-      <p>Because it always has to produce a value, every <code>if</code> needs an <code>else</code>:</p>
-<pre class="code"><code><span class="er">error[POLAR0214]</span>: `if` without `else`
+          <h2 id="if">if is an expression</h2>
+          <p>
+            <code>if</code> gives back a value, like the ternary operator in
+            JavaScript:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>let mark = if done { "x" } else { " " }</code></pre>
+          <p>
+            Because it always has to produce a value, every
+            <code>if</code> needs an <code>else</code>:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="er">error[POLAR0214]</span>: `if` without `else`
  --> mix.px:9:5
   |
 9 |     if n > 0 { "positive" }
   |     ^^^^^^^^^^^^^^^^^^^^^^^
   |
   = help: `if` is an expression, so it needs a value on both branches: add `else { … }`</code></pre>
-      <p>Chain conditions with <code>else if</code>:</p>
-<pre class="code" data-lang="polar"><code>if points >= 90 { "A" } else if points >= 75 { "B" } else { "C" }</code></pre>
-      <p>Next, let's package expressions up into <a href="functions.html">functions</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>Chain conditions with <code>else if</code>:</p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>if points >= 90 { "A" } else if points >= 75 { "B" } else { "C" }</code></pre>
+          <p>
+            Next, let's package expressions up into
+            <a href="functions.html">functions</a>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

@@ -1,38 +1,60 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lists, Options and Results – Polar</title>
-<meta name="description" content="Working with List, handling missing values with Option, reporting failure with Result, and looking things up with Map.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="lists-options-results">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lists, Options and Results – Polar</title>
+    <meta
+      name="description"
+      content="Working with List, handling missing values with Option, reporting failure with Result, and looking things up with Map."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="lists-options-results">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Lists, Options and Results</h1>
+          <p class="lead">
+            Four types from the standard library show up in almost every
+            program: <code>List</code> for sequences, <code>Option</code> for
+            values that might be missing, <code>Result</code> for operations
+            that might fail, and <code>Map</code> for lookups.
+          </p>
+          <p>
+            They're all ordinary variant types written in Polar, so everything
+            from the <a href="variants-and-matching.html">last page</a> applies
+            to them. Each lives in its own module, which you import in
+            <code>uses</code>.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Lists, Options and Results</h1>
-      <p class="lead">Four types from the standard library show up in almost every program: <code>List</code> for sequences, <code>Option</code> for values that might be missing, <code>Result</code> for operations that might fail, and <code>Map</code> for lookups.</p>
-      <p>They're all ordinary variant types written in Polar, so everything from the <a href="variants-and-matching.html">last page</a> applies to them. Each lives in its own module, which you import in <code>uses</code>.</p>
-
-      <h2 id="lists">Lists</h2>
-<pre class="code" data-lang="polar"><code>uses
+          <h2 id="lists">Lists</h2>
+          <pre class="code" data-lang="polar"><code>uses
   Std.List
 
 functions
@@ -43,42 +65,111 @@ functions
 
     Log.info("sum of squares: #{List.fold(squares, 0, function(a, b) { a + b })}")
   }</code></pre>
-      <p>Write a list with brackets: <code>[1, 2, 3]</code>. All items have the same type, so that's a <code>List&lt;Int&gt;</code>. <code>..</code> spreads one list into another, so <code>[0, ..numbers]</code> puts a <code>0</code> in front.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> List syntax needs <code>uses Std.List</code>. Without it, Polar stops with "list syntax needs the <code>List</code> type" and tells you what to add.</p>
-      </div>
-      <p>The functions you'll use most:</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Does</th></tr></thead>
-          <tbody>
-            <tr><td><code>List.map(xs, f)</code></td><td>A new list with <code>f</code> applied to each item</td></tr>
-            <tr><td><code>List.filter(xs, keep)</code></td><td>Only the items where <code>keep</code> is true</td></tr>
-            <tr><td><code>List.fold(xs, start, f)</code></td><td>Combines all items into one value, like <code>reduce</code></td></tr>
-            <tr><td><code>List.find(xs, test)</code></td><td>The first matching item, as an <code>Option</code></td></tr>
-            <tr><td><code>List.any</code>, <code>List.all</code></td><td>Whether some or every item passes a test</td></tr>
-            <tr><td><code>List.length</code>, <code>List.is_empty</code></td><td>Size checks</td></tr>
-            <tr><td><code>List.join(xs, ", ")</code></td><td>Joins a list of strings</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>The <a href="standard-library.html#list">standard library reference</a> lists the rest.</p>
+          <p>
+            Write a list with brackets: <code>[1, 2, 3]</code>. All items have
+            the same type, so that's a <code>List&lt;Int&gt;</code>.
+            <code>..</code> spreads one list into another, so
+            <code>[0, ..numbers]</code> puts a <code>0</code> in front.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> List syntax needs
+              <code>uses Std.List</code>. Without it, Polar stops with "list
+              syntax needs the <code>List</code> type" and tells you what to
+              add.
+            </p>
+          </div>
+          <p>The functions you'll use most:</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>List.map(xs, f)</code></td>
+                  <td>A new list with <code>f</code> applied to each item</td>
+                </tr>
+                <tr>
+                  <td><code>List.filter(xs, keep)</code></td>
+                  <td>Only the items where <code>keep</code> is true</td>
+                </tr>
+                <tr>
+                  <td><code>List.fold(xs, start, f)</code></td>
+                  <td>
+                    Combines all items into one value, like <code>reduce</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>List.find(xs, test)</code></td>
+                  <td>The first matching item, as an <code>Option</code></td>
+                </tr>
+                <tr>
+                  <td><code>List.any</code>, <code>List.all</code></td>
+                  <td>Whether some or every item passes a test</td>
+                </tr>
+                <tr>
+                  <td><code>List.length</code>, <code>List.is_empty</code></td>
+                  <td>Size checks</td>
+                </tr>
+                <tr>
+                  <td><code>List.join(xs, ", ")</code></td>
+                  <td>Joins a list of strings</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The
+            <a href="standard-library.html#list">standard library reference</a>
+            lists the rest.
+          </p>
 
-      <h2 id="option">Option: a value that might be missing</h2>
-      <p>Polar has no <code>null</code>. A value that might not be there has the type <code>Option&lt;a&gt;</code>, which is defined like this:</p>
-<pre class="code" data-lang="polar"><code>Option&lt;a&gt; = None | Some(a)</code></pre>
-      <p>For example, <code>List.head</code> returns <code>Option&lt;a&gt;</code>, because an empty list has no first item. To use the value, you have to handle both cases, so you can't forget the empty one:</p>
-<pre class="code" data-lang="polar"><code>match List.head(numbers) {
+          <h2 id="option">Option: a value that might be missing</h2>
+          <p>
+            Polar has no <code>null</code>. A value that might not be there has
+            the type <code>Option&lt;a&gt;</code>, which is defined like this:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>Option&lt;a&gt; = None | Some(a)</code></pre>
+          <p>
+            For example, <code>List.head</code> returns
+            <code>Option&lt;a&gt;</code>, because an empty list has no first
+            item. To use the value, you have to handle both cases, so you can't
+            forget the empty one:
+          </p>
+          <pre class="code" data-lang="polar"><code>match List.head(numbers) {
   Some(first) -> "starts with #{first}",
   None -> "empty",
 }</code></pre>
-      <p>Often you just want a fallback. <code>Option.with_default</code> does that:</p>
-<pre class="code" data-lang="polar"><code>Option.with_default(List.nth(numbers, 10), -1)</code></pre>
-      <p><code>Option.map</code> changes the value inside a <code>Some</code> and leaves <code>None</code> alone. <code>Option.and_then</code> chains steps that might each come back empty.</p>
+          <p>
+            Often you just want a fallback.
+            <code>Option.with_default</code> does that:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>Option.with_default(List.nth(numbers, 10), -1)</code></pre>
+          <p>
+            <code>Option.map</code> changes the value inside a
+            <code>Some</code> and leaves <code>None</code> alone.
+            <code>Option.and_then</code> chains steps that might each come back
+            empty.
+          </p>
 
-      <h2 id="result">Result: an operation that might fail</h2>
-      <p><code>Result&lt;e, a&gt;</code> is either <code>Ok(a)</code> with a value, or <code>Err(e)</code> with an error. Unlike <code>Option</code>, a failure carries information about what went wrong:</p>
-<pre class="code" data-lang="polar"><code>types
+          <h2 id="result">Result: an operation that might fail</h2>
+          <p>
+            <code>Result&lt;e, a&gt;</code> is either <code>Ok(a)</code> with a
+            value, or <code>Err(e)</code> with an error. Unlike
+            <code>Option</code>, a failure carries information about what went
+            wrong:
+          </p>
+          <pre class="code" data-lang="polar"><code>types
   ParseError = NotANumber(String)
 
 functions
@@ -95,21 +186,38 @@ functions
       Err(NotANumber(text)) -> "`#{text}` is not a number",
     }
   }</code></pre>
-      <p><code>Result.map</code> transforms the <code>Ok</code> value, and <code>Result.map_err</code> transforms the error.</p>
-      <div class="callout tip">
-        <p><span class="label">Tip:</span> Use <code>Result</code> when the caller is expected to deal with the failure, like bad user input. For errors that should travel up the call stack, see <a href="errors.html">Handling Errors</a>.</p>
-      </div>
+          <p>
+            <code>Result.map</code> transforms the <code>Ok</code> value, and
+            <code>Result.map_err</code> transforms the error.
+          </p>
+          <div class="callout tip">
+            <p>
+              <span class="label">Tip:</span> Use <code>Result</code> when the
+              caller is expected to deal with the failure, like bad user input.
+              For errors that should travel up the call stack, see
+              <a href="errors.html">Handling Errors</a>.
+            </p>
+          </div>
 
-      <h2 id="map">Map: looking things up by key</h2>
-      <p><code>Map&lt;k, v&gt;</code> stores values by key. Each change gives back a new map:</p>
-<pre class="code" data-lang="polar"><code>let ages = Map.empty() |> Map.insert("ann", 31) |> Map.insert("bob", 27)
+          <h2 id="map">Map: looking things up by key</h2>
+          <p>
+            <code>Map&lt;k, v&gt;</code> stores values by key. Each change gives
+            back a new map:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>let ages = Map.empty() |> Map.insert("ann", 31) |> Map.insert("bob", 27)
 
 Map.get(ages, "bob")   // Some(27)
 Map.has(ages, "cat")   // false</code></pre>
-      <p><code>Map.get</code> returns an <code>Option</code>, because the key might not be there.</p>
+          <p>
+            <code>Map.get</code> returns an <code>Option</code>, because the key
+            might not be there.
+          </p>
 
-      <h2 id="all-together">All together</h2>
-<pre class="code" data-lang="polar"><code>module Lists
+          <h2 id="all-together">All together</h2>
+          <pre class="code" data-lang="polar"><code>module Lists
 
 uses
   Std.List
@@ -158,7 +266,9 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run lists.px
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run lists.px
 numbers: 1, 2, 3, 4, 5
 evens: 2, 4
 sum of squares: 55
@@ -170,14 +280,21 @@ has cat? false
 age 42
 `forty` is not a number
 age 21</code></pre>
-      <p>Notice <code>List.range(1, 6)</code> stops before 6. Next, let's see how types share behavior with <a href="traits.html">traits</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>
+            Notice <code>List.range(1, 6)</code> stops before 6. Next, let's see
+            how types share behavior with <a href="traits.html">traits</a>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

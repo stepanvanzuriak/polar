@@ -1,38 +1,57 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JavaScript Interop – Polar</title>
-<meta name="description" content="Call JavaScript with externs, implement effects in JavaScript files, how values convert at the boundary, and use Polar from JavaScript and TypeScript.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="javascript-interop">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JavaScript Interop – Polar</title>
+    <meta
+      name="description"
+      content="Call JavaScript with externs, implement effects in JavaScript files, how values convert at the boundary, and use Polar from JavaScript and TypeScript."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="javascript-interop">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>JavaScript Interop</h1>
+          <p class="lead">
+            Polar compiles to ES modules, so working with JavaScript goes both
+            ways. Polar can call JavaScript functions, implement effects in
+            JavaScript, and be imported by JavaScript and TypeScript code.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>JavaScript Interop</h1>
-      <p class="lead">Polar compiles to ES modules, so working with JavaScript goes both ways. Polar can call JavaScript functions, implement effects in JavaScript, and be imported by JavaScript and TypeScript code.</p>
-
-      <h2 id="externs">Calling JavaScript with externs</h2>
-      <p>An <strong>extern</strong> gives a JavaScript function a Polar type. Say we have <code>src/text.js</code>:</p>
-<pre class="code"><code>export function slugify(text) {
+          <h2 id="externs">Calling JavaScript with externs</h2>
+          <p>
+            An <strong>extern</strong> gives a JavaScript function a Polar type.
+            Say we have <code>src/text.js</code>:
+          </p>
+          <pre class="code"><code>export function slugify(text) {
   return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
 }
 
@@ -44,22 +63,42 @@ export function first_word(text) {
 export function words(text) {
   return text.split(/\s+/).filter(Boolean);
 }</code></pre>
-      <p>Declare each function in the <code>externs</code> zone, with its type, the file, and the name of the export:</p>
-<pre class="code" data-lang="polar"><code>externs
+          <p>
+            Declare each function in the <code>externs</code> zone, with its
+            type, the file, and the name of the export:
+          </p>
+          <pre class="code" data-lang="polar"><code>externs
   slugify(text: String) -> String = "./text.js" slugify
   first_word(text: String) -> Option&lt;String&gt; = "./text.js" first_word
   words(text: String) -> List&lt;String&gt; = "./text.js" words</code></pre>
-      <p>The path is relative to the <code>.px</code> file, and <code>polar build</code> copies the JavaScript file into <code>dist/</code>. After that, externs are called like any Polar function: <code>slugify("Hello, World")</code>.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> Polar trusts the type you write. If <code>slugify</code> actually returned a number, Polar couldn't tell. Keep externs small, and test them.</p>
-      </div>
+          <p>
+            The path is relative to the <code>.px</code> file, and
+            <code>polar build</code> copies the JavaScript file into
+            <code>dist/</code>. After that, externs are called like any Polar
+            function: <code>slugify("Hello, World")</code>.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> Polar trusts the type you write.
+              If <code>slugify</code> actually returned a number, Polar couldn't
+              tell. Keep externs small, and test them.
+            </p>
+          </div>
 
-      <h3 id="sync">Externs are synchronous</h3>
-      <p>An extern called from an ordinary function is a plain, synchronous call. JavaScript that returns a <code>Promise</code>, like a network request or a timer, belongs behind an effect, which can be asynchronous. That's the next section.</p>
+          <h3 id="sync">Externs are synchronous</h3>
+          <p>
+            An extern called from an ordinary function is a plain, synchronous
+            call. JavaScript that returns a <code>Promise</code>, like a network
+            request or a timer, belongs behind an effect, which can be
+            asynchronous. That's the next section.
+          </p>
 
-      <h2 id="binding-to-a-file">Implementing an effect in JavaScript</h2>
-      <p>A bind can point an entire effect at a JavaScript module. Each operation becomes an export with the same name:</p>
-<pre class="code" data-lang="polar"><code>effects
+          <h2 id="binding-to-a-file">Implementing an effect in JavaScript</h2>
+          <p>
+            A bind can point an entire effect at a JavaScript module. Each
+            operation becomes an export with the same name:
+          </p>
+          <pre class="code" data-lang="polar"><code>effects
   Clock in Node {
     now() -> Int
     wait(ms: Int) -> {}
@@ -67,7 +106,7 @@ export function words(text) {
 
 binds
   Clock in Node = "./clock.js"</code></pre>
-<pre class="code"><code><span class="cm">// src/clock.js</span>
+          <pre class="code"><code><span class="cm">// src/clock.js</span>
 export function now() {
   return Date.now();
 }
@@ -75,53 +114,139 @@ export function now() {
 export async function wait(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }</code></pre>
-      <p>Operations can be <code>async</code>. Polar awaits them for you, and Polar code calling <code>Clock.wait(50)</code> reads as if it were synchronous. The standard library's <code>Dom</code> and <code>Process</code> effects are written exactly this way.</p>
-      <div class="callout tip">
-        <p><span class="label">Tip:</span> Polar only makes functions <code>async</code> when they use an effect that could wait. Pure functions compile to plain synchronous JavaScript, with no <code>await</code> overhead.</p>
-      </div>
+          <p>
+            Operations can be <code>async</code>. Polar awaits them for you, and
+            Polar code calling <code>Clock.wait(50)</code> reads as if it were
+            synchronous. The standard library's <code>Dom</code> and
+            <code>Process</code> effects are written exactly this way.
+          </p>
+          <div class="callout tip">
+            <p>
+              <span class="label">Tip:</span> Polar only makes functions
+              <code>async</code> when they use an effect that could wait. Pure
+              functions compile to plain synchronous JavaScript, with no
+              <code>await</code> overhead.
+            </p>
+          </div>
 
-      <h2 id="boundary">How values convert</h2>
-      <p>At the boundary, Polar converts values based on the declared types:</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Polar type</th><th>Polar to JavaScript</th><th>JavaScript to Polar</th></tr></thead>
-          <tbody>
-            <tr><td><code>Int</code>, <code>Float</code>, <code>String</code>, <code>Bool</code></td><td>Unchanged</td><td>Unchanged</td></tr>
-            <tr><td><code>{}</code></td><td>Unchanged</td><td><code>{}</code>, whatever was returned</td></tr>
-            <tr><td><code>Option&lt;T&gt;</code></td><td><code>None</code> becomes <code>null</code>, <code>Some(x)</code> becomes <code>x</code></td><td><code>null</code> and <code>undefined</code> become <code>None</code>, anything else <code>Some</code></td></tr>
-            <tr><td><code>List&lt;T&gt;</code></td><td>An array</td><td>Any iterable</td></tr>
-            <tr><td><code>Result&lt;E, A&gt;</code></td><td><code>Ok(x)</code> becomes <code>{ ok: x }</code>, <code>Err(e)</code> becomes <code>{ err: e }</code></td><td>An object with an <code>ok</code> or <code>err</code> key. Anything else is a runtime error naming the operation</td></tr>
-            <tr><td>Records</td><td>Objects, with fields converted by these rules</td><td>The same, in reverse</td></tr>
-            <tr><td>Variants</td><td>Their tagged object form</td><td>Their tagged object form</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>Conversions nest, so an <code>Option&lt;List&lt;Int&gt;&gt;</code>, a <code>Result&lt;String, List&lt;Int&gt;&gt;</code> or a record field holding a list convert too. With the externs above:</p>
-<pre class="code" data-lang="polar"><code>Option.with_default(first_word("...  "), "(no words)")   // "(no words)", JS returned null
+          <h2 id="boundary">How values convert</h2>
+          <p>
+            At the boundary, Polar converts values based on the declared types:
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Polar type</th>
+                  <th>Polar to JavaScript</th>
+                  <th>JavaScript to Polar</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code>Int</code>, <code>Float</code>, <code>String</code>,
+                    <code>Bool</code>
+                  </td>
+                  <td>Unchanged</td>
+                  <td>Unchanged</td>
+                </tr>
+                <tr>
+                  <td><code>{}</code></td>
+                  <td>Unchanged</td>
+                  <td><code>{}</code>, whatever was returned</td>
+                </tr>
+                <tr>
+                  <td><code>Option&lt;T&gt;</code></td>
+                  <td>
+                    <code>None</code> becomes <code>null</code>,
+                    <code>Some(x)</code> becomes <code>x</code>
+                  </td>
+                  <td>
+                    <code>null</code> and <code>undefined</code> become
+                    <code>None</code>, anything else <code>Some</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>List&lt;T&gt;</code></td>
+                  <td>An array</td>
+                  <td>Any iterable</td>
+                </tr>
+                <tr>
+                  <td><code>Result&lt;E, A&gt;</code></td>
+                  <td>
+                    <code>Ok(x)</code> becomes <code>{ ok: x }</code>,
+                    <code>Err(e)</code> becomes <code>{ err: e }</code>
+                  </td>
+                  <td>
+                    An object with an <code>ok</code> or <code>err</code> key.
+                    Anything else is a runtime error naming the operation
+                  </td>
+                </tr>
+                <tr>
+                  <td>Records</td>
+                  <td>Objects, with fields converted by these rules</td>
+                  <td>The same, in reverse</td>
+                </tr>
+                <tr>
+                  <td>Variants</td>
+                  <td>Their tagged object form</td>
+                  <td>Their tagged object form</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Conversions nest, so an <code>Option&lt;List&lt;Int&gt;&gt;</code>,
+            a <code>Result&lt;String, List&lt;Int&gt;&gt;</code> or a record
+            field holding a list convert too. With the externs above:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>Option.with_default(first_word("...  "), "(no words)")   // "(no words)", JS returned null
 List.length(words("a b  c"))                             // 3, JS returned an array</code></pre>
 
-      <h2 id="from-javascript">Using Polar from JavaScript</h2>
-      <p>Every exported Polar function is a named ES module export:</p>
-<pre class="code"><code>import { cents, add, format } from "./dist/money.js";
+          <h2 id="from-javascript">Using Polar from JavaScript</h2>
+          <p>Every exported Polar function is a named ES module export:</p>
+          <pre
+            class="code"
+          ><code>import { cents, add, format } from "./dist/money.js";
 
 console.log(format(add(cents(1050), cents(99))));   <span class="cm">// $11.49</span></code></pre>
-      <p>Functions that use effects are <code>async</code> in JavaScript, so <code>await</code> them.</p>
+          <p>
+            Functions that use effects are <code>async</code> in JavaScript, so
+            <code>await</code> them.
+          </p>
 
-      <h3 id="typescript">TypeScript</h3>
-      <p>Each module also gets a <code>.d.ts</code> file, so TypeScript knows the types of everything you export:</p>
-<pre class="code"><code>export type Money = { cents: number };
+          <h3 id="typescript">TypeScript</h3>
+          <p>
+            Each module also gets a <code>.d.ts</code> file, so TypeScript knows
+            the types of everything you export:
+          </p>
+          <pre class="code"><code>export type Money = { cents: number };
 
 export declare function cents(n: number): Money;
 
 export declare function format(m: Money): string;</code></pre>
-      <p>Effectful functions are declared as returning a <code>Promise</code>. For example, the browser <code>start</code> function from <a href="browser.html">Running in the Browser</a> is declared as <code>start(): Promise&lt;Record&lt;string, never&gt;&gt;</code>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>
+            Effectful functions are declared as returning a
+            <code>Promise</code>. For example, the browser
+            <code>start</code> function from
+            <a href="browser.html">Running in the Browser</a> is declared as
+            <code>start(): Promise&lt;Record&lt;string, never&gt;&gt;</code>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

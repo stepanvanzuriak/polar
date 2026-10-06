@@ -1,35 +1,47 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hello World – Polar</title>
-<meta name="description" content="The smallest Polar program, what each part means, and the JavaScript it compiles to.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="hello-world">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hello World – Polar</title>
+    <meta
+      name="description"
+      content="The smallest Polar program, what each part means, and the JavaScript it compiles to."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="hello-world">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
-
-<div class="layout">
-  <main>
-    <article>
-      <h1>Hello World</h1>
-      <p class="lead">The smallest Polar program looks like this:</p>
-<pre class="code" data-lang="polar"><code>module Main
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Hello World</h1>
+          <p class="lead">The smallest Polar program looks like this:</p>
+          <pre class="code" data-lang="polar"><code>module Main
 
 functions
   main() {
@@ -38,50 +50,101 @@ functions
 
 exports
   main</code></pre>
-      <p>Save it as <code>hello.px</code> and run it:</p>
-<pre class="code out"><code><span class="pr">$</span> polar run hello.px
+          <p>Save it as <code>hello.px</code> and run it:</p>
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run hello.px
 Hello from Polar</code></pre>
-      <p>It prints a line to the console. Let's go through it piece by piece.</p>
+          <p>
+            It prints a line to the console. Let's go through it piece by piece.
+          </p>
 
-      <h2 id="module">The module line</h2>
-      <p>Every Polar file starts by naming its module. Module names start with a capital letter. A file run on its own is usually called <code>Main</code>, but any name works.</p>
+          <h2 id="module">The module line</h2>
+          <p>
+            Every Polar file starts by naming its module. Module names start
+            with a capital letter. A file run on its own is usually called
+            <code>Main</code>, but any name works.
+          </p>
 
-      <h2 id="zones">Zones</h2>
-      <p>After the module line, a file is split into <strong>zones</strong>. A zone is a heading like <code>functions</code> or <code>exports</code>, followed by indented declarations. This file has two:</p>
-      <ul>
-        <li><code>functions</code> holds the function <code>main</code>.</li>
-        <li><code>exports</code> lists what the module makes public. <code>polar run</code> looks for an exported <code>main</code> and calls it.</li>
-      </ul>
-      <p>Zones replace keywords that other languages put in front of every declaration, like <code>function</code> or <code>export</code>. We'll meet all of them in <a href="zones.html">Files and Zones</a>.</p>
+          <h2 id="zones">Zones</h2>
+          <p>
+            After the module line, a file is split into <strong>zones</strong>.
+            A zone is a heading like <code>functions</code> or
+            <code>exports</code>, followed by indented declarations. This file
+            has two:
+          </p>
+          <ul>
+            <li>
+              <code>functions</code> holds the function <code>main</code>.
+            </li>
+            <li>
+              <code>exports</code> lists what the module makes public.
+              <code>polar run</code> looks for an exported <code>main</code> and
+              calls it.
+            </li>
+          </ul>
+          <p>
+            Zones replace keywords that other languages put in front of every
+            declaration, like <code>function</code> or <code>export</code>.
+            We'll meet all of them in <a href="zones.html">Files and Zones</a>.
+          </p>
 
-      <h2 id="log">Printing</h2>
-      <p><code>Log.info</code> prints a string, and <code>Log.error</code> prints to the error output. Both are built in, so you don't need to import them.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> Indentation matters. Declarations inside a zone are indented by two spaces, and the body of a function goes in braces. <code>polar fmt</code> fixes the layout for you.</p>
-      </div>
+          <h2 id="log">Printing</h2>
+          <p>
+            <code>Log.info</code> prints a string, and
+            <code>Log.error</code> prints to the error output. Both are built
+            in, so you don't need to import them.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> Indentation matters. Declarations
+              inside a zone are indented by two spaces, and the body of a
+              function goes in braces. <code>polar fmt</code> fixes the layout
+              for you.
+            </p>
+          </div>
 
-      <h2 id="output">What it compiles to</h2>
-      <p>Polar writes plain JavaScript. To see it, build the file:</p>
-<pre class="code"><code><span class="pr">$</span> polar build hello.px --out dist
+          <h2 id="output">What it compiles to</h2>
+          <p>Polar writes plain JavaScript. To see it, build the file:</p>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar build hello.px --out dist
 built 1 file in 5ms</code></pre>
-<pre class="code"><code>import * as $rt from "./_polar/runtime.js";
+          <pre class="code"><code>import * as $rt from "./_polar/runtime.js";
 
 export function main() {
   return $rt.Log.info("Hello from Polar");
 }
 //# sourceMappingURL=hello.js.map</code></pre>
-      <p>The exported function is a real ES module export. <code>$rt</code> is the small runtime Polar copies next to your code.</p>
+          <p>
+            The exported function is a real ES module export.
+            <code>$rt</code> is the small runtime Polar copies next to your
+            code.
+          </p>
 
-      <h2 id="change-it">Make a change</h2>
-      <p>Try changing the message, or calling <code>Log.info</code> a second time. Then try passing it a number, like <code>Log.info(42)</code>. Polar refuses to compile that, because <code>Log.info</code> expects a <code>String</code>. Catching mistakes like this before anything runs is the main thing Polar does.</p>
-      <p>Next, let's look at <a href="zones.html">files and zones</a> in more detail.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <h2 id="change-it">Make a change</h2>
+          <p>
+            Try changing the message, or calling <code>Log.info</code> a second
+            time. Then try passing it a number, like <code>Log.info(42)</code>.
+            Polar refuses to compile that, because <code>Log.info</code> expects
+            a <code>String</code>. Catching mistakes like this before anything
+            runs is the main thing Polar does.
+          </p>
+          <p>
+            Next, let's look at <a href="zones.html">files and zones</a> in more
+            detail.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

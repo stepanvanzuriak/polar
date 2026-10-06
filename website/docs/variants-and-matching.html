@@ -1,81 +1,164 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Variants and Matching – Polar</title>
-<meta name="description" content="Variant types with cases, pattern matching with match, exhaustiveness checking and list patterns.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="variants-and-matching">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Variants and Matching – Polar</title>
+    <meta
+      name="description"
+      content="Variant types with cases, pattern matching with match, exhaustiveness checking and list patterns."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="variants-and-matching">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Variants and Matching</h1>
+          <p class="lead">
+            A variant is a value that is one of several cases. Together with
+            <code>match</code>, variants replace many of the
+            <code>if</code> chains, <code>null</code> checks and string tags
+            you'd write in JavaScript.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Variants and Matching</h1>
-      <p class="lead">A variant is a value that is one of several cases. Together with <code>match</code>, variants replace many of the <code>if</code> chains, <code>null</code> checks and string tags you'd write in JavaScript.</p>
-
-      <h2 id="declaring">Declaring a variant</h2>
-      <p>List the cases, separated by <code>|</code>. Case names start with a capital letter, and a case can carry values:</p>
-<pre class="code" data-lang="polar"><code>types
+          <h2 id="declaring">Declaring a variant</h2>
+          <p>
+            List the cases, separated by <code>|</code>. Case names start with a
+            capital letter, and a case can carry values:
+          </p>
+          <pre class="code" data-lang="polar"><code>types
   Shape = Circle(Float) | Rect(Float, Float)
 
   Status = Draft | Published(String) | Archived</code></pre>
-      <p>A <code>Shape</code> is either a circle with a radius, or a rectangle with a width and height. Make one by calling the case like a function: <code>Circle(1.0)</code> or <code>Rect(2.0, 3.0)</code>. Cases with no values, like <code>Draft</code>, are written on their own.</p>
+          <p>
+            A <code>Shape</code> is either a circle with a radius, or a
+            rectangle with a width and height. Make one by calling the case like
+            a function: <code>Circle(1.0)</code> or <code>Rect(2.0, 3.0)</code>.
+            Cases with no values, like <code>Draft</code>, are written on their
+            own.
+          </p>
 
-      <h2 id="match">Matching on a variant</h2>
-      <p><code>match</code> looks at a value and runs the arm whose pattern fits:</p>
-<pre class="code" data-lang="polar"><code>area(shape: Shape) -> Float {
+          <h2 id="match">Matching on a variant</h2>
+          <p>
+            <code>match</code> looks at a value and runs the arm whose pattern
+            fits:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>area(shape: Shape) -> Float {
   match shape {
     Circle(r) -> 3.14 * r * r,
     Rect(w, h) -> w * h,
   }
 }</code></pre>
-      <p>Each arm is <code>pattern -&gt; result</code>, and arms are separated by commas. The pattern <code>Circle(r)</code> matches circles and names the radius <code>r</code> for that arm. Like <code>if</code>, <code>match</code> is an expression, so its value is the value of the arm that ran.</p>
+          <p>
+            Each arm is <code>pattern -&gt; result</code>, and arms are
+            separated by commas. The pattern <code>Circle(r)</code> matches
+            circles and names the radius <code>r</code> for that arm. Like
+            <code>if</code>, <code>match</code> is an expression, so its value
+            is the value of the arm that ran.
+          </p>
 
-      <h2 id="exhaustive">Every case is covered</h2>
-      <p>Say we add a <code>Triangle</code> case to <code>Shape</code> and forget to update <code>area</code>. In JavaScript that's a bug you'd find at runtime, if you're lucky. Polar finds it right away:</p>
-<pre class="code"><code><span class="er">error[POLAR0601]</span>: this `match` doesn't cover every case
+          <h2 id="exhaustive">Every case is covered</h2>
+          <p>
+            Say we add a <code>Triangle</code> case to <code>Shape</code> and
+            forget to update <code>area</code>. In JavaScript that's a bug you'd
+            find at runtime, if you're lucky. Polar finds it right away:
+          </p>
+          <pre
+            class="code"
+          ><code><span class="er">error[POLAR0601]</span>: this `match` doesn't cover every case
  --> exhaust.px:8:5
   |
 8 |     match shape {
   |     ^^^^^^^^^^^ `Triangle(_, _)` is not covered</code></pre>
-      <p>This is one of the most useful things a type checker can do. When you add a case, the compiler gives you a list of every place that needs to handle it.</p>
+          <p>
+            This is one of the most useful things a type checker can do. When
+            you add a case, the compiler gives you a list of every place that
+            needs to handle it.
+          </p>
 
-      <h2 id="patterns">Patterns</h2>
-      <p><code>match</code> works on any value, not only variants. These are the patterns you can use:</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Pattern</th><th>Matches</th></tr></thead>
-          <tbody>
-            <tr><td><code>0</code>, <code>"ann"</code>, <code>true</code></td><td>Exactly that value</td></tr>
-            <tr><td><code>_</code></td><td>Anything, and ignores it</td></tr>
-            <tr><td><code>name</code></td><td>Anything, and names it</td></tr>
-            <tr><td><code>Published(date)</code></td><td>A case, naming its values</td></tr>
-            <tr><td><code>[]</code></td><td>An empty list</td></tr>
-            <tr><td><code>[a]</code>, <code>[a, b]</code></td><td>A list of exactly that length</td></tr>
-            <tr><td><code>[x, ..rest]</code></td><td>A list with at least one item, and the rest of it</td></tr>
-            <tr><td><code>{ x: 0, y: 0 }</code></td><td>A record whose fields match</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>Patterns nest, so <code>Some([x, ..rest])</code> matches an optional, non-empty list. Here are a few in use:</p>
-<pre class="code" data-lang="polar"><code>count(n: Int) -> String {
+          <h2 id="patterns">Patterns</h2>
+          <p>
+            <code>match</code> works on any value, not only variants. These are
+            the patterns you can use:
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pattern</th>
+                  <th>Matches</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>0</code>, <code>"ann"</code>, <code>true</code></td>
+                  <td>Exactly that value</td>
+                </tr>
+                <tr>
+                  <td><code>_</code></td>
+                  <td>Anything, and ignores it</td>
+                </tr>
+                <tr>
+                  <td><code>name</code></td>
+                  <td>Anything, and names it</td>
+                </tr>
+                <tr>
+                  <td><code>Published(date)</code></td>
+                  <td>A case, naming its values</td>
+                </tr>
+                <tr>
+                  <td><code>[]</code></td>
+                  <td>An empty list</td>
+                </tr>
+                <tr>
+                  <td><code>[a]</code>, <code>[a, b]</code></td>
+                  <td>A list of exactly that length</td>
+                </tr>
+                <tr>
+                  <td><code>[x, ..rest]</code></td>
+                  <td>A list with at least one item, and the rest of it</td>
+                </tr>
+                <tr>
+                  <td><code>{ x: 0, y: 0 }</code></td>
+                  <td>A record whose fields match</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Patterns nest, so <code>Some([x, ..rest])</code> matches an
+            optional, non-empty list. Here are a few in use:
+          </p>
+          <pre class="code" data-lang="polar"><code>count(n: Int) -> String {
   match n {
     0 -> "none",
     1 -> "one",
@@ -97,13 +180,21 @@ first_two(xs: List&lt;String&gt;) -> String {
     [a, b, ..rest] -> "#{a} and #{b}, plus #{List.length(rest)} more",
   }
 }</code></pre>
-      <p>Arms are tried top to bottom, so put specific patterns before general ones.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> <code>_</code> covers every remaining case, which also silences the "not covered" error. Prefer listing cases by name when you can, so the compiler can still warn you when a new case appears.</p>
-      </div>
+          <p>
+            Arms are tried top to bottom, so put specific patterns before
+            general ones.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> <code>_</code> covers every
+              remaining case, which also silences the "not covered" error.
+              Prefer listing cases by name when you can, so the compiler can
+              still warn you when a new case appears.
+            </p>
+          </div>
 
-      <h2 id="all-together">All together</h2>
-<pre class="code" data-lang="polar"><code>module Variants
+          <h2 id="all-together">All together</h2>
+          <pre class="code" data-lang="polar"><code>module Variants
 
 uses
   Std.List
@@ -163,21 +254,31 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run variants.px
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run variants.px
 3.14 6
 published on May 4
 none, one, many
 10
 a and b, plus 2 more
 just solo</code></pre>
-      <p>The standard library uses variants for its most important types. Let's meet them next: <a href="lists-options-results.html">lists, options and results</a>.</p>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>
+            The standard library uses variants for its most important types.
+            Let's meet them next:
+            <a href="lists-options-results.html">lists, options and results</a>.
+          </p>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

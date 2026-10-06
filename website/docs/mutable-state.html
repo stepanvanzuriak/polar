@@ -1,38 +1,58 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mutable State – Polar</title>
-<meta name="description" content="Changing values over time with Ref cells and in-memory Tables, under the Mut effect.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="mutable-state">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mutable State – Polar</title>
+    <meta
+      name="description"
+      content="Changing values over time with Ref cells and in-memory Tables, under the Mut effect."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="mutable-state">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Mutable State</h1>
+          <p class="lead">
+            Most Polar code never changes a value: it makes new ones. When you
+            do need something that changes over time, like a counter or an
+            in-memory store, Polar gives you mutable cells, tracked by the
+            <code>Mut</code> effect.
+          </p>
 
-<div class="layout">
-  <main>
-    <article>
-      <h1>Mutable State</h1>
-      <p class="lead">Most Polar code never changes a value: it makes new ones. When you do need something that changes over time, like a counter or an in-memory store, Polar gives you mutable cells, tracked by the <code>Mut</code> effect.</p>
-
-      <h2 id="ref">Ref: a single mutable cell</h2>
-      <p><code>Std.Ref</code> provides a box holding one value that can be replaced:</p>
-<pre class="code" data-lang="polar"><code>uses
+          <h2 id="ref">Ref: a single mutable cell</h2>
+          <p>
+            <code>Std.Ref</code> provides a box holding one value that can be
+            replaced:
+          </p>
+          <pre class="code" data-lang="polar"><code>uses
   Std.Ref
 
 functions
@@ -43,28 +63,65 @@ functions
     Ref.update(clicks, function(n) { n + 1 })
     Ref.get(clicks)
   }</code></pre>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Does</th></tr></thead>
-          <tbody>
-            <tr><td><code>Ref.new(value)</code></td><td>Makes a new cell. Creating one is pure</td></tr>
-            <tr><td><code>Ref.get(ref)</code></td><td>Reads the current value</td></tr>
-            <tr><td><code>Ref.set(ref, value)</code></td><td>Replaces it</td></tr>
-            <tr><td><code>Ref.update(ref, f)</code></td><td>Replaces it with <code>f(current)</code></td></tr>
-            <tr><td><code>Ref.modify(ref, f)</code></td><td>Like <code>update</code>, but <code>f</code> returns <code>{ value, result }</code>: the new value, plus something to hand back</td></tr>
-          </tbody>
-        </table>
-      </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Ref.new(value)</code></td>
+                  <td>Makes a new cell. Creating one is pure</td>
+                </tr>
+                <tr>
+                  <td><code>Ref.get(ref)</code></td>
+                  <td>Reads the current value</td>
+                </tr>
+                <tr>
+                  <td><code>Ref.set(ref, value)</code></td>
+                  <td>Replaces it</td>
+                </tr>
+                <tr>
+                  <td><code>Ref.update(ref, f)</code></td>
+                  <td>Replaces it with <code>f(current)</code></td>
+                </tr>
+                <tr>
+                  <td><code>Ref.modify(ref, f)</code></td>
+                  <td>
+                    Like <code>update</code>, but <code>f</code> returns
+                    <code>{ value, result }</code>: the new value, plus
+                    something to hand back
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-      <h2 id="mut">The Mut effect</h2>
-      <p>Reading or writing a cell uses the <code>Mut</code> effect, so any function that does it says <code>/ {Mut}</code>. You can always tell from a signature whether a function might depend on, or change, mutable state.</p>
-      <div class="callout">
-        <p><span class="label">Note:</span> <code>Mut</code> is available on every host. It doesn't limit where code runs. It only makes the mutation visible in the type.</p>
-      </div>
+          <h2 id="mut">The Mut effect</h2>
+          <p>
+            Reading or writing a cell uses the <code>Mut</code> effect, so any
+            function that does it says <code>/ {Mut}</code>. You can always tell
+            from a signature whether a function might depend on, or change,
+            mutable state.
+          </p>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> <code>Mut</code> is available on
+              every host. It doesn't limit where code runs. It only makes the
+              mutation visible in the type.
+            </p>
+          </div>
 
-      <h2 id="table">Table: an in-memory store</h2>
-      <p><code>Std.Table</code> is a small in-memory database built on <code>Ref</code>. Rows get numeric ids automatically. It's useful for prototypes, tests and caches:</p>
-<pre class="code" data-lang="polar"><code>module State
+          <h2 id="table">Table: an in-memory store</h2>
+          <p>
+            <code>Std.Table</code> is a small in-memory database built on
+            <code>Ref</code>. Rows get numeric ids automatically. It's useful
+            for prototypes, tests and caches:
+          </p>
+          <pre class="code" data-lang="polar"><code>module State
 
 uses
   Std.List
@@ -112,27 +169,49 @@ functions
 
 exports
   main</code></pre>
-<pre class="code out"><code><span class="pr">$</span> polar run state.px
+          <pre
+            class="code out"
+          ><code><span class="pr">$</span> polar run state.px
 clicked 2 times
 1. write docs (done)
 2. ship it
 2 todos</code></pre>
-      <p>A few things to notice:</p>
-      <ul>
-        <li>The table is a <code>constant</code>. The constant itself never changes: it always refers to the same table. What changes is the data inside, through <code>Mut</code>.</li>
-        <li><code>Table.insert</code> takes a function from the new id to the row, so the row can contain its own id.</li>
-        <li><code>Table.find</code> returns an <code>Option</code>, and <code>Table.update</code> and <code>Table.delete</code> return whether the row existed.</li>
-      </ul>
-      <div class="callout tip">
-        <p><span class="label">Tip:</span> Keep mutation in a few small functions, like <code>add</code> and <code>finish</code> above, and keep the rest of your code pure. The <code>/ {Mut}</code> in signatures makes it easy to check you've done that.</p>
-      </div>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <p>A few things to notice:</p>
+          <ul>
+            <li>
+              The table is a <code>constant</code>. The constant itself never
+              changes: it always refers to the same table. What changes is the
+              data inside, through <code>Mut</code>.
+            </li>
+            <li>
+              <code>Table.insert</code> takes a function from the new id to the
+              row, so the row can contain its own id.
+            </li>
+            <li>
+              <code>Table.find</code> returns an <code>Option</code>, and
+              <code>Table.update</code> and <code>Table.delete</code> return
+              whether the row existed.
+            </li>
+          </ul>
+          <div class="callout tip">
+            <p>
+              <span class="label">Tip:</span> Keep mutation in a few small
+              functions, like <code>add</code> and <code>finish</code> above,
+              and keep the rest of your code pure. The <code>/ {Mut}</code> in
+              signatures makes it easy to check you've done that.
+            </p>
+          </div>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
 
-<script src="docs.js"></script>
-</body>
+    <script src="docs.js"></script>
+  </body>
 </html>

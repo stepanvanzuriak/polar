@@ -211,7 +211,11 @@ fn missing_node() {
     run(&[("a.px", HELLO)], "a.px", &[("POLAR_NODE", "/nonexistent/node")]);
 
   assert_eq!(ran.code, Some(1));
-  assert!(ran.err.contains("`polar run` needs Node.js"), "{}", ran.err);
+  assert!(
+    ran.err.contains("Polar needs Node.js to run programs"),
+    "{}",
+    ran.err
+  );
 }
 
 #[test]

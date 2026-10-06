@@ -1,122 +1,317 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Built-in Modules – Polar</title>
-<meta name="description" content="The String, Int, Float, Bool and Log modules that every Polar file can use without importing.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
-</head>
-<body data-page="builtins">
-
-<header class="bar">
-  <div class="bar-inner">
-    <a class="wordmark" href="../index.html">polar</a>
-    <button class="menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
-    <nav class="links" aria-label="Main">
-      <a href="../index.html">Home</a>
-      <a href="getting-started.html" aria-current="page">Docs</a>
-      <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
-    </nav>
-  </div>
-</header>
-
-<div class="layout">
-  <main>
-    <article>
-      <h1>Built-in Modules</h1>
-      <p class="lead">These modules are part of the compiler, not the standard library. Every file can use them without a <code>uses</code> line.</p>
-
-      <h2 id="string">String</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code class="sig">length(String) -> Int</code></td><td>The number of characters, counted as Unicode code points</td></tr>
-            <tr><td><code class="sig">concat(String, String) -> String</code></td><td>Joins two strings</td></tr>
-            <tr><td><code class="sig">contains(String, String) -> Bool</code></td><td>Whether the second string appears in the first</td></tr>
-            <tr><td><code class="sig">starts_with(String, String) -> Bool</code></td><td>Whether the first string starts with the second</td></tr>
-            <tr><td><code class="sig">ends_with(String, String) -> Bool</code></td><td>Whether the first string ends with the second</td></tr>
-            <tr><td><code class="sig">slice(String, Int, Int) -> String</code></td><td>The characters from the start index up to, but not including, the end index</td></tr>
-            <tr><td><code class="sig">split(String, String) -> List&lt;String&gt;</code></td><td>Splits on a separator</td></tr>
-            <tr><td><code class="sig">replace(String, String, String) -> String</code></td><td>Replaces every occurrence of the second string with the third</td></tr>
-            <tr><td><code class="sig">trim(String) -> String</code></td><td>Removes surrounding whitespace</td></tr>
-            <tr><td><code class="sig">lowercase(String) -> String</code></td><td>Lowercase copy</td></tr>
-            <tr><td><code class="sig">uppercase(String) -> String</code></td><td>Uppercase copy</td></tr>
-            <tr><td><code class="sig">repeat(String, Int) -> String</code></td><td>The string repeated a number of times</td></tr>
-            <tr><td><code class="sig">charCodeAt(String, Int) -> Int</code></td><td>The UTF-16 code unit at an index, like JavaScript's <code>charCodeAt</code></td></tr>
-            <tr><td><code class="sig">eq(String, String) -> Bool</code></td><td>Equality, the same as <code>==</code></td></tr>
-          </tbody>
-        </table>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Built-in Modules – Polar</title>
+    <meta
+      name="description"
+      content="The String, Int, Float, Bool and Log modules that every Polar file can use without importing."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body data-page="builtins">
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="wordmark" href="../index.html">polar</a>
+        <button
+          class="menu"
+          type="button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          Menu
+        </button>
+        <nav class="links" aria-label="Main">
+          <a href="../index.html">Home</a>
+          <a href="getting-started.html" aria-current="page">Docs</a>
+          <a href="https://github.com/stepanvanzuriak/polar">GitHub</a>
+        </nav>
       </div>
-      <p>All of these work with the pipe, since the string comes first: <code>text |&gt; String.trim |&gt; String.lowercase</code>.</p>
+    </header>
 
-      <h2 id="int">Int</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code class="sig">to_string(Int) -> String</code></td><td>Decimal text</td></tr>
-            <tr><td><code class="sig">to_float(Int) -> Float</code></td><td>The same number as a <code>Float</code></td></tr>
-            <tr><td><code class="sig">parse(String) -> Option&lt;Int&gt;</code></td><td>Reads an integer, or <code>None</code> if the text isn't one</td></tr>
-            <tr><td><code class="sig">to_base(Int, Int) -> String</code></td><td>Text in another base: <code>Int.to_base(5, 2)</code> is <code>"101"</code></td></tr>
-            <tr><td><code class="sig">eq(Int, Int) -> Bool</code></td><td>Equality, the same as <code>==</code></td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="layout">
+      <main>
+        <article>
+          <h1>Built-in Modules</h1>
+          <p class="lead">
+            These modules are part of the compiler, not the standard library.
+            Every file can use them without a <code>uses</code> line.
+          </p>
 
-      <h2 id="float">Float</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code class="sig">to_string(Float) -> String</code></td><td>Decimal text</td></tr>
-            <tr><td><code class="sig">to_int(Float) -> Int</code></td><td>Drops the fractional part</td></tr>
-            <tr><td><code class="sig">floor(Float) -> Float</code></td><td>Rounds down</td></tr>
-            <tr><td><code class="sig">abs(Float) -> Float</code></td><td>Absolute value</td></tr>
-            <tr><td><code class="sig">sqrt(Float) -> Float</code></td><td>Square root</td></tr>
-            <tr><td><code class="sig">sin(Float) -> Float</code>, <code class="sig">cos(Float) -> Float</code></td><td>Sine and cosine, in radians</td></tr>
-            <tr><td><code class="sig">atan2(Float, Float) -> Float</code></td><td>The angle of a point, from <code>y</code> and <code>x</code></td></tr>
-            <tr><td><code class="sig">eq(Float, Float) -> Bool</code></td><td>Equality, the same as <code>==</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p><code>Std.Math</code> has <code>pi</code>.</p>
+          <h2 id="string">String</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="sig">length(String) -> Int</code></td>
+                  <td>
+                    The number of characters, counted as Unicode code points
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">concat(String, String) -> String</code>
+                  </td>
+                  <td>Joins two strings</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">contains(String, String) -> Bool</code>
+                  </td>
+                  <td>Whether the second string appears in the first</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">starts_with(String, String) -> Bool</code>
+                  </td>
+                  <td>Whether the first string starts with the second</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">ends_with(String, String) -> Bool</code>
+                  </td>
+                  <td>Whether the first string ends with the second</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">slice(String, Int, Int) -> String</code>
+                  </td>
+                  <td>
+                    The characters from the start index up to, but not
+                    including, the end index
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >split(String, String) -> List&lt;String&gt;</code
+                    >
+                  </td>
+                  <td>Splits on a separator</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >replace(String, String, String) -> String</code
+                    >
+                  </td>
+                  <td>
+                    Replaces every occurrence of the second string with the
+                    third
+                  </td>
+                </tr>
+                <tr>
+                  <td><code class="sig">trim(String) -> String</code></td>
+                  <td>Removes surrounding whitespace</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">lowercase(String) -> String</code></td>
+                  <td>Lowercase copy</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">uppercase(String) -> String</code></td>
+                  <td>Uppercase copy</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">repeat(String, Int) -> String</code>
+                  </td>
+                  <td>The string repeated a number of times</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">charCodeAt(String, Int) -> Int</code>
+                  </td>
+                  <td>
+                    The UTF-16 code unit at an index, like JavaScript's
+                    <code>charCodeAt</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code class="sig">eq(String, String) -> Bool</code></td>
+                  <td>Equality, the same as <code>==</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            All of these work with the pipe, since the string comes first:
+            <code>text |&gt; String.trim |&gt; String.lowercase</code>.
+          </p>
 
-      <h2 id="bool">Bool</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code class="sig">to_string(Bool) -> String</code></td><td><code>"true"</code> or <code>"false"</code></td></tr>
-            <tr><td><code class="sig">eq(Bool, Bool) -> Bool</code></td><td>Equality, the same as <code>==</code></td></tr>
-          </tbody>
-        </table>
-      </div>
+          <h2 id="int">Int</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="sig">to_string(Int) -> String</code></td>
+                  <td>Decimal text</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">to_float(Int) -> Float</code></td>
+                  <td>The same number as a <code>Float</code></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">parse(String) -> Option&lt;Int&gt;</code>
+                  </td>
+                  <td>
+                    Reads an integer, or <code>None</code> if the text isn't one
+                  </td>
+                </tr>
+                <tr>
+                  <td><code class="sig">to_base(Int, Int) -> String</code></td>
+                  <td>
+                    Text in another base: <code>Int.to_base(5, 2)</code> is
+                    <code>"101"</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code class="sig">eq(Int, Int) -> Bool</code></td>
+                  <td>Equality, the same as <code>==</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-      <h2 id="log">Log</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Function</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code class="sig">info(String) -> {}</code></td><td>Prints a line to standard output, or <code>console.log</code> in the browser</td></tr>
-            <tr><td><code class="sig">error(String) -> {}</code></td><td>Prints a line to standard error, or <code>console.error</code> in the browser</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="callout">
-        <p><span class="label">Note:</span> <code>Log</code> is not an effect, so pure functions can log. It's meant for output and debugging, not for program logic.</p>
-      </div>
-    </article>
-    <p class="edit" id="edit"></p>
-    <nav class="pager" id="pager" aria-label="Previous and next articles"></nav>
-  </main>
-  <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
-</div>
+          <h2 id="float">Float</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="sig">to_string(Float) -> String</code></td>
+                  <td>Decimal text</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">to_int(Float) -> Int</code></td>
+                  <td>Drops the fractional part</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">floor(Float) -> Float</code></td>
+                  <td>Rounds down</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">abs(Float) -> Float</code></td>
+                  <td>Absolute value</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">sqrt(Float) -> Float</code></td>
+                  <td>Square root</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig">sin(Float) -> Float</code>,
+                    <code class="sig">cos(Float) -> Float</code>
+                  </td>
+                  <td>Sine and cosine, in radians</td>
+                </tr>
+                <tr>
+                  <td><code class="sig">atan2(Float, Float) -> Float</code></td>
+                  <td>
+                    The angle of a point, from <code>y</code> and <code>x</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code class="sig">eq(Float, Float) -> Bool</code></td>
+                  <td>Equality, the same as <code>==</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p><code>Std.Math</code> has <code>pi</code>.</p>
 
-<script src="docs.js"></script>
-</body>
+          <h2 id="bool">Bool</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="sig">to_string(Bool) -> String</code></td>
+                  <td><code>"true"</code> or <code>"false"</code></td>
+                </tr>
+                <tr>
+                  <td><code class="sig">eq(Bool, Bool) -> Bool</code></td>
+                  <td>Equality, the same as <code>==</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="log">Log</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="sig">info(String) -> {}</code></td>
+                  <td>
+                    Prints a line to standard output, or
+                    <code>console.log</code> in the browser
+                  </td>
+                </tr>
+                <tr>
+                  <td><code class="sig">error(String) -> {}</code></td>
+                  <td>
+                    Prints a line to standard error, or
+                    <code>console.error</code> in the browser
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            <p>
+              <span class="label">Note:</span> <code>Log</code> is not an
+              effect, so pure functions can log. It's meant for output and
+              debugging, not for program logic.
+            </p>
+          </div>
+        </article>
+        <p class="edit" id="edit"></p>
+        <nav
+          class="pager"
+          id="pager"
+          aria-label="Previous and next articles"
+        ></nav>
+      </main>
+      <aside class="sidebar" id="sidebar" aria-label="Documentation"></aside>
+    </div>
+
+    <script src="docs.js"></script>
+  </body>
 </html>

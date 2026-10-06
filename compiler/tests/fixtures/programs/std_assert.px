@@ -1,0 +1,29 @@
+module StdAssert
+
+uses
+  Std.Assert
+
+functions
+  check(name: String, run: function() -> {} / {Throws<Failed>}) {
+    let result = try {
+      run()
+      "ok"
+    } catch {
+      Failed(message) -> "failed: #{message}",
+    }
+
+    Log.info("#{name}: #{result}")
+  }
+
+  main() {
+    check("equal_ints", function() { Assert.equal(1 + 2, 3) })
+    check("equal_ints_differ", function() { Assert.equal(1 + 2, 4) })
+    check("equal_strings_differ", function() { Assert.equal("a", "b") })
+    check("not_equal_differ", function() { Assert.not_equal(1, 2) })
+    check("not_equal_same", function() { Assert.not_equal(1, 1) })
+    check("fail", function() { Assert.fail("boom") })
+    check("assert_false", function() { Assert.assert(false) })
+  }
+
+exports
+  main
