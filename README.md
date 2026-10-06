@@ -2,6 +2,8 @@
 
 A statically typed, row-polymorphic language that compiles to JavaScript.
 
+> Experimental (0.1.0): expect breaking changes before 1.0.
+
 Requires Node.js.
 
 ```sh
