@@ -147,6 +147,13 @@ pub(crate) enum Command {
     #[arg(last = true)]
     args: Vec<String>,
   },
+  Init {
+    dir: Option<PathBuf>,
+    #[arg(long)]
+    name: Option<String>,
+    #[arg(long = "zone")]
+    zones: Vec<String>,
+  },
 }
 
 #[derive(Clone, Copy, ValueEnum)]

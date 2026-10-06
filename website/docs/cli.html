@@ -36,7 +36,8 @@ Commands:
   check
   run
   fmt
-  start</code></pre>
+  start
+  init</code></pre>
       <p>Inside a <a href="first-project.html">project</a>, path arguments are optional: commands use the project you're in.</p>
 
       <h2 id="run">polar run</h2>
@@ -118,6 +119,19 @@ Commands:
           <thead><tr><th>Flag</th><th>Does</th></tr></thead>
           <tbody>
             <tr><td><code>--host &lt;HOST&gt;</code></td><td>Picks which host's build to run</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="init">polar init</h2>
+<pre class="code"><code>polar init [OPTIONS] [DIR]</code></pre>
+      <p>Starts a project: writes <code>polar.toml</code>, <code>src/main.px</code> and a <code>.gitignore</code>. With no <code>DIR</code> it uses the current folder; otherwise it creates <code>DIR</code> (and any parents). It never overwrites: if <code>polar.toml</code> exists it stops, and existing <code>src/main.px</code> or <code>.gitignore</code> files are kept.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>--name &lt;NAME&gt;</code></td><td>Project name. Defaults to the folder's name, lowercased, with <code>-</code> and spaces turned into <code>_</code></td></tr>
+            <tr><td><code>--zone &lt;KEYWORD&gt;</code></td><td>Adds a <a href="zone-plugins.html">zone plugin</a> stub and the <code>.polar/</code> folder. Repeat it for several zones</td></tr>
           </tbody>
         </table>
       </div>

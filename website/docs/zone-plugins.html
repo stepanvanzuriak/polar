@@ -63,6 +63,7 @@ module = "Notes"
 [plugin]
 zones = ["notes"]</code></pre>
       <p>If <code>plugin/lib.rs</code> doesn't exist yet, Polar writes a stub for each listed zone the first time it builds. If the plugin needs crates from crates.io, add <code>dependencies = { regex = "1" }</code> under <code>[plugin]</code>.</p>
+      <p>For a project, the quickest start is <code>polar init --zone notes</code>: it writes <code>polar.toml</code> with the <code>[plugin]</code> section, the <code>plugin/lib.rs</code> stub and the <code>.polar/</code> folder, without building anything.</p>
 
       <h2 id="describe">Step 2: Describe the zone</h2>
       <p>A plugin implements the <code>ZonePlugin</code> trait from the <code>polar_plugin</code> crate. First, <code>zone</code> says what the zone is called, and which built-in zone it sits after:</p>

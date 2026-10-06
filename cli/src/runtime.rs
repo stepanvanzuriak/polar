@@ -1,6 +1,6 @@
 pub const RUNTIME_JS: &str = include_str!("../../runtime/runtime.js");
-pub const LAUNCHER_JS: &str = include_str!("launcher.mjs");
-pub const START_JS: &str = include_str!("start.mjs");
+pub const LAUNCHER_JS: &str = include_str!("js/launcher.mjs");
+pub const START_JS: &str = include_str!("js/start.mjs");
 
 #[cfg(test)]
 mod tests {
