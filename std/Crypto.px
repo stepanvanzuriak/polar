@@ -1,0 +1,55 @@
+module Crypto
+
+uses
+  Std.Option
+
+hosts
+  Node
+
+effects
+  Random {
+    bytes(count: Int) -> String
+  }
+
+externs
+  digest_sha256(text: String) -> String = "./bindings/Crypto.js" digest_sha256
+  digest_hmac_sha256(key: String, text: String) -> String
+    = "./bindings/Crypto.js" digest_hmac_sha256
+  timing_safe_equal(a: String, b: String) -> Bool
+    = "./bindings/Crypto.js" timing_safe_equal
+  base64url_encode(text: String) -> String = "./bindings/Crypto.js" base64url_encode
+  base64url_decode(text: String) -> Option<String>
+    = "./bindings/Crypto.js" base64url_decode
+
+binds
+  Random in Node = "./bindings/Crypto.js"
+
+functions
+  sha256(text: String) -> String {
+    digest_sha256(text)
+  }
+
+  hmac_sha256(key: String, text: String) -> String {
+    digest_hmac_sha256(key, text)
+  }
+
+  equal(a: String, b: String) -> Bool {
+    timing_safe_equal(a, b)
+  }
+
+  base64url(text: String) -> String {
+    base64url_encode(text)
+  }
+
+  from_base64url(text: String) -> Option<String> {
+    base64url_decode(text)
+  }
+
+exports
+  Node
+  Random
+  sha256
+  hmac_sha256
+  equal
+  base64url
+  from_base64url

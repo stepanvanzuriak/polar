@@ -1,0 +1,44 @@
+module StdCrypto
+
+uses
+  Std.Crypto
+  Std.Option
+
+hosts
+  Node
+
+functions
+  decoded(text: String) -> String {
+    match Crypto.from_base64url(text) {
+      None -> "None",
+      Some(s) -> "Some(#{s})",
+    }
+  }
+
+  round_trip(text: String) -> Bool {
+    Crypto.from_base64url(Crypto.base64url(text)) == Some(text)
+  }
+
+  clean(text: String) -> Bool {
+    let e = Crypto.base64url(text)
+
+    !(String.contains(e, "=") || String.contains(e, "+") || String.contains(e, "/"))
+  }
+
+  main() -> {} / {Random} {
+    Log.info("sha_empty: #{Crypto.sha256("")}")
+    Log.info("sha_abc: #{Crypto.sha256("abc")}")
+    Log.info("hmac: #{Crypto.hmac_sha256("Jefe", "what do ya want for nothing?")}")
+    Log.info("utf8: #{Crypto.sha256("é")}")
+    Log.info("equal: #{Crypto.equal("ab", "ab")} #{Crypto.equal("ab", "ac")} #{Crypto.equal("ab", "abc")} #{Crypto.equal("", "")}")
+    Log.info("round_trip: #{round_trip("")} #{round_trip("hello")} #{round_trip("héllo ✓")} #{round_trip("???>>>")}")
+    Log.info("clean: #{clean("???>>>")} #{clean("a")}")
+    Log.info("invalid: #{decoded("a")} #{decoded("!!")} #{decoded("ab+/")}")
+    Log.info("valid: #{decoded("aGVsbG8")}")
+    Log.info("random_len: #{String.length(Random.bytes(16))}")
+    Log.info("random_empty: [#{Random.bytes(0)}]")
+    Log.info("random_differ: #{Random.bytes(8) != Random.bytes(8)}")
+  }
+
+exports
+  main
