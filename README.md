@@ -2,7 +2,13 @@
 
 A statically typed, row-polymorphic language that compiles to JavaScript.
 
-Requires Rust 1.85+ and Node.js.
+Requires Node.js.
+
+```sh
+curl -fsSL https://polar-lang.vercel.app/install.sh | sh   # latest release
+```
+
+To build from source you need Rust 1.85+:
 
 ```sh
 cargo build                     # builds target/debug/polar
