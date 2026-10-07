@@ -245,3 +245,47 @@ fn piped() {
   assert_eq!(flag.out, piped.out);
   assert_eq!(flag.code, Some(0));
 }
+
+fn module_source(name: &str) -> String {
+  format!(
+    "module {name}\n\nfunctions\n  f() -> Int {{\n    7\n  }}\n\nexports\n  f\n"
+  )
+}
+
+#[test]
+fn folder_module() {
+  let dir = project(&[(
+    "src/controllers/pages_controller.px",
+    &module_source("PagesController"),
+  )]);
+  let ran = repl(dir.path(), &["-e", "PagesController.f()"], "");
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert!(ran.out.contains("Int = 7"), "{}", ran.out);
+}
+
+#[test]
+fn nested_folders() {
+  let dir = project(&[("src/a/b/c.px", &module_source("C"))]);
+  let ran = repl(dir.path(), &["-e", "C.f()"], "");
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert!(ran.out.contains("Int = 7"), "{}", ran.out);
+}
+
+#[test]
+fn same_name_twice() {
+  let dir = project(&[
+    ("src/a/x.px", &module_source("X")),
+    ("src/b/x.px", &module_source("X")),
+  ]);
+  let ran = repl(dir.path(), &["-e", "1"], "");
+
+  assert_ne!(ran.code, Some(0));
+  assert!(
+    ran.err.contains("a/x.px") && ran.err.contains("b/x.px"),
+    "{}",
+    ran.err
+  );
+  assert_eq!(ran.err.matches("two modules").count(), 1, "{}", ran.err);
+}
