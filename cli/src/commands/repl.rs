@@ -116,7 +116,7 @@ pub(crate) fn repl(
     child: None,
   };
 
-  session.scan();
+  session.scan()?;
   session.start(ctx)?;
 
   if let Some((module, function)) = &setup {
@@ -188,11 +188,12 @@ fn parse_setup(text: &str) -> Result<(String, String), CliError> {
 }
 
 impl Session {
-  fn scan(&mut self) {
+  fn scan(&mut self) -> Result<(), CliError> {
     self.uses.clear();
     self.modules.clear();
 
     let mut seen: HashSet<String> = HashSet::new();
+    let mut owners: Vec<(String, PathBuf)> = Vec::new();
     let mut entries: Vec<String> = Vec::new();
     let mut files: Vec<PathBuf> = WalkDir::new(&self.src)
       .max_depth(if self.package.is_some() { usize::MAX } else { 0 })
@@ -225,9 +226,20 @@ impl Session {
         if let Some(name) = line.strip_prefix("module ") {
           let name = name.trim().to_string();
 
-          if name != "Repl" && !self.modules.contains(&name) {
-            self.modules.push(name.clone());
-            entries.push(name);
+          if name != "Repl" {
+            if let Some((_, other)) = owners.iter().find(|(n, _)| *n == name) {
+              if other != file {
+                return Err(CliError::Message(format!(
+                  "two modules are named `{name}`: `{}` and `{}`",
+                  other.display(),
+                  file.display()
+                )));
+              }
+            } else {
+              owners.push((name.clone(), file.clone()));
+              self.modules.push(name.clone());
+              entries.push(self.import_path(file, &name));
+            }
           }
 
           continue;
@@ -260,6 +272,23 @@ impl Session {
         self.uses.push(entry);
       }
     }
+
+    Ok(())
+  }
+
+  fn import_path(&self, file: &Path, name: &str) -> String {
+    let mut path: Vec<String> = file
+      .parent()
+      .and_then(|p| p.strip_prefix(&self.src).ok())
+      .map(|p| {
+        p.components()
+          .map(|c| pascal(&c.as_os_str().to_string_lossy()))
+          .collect()
+      })
+      .unwrap_or_default();
+
+    path.push(name.to_string());
+    path.join(".")
   }
 
   fn module_text(&self, functions: &str) -> String {
@@ -672,7 +701,7 @@ impl Session {
         }
       }
       "reload" | "r" => {
-        self.scan();
+        self.scan()?;
         self.written.clear();
         self.std_done.clear();
         self.start(ctx)?;
@@ -719,6 +748,21 @@ impl Session {
       }
     }
   }
+}
+
+fn pascal(folder: &str) -> String {
+  folder
+    .split('_')
+    .filter(|w| !w.is_empty())
+    .map(|w| {
+      let mut chars = w.chars();
+
+      chars
+        .next()
+        .map(|c| c.to_uppercase().chain(chars).collect::<String>())
+        .unwrap_or_default()
+    })
+    .collect()
 }
 
 fn binding_name(line: &str) -> Option<&str> {
