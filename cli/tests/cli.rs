@@ -118,7 +118,10 @@ mod skeleton {
   fn version() {
     let ran = polar(Path::new("."), &["--version"]);
 
-    assert_eq!((ran.code, ran.out.trim()), (0, "polar 0.1.0"));
+    assert_eq!(
+      (ran.code, ran.out.trim()),
+      (0, concat!("polar ", env!("CARGO_PKG_VERSION")))
+    );
   }
 
   #[test]

@@ -411,6 +411,59 @@ function(String) -> String</code></pre>
             </table>
           </div>
 
+          <h2 id="dependencies">Dependency commands</h2>
+          <pre class="code"><code>polar add &lt;ADDRESS&gt;[@&lt;VERSION&gt;]
+polar remove &lt;NAME&gt;
+polar fetch [--verify]
+polar update [NAME]</code></pre>
+          <p>
+            Manage git dependencies. They edit
+            <code>polar.toml</code> and <code>polar.lock</code> in the current
+            folder. See
+            <a href="modules-and-packages.html#git-dependencies">Git
+            dependencies</a>.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>add</code></td>
+                  <td>
+                    Adds a dependency. With no <code>@</code> it picks the
+                    newest tag; <code>@v1.4.1</code> picks a tag,
+                    <code>@main</code> a branch and <code>@&lt;sha&gt;</code> a
+                    commit
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>remove</code></td>
+                  <td>Removes a dependency and drops what only it needed</td>
+                </tr>
+                <tr>
+                  <td><code>fetch</code></td>
+                  <td>
+                    Resolves every dependency, downloads it and writes
+                    <code>polar.lock</code>. <code>--verify</code> re-checks
+                    the cached files against their checksums
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>update</code></td>
+                  <td>
+                    Moves one dependency, or all of them, to the newest tag
+                    (branches to their newest commit)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <h2 id="global">Global flags</h2>
           <div class="table-wrap">
             <table>
@@ -424,6 +477,13 @@ function(String) -> String</code></pre>
                 <tr>
                   <td><code>--color</code>, <code>--no-color</code></td>
                   <td>Forces colored error output on or off</td>
+                </tr>
+                <tr>
+                  <td><code>--offline</code></td>
+                  <td>
+                    Never touches the network: fails if a git dependency isn't
+                    cached. <code>POLAR_OFFLINE=1</code> does the same
+                  </td>
                 </tr>
                 <tr>
                   <td><code>-V</code>, <code>--version</code></td>
@@ -454,6 +514,7 @@ hosts = ["Browser", "Node"]
 
 [dependencies]
 shapes = { path = "../shapes" }
+ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }
 
 [run]
 launcher = "simple_framework"
@@ -463,6 +524,7 @@ options = { port = 3000 }
 [package]
 name = "simple_framework"
 module = "Framework"
+polar = "0.2.0"
 
 [launcher]
 script = "launcher/serve.mjs"

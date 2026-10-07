@@ -1,6 +1,7 @@
 mod commands;
 pub mod files;
 mod node;
+pub mod pkg;
 pub mod plugin;
 pub mod project;
 pub mod runtime;
@@ -72,6 +73,7 @@ pub fn run_with(args: &[OsString], io: &mut Io<'_>, compiler: Compiler) -> u8 {
   } else {
     None
   };
+  pkg::set_offline(cli.offline);
   let color = should_use_color(io.env, io.stderr_is_tty, flag);
   let debug = (io.env)("POLAR_DEBUG").is_some_and(|v| v == "1");
   let mut ctx = Ctx { io, compiler, color, debug };
@@ -106,6 +108,9 @@ struct Cli {
 
   #[arg(long, global = true, conflicts_with = "color")]
   no_color: bool,
+
+  #[arg(long, global = true)]
+  offline: bool,
 }
 
 #[derive(Subcommand)]
@@ -158,6 +163,19 @@ pub(crate) enum Command {
     setup: Option<String>,
     #[arg(short = 'e', long = "eval")]
     expr: Option<String>,
+  },
+  Add {
+    address: String,
+  },
+  Remove {
+    name: String,
+  },
+  Fetch {
+    #[arg(long)]
+    verify: bool,
+  },
+  Update {
+    name: Option<String>,
   },
   Init {
     dir: Option<PathBuf>,

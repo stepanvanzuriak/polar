@@ -6,7 +6,7 @@
     <title>Modules and Packages – Polar</title>
     <meta
       name="description"
-      content="Importing modules, aliases and method imports, exports, packages, path dependencies and launchers."
+      content="Importing modules, aliases and method imports, exports, packages, path and git dependencies and launchers."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -125,13 +125,65 @@ module = "Framework"   <span class="cm"># claims every `uses Framework.…`</spa
           </p>
 
           <h2 id="dependencies">Dependencies</h2>
-          <p>Projects and packages list their dependencies by path:</p>
+          <p>
+            Projects and packages list their dependencies by path, or by the
+            address of a git repository:
+          </p>
           <pre class="code"><code>[dependencies]
-simple_framework = { path = "../simple_framework" }</code></pre>
+simple_framework = { path = "../simple_framework" }
+ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }</code></pre>
           <p>
             Paths are relative to the <code>polar.toml</code>. Dependencies
             compile into <code>dist/_deps/&lt;package&gt;/</code>, so the build
             stays self-contained.
+          </p>
+
+          <h3 id="git-dependencies">Git dependencies</h3>
+          <p>
+            There is no registry: the repository address is the package's
+            identity, as in Go. Any git host works, and private repositories
+            use your own git credentials. A dependency pins exactly one of
+            <code>version</code> (a tag like <code>v1.2.3</code>),
+            <code>branch</code> (locked to a commit when you add or update it)
+            or <code>rev</code> (a full 40-character commit). The key must be
+            the package's own <code>name</code>.
+          </p>
+          <pre class="code"><code><span class="pr">$</span> polar add github.com/owner/ticket       <span class="cm"># newest tag</span>
+<span class="pr">$</span> polar add github.com/owner/tool@v1.4.1
+<span class="pr">$</span> polar fetch                             <span class="cm"># download what polar.lock names</span>
+<span class="pr">$</span> polar update                            <span class="cm"># move to the newest tags</span>
+<span class="pr">$</span> polar remove tool</code></pre>
+          <p>
+            <code>polar.lock</code> pins every package in the whole graph to a
+            commit and a sha-256 checksum. Commit it. Builds use the lock and
+            fetch whatever it names when the cache is cold; they never
+            re-resolve on their own, and a checksum mismatch is an error.
+            Packages are cached once per commit under
+            <code>~/.polar/pkg/</code> (set <code>POLAR_HOME</code> to move it),
+            and <code>--offline</code> or <code>POLAR_OFFLINE=1</code> forbids
+            any network access. Fetching needs <code>git</code> on your
+            <code>PATH</code>.
+          </p>
+          <p>
+            When two packages want different versions of one dependency, the
+            highest requested version wins. It is never newer than something
+            asked for, so there are no surprise upgrades. A <code>v2</code> or
+            later major is a different package: its address ends in
+            <code>/v2</code>.
+          </p>
+
+          <h3 id="polar-version">The Polar version</h3>
+          <p>A package can say which Polar it was written for:</p>
+          <pre class="code"><code>[package]
+name = "ticket"
+module = "Ticket"
+polar = "0.2.0"</code></pre>
+          <p>
+            If you import a package written for an older Polar, or one that
+            needs a newer Polar than yours, <code>polar</code> prints a warning
+            and carries on. Only the major and minor numbers count, since a
+            patch release never breaks a package. A package that leaves
+            <code>polar</code> out is never warned about.
           </p>
 
           <h2 id="launchers">Launchers</h2>

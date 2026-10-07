@@ -2,6 +2,7 @@ mod build;
 mod check;
 mod fmt;
 mod init;
+mod packages;
 mod repl;
 mod run;
 mod start;
@@ -91,6 +92,10 @@ pub(crate) fn dispatch(
     Command::Repl { path, setup, expr } => {
       repl::repl(ctx, path.as_deref(), setup.as_deref(), expr.as_deref())
     }
+    Command::Add { address } => packages::add(ctx, &address),
+    Command::Remove { name } => packages::remove(ctx, &name),
+    Command::Fetch { verify } => packages::fetch(ctx, verify),
+    Command::Update { name } => packages::update(ctx, name.as_deref()),
     Command::Init { dir, name, zones } => {
       init::init(ctx, dir.as_deref(), name.as_deref(), &zones)
     }

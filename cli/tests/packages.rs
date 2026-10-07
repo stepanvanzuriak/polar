@@ -107,6 +107,66 @@ mod manifest {
     assert!(ran.err.contains("must be `{ path = \"…\" }`"), "{}", ran.err);
   }
 
+  fn with_polar(polar: &str) -> Ran {
+    check(&[
+      (
+        "app/polar.toml",
+        "[project]\nname = \"app\"\n\n[dependencies]\nold = { path = \"../old\" }\n",
+      ),
+      (
+        "old/polar.toml",
+        &format!("[package]\nname = \"old\"\nmodule = \"Old\"\n{polar}"),
+      ),
+      MAIN,
+    ])
+  }
+
+  #[test]
+  fn a_dependency_for_an_older_polar_warns() {
+    let ran = with_polar("polar = \"0.0.1\"\n");
+
+    assert_eq!(ran.code, Some(0), "{}", ran.err);
+    assert!(
+      ran.err.contains("warning: the package `old`")
+        && ran.err.contains("written for Polar 0.0.1"),
+      "{}",
+      ran.err
+    );
+  }
+
+  #[test]
+  fn a_dependency_for_a_newer_polar_warns() {
+    let ran = with_polar("polar = \"99.0.0\"\n");
+
+    assert_eq!(ran.code, Some(0), "{}", ran.err);
+    assert!(
+      ran.err.contains("needs Polar 99.0.0")
+        && ran.err.contains("update Polar"),
+      "{}",
+      ran.err
+    );
+  }
+
+  #[test]
+  fn a_dependency_for_this_polar_or_none_is_quiet() {
+    for polar in
+      [format!("polar = \"{}\"\n", env!("CARGO_PKG_VERSION")), String::new()]
+    {
+      let ran = with_polar(&polar);
+
+      assert_eq!(ran.code, Some(0), "{}", ran.err);
+      assert!(!ran.err.contains("warning"), "{}", ran.err);
+    }
+  }
+
+  #[test]
+  fn a_malformed_polar_version_is_an_error() {
+    let ran = with_polar("polar = \"soon\"\n");
+
+    assert_eq!(ran.code, Some(1));
+    assert!(ran.err.contains("must be a version like `0.1.0`"), "{}", ran.err);
+  }
+
   #[test]
   fn a_path_dependency_must_be_a_package() {
     let ran = check(&[

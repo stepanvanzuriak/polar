@@ -1,4 +1,4 @@
-use crate::{CliError, files::normalize};
+use crate::{CliError, files::normalize, pkg};
 use polar_compiler::shared::modules;
 use serde::Deserialize;
 use std::{
@@ -62,6 +62,7 @@ struct Section {
 struct PackageSection {
   name: String,
   module: String,
+  polar: Option<String>,
   #[serde(default = "default_src")]
   src: PathBuf,
 }
@@ -154,6 +155,7 @@ pub struct Launch {
 ///
 /// Fails if the config cannot be read or parsed, names an absolute path, or
 /// one of its dependencies cannot be loaded.
+#[allow(clippy::too_many_lines)]
 pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
   let config = cwd.join(dir).join(CONFIG);
 
@@ -167,6 +169,10 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
   let parsed = parse(&text, &shown)?;
   let root = normalize(&cwd.join(dir));
   let mut stack = vec![root.clone()];
+  let env = pkg::Env {
+    lock: pkg::Lock::load(&root)?,
+    settings: pkg::Settings::current(),
+  };
 
   match (parsed.project, parsed.package) {
     (Some(_), Some(_)) => Err(invalid(
@@ -196,7 +202,8 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
         ));
       }
 
-      let place = Place { root: root.clone(), display: dir.to_path_buf() };
+      let place =
+        Place { root: root.clone(), display: dir.to_path_buf(), env: &env };
       let deps =
         dependencies(&parsed.dependencies, &place, &shown, &mut stack)?;
       let launch =
@@ -243,7 +250,7 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
         parsed.launcher.as_ref(),
         parsed.plugin.as_ref(),
         &parsed.dependencies,
-        &Place { root, display: dir.to_path_buf() },
+        &Place { root, display: dir.to_path_buf(), env: &env },
         &shown,
         &mut stack,
       )?;
@@ -329,14 +336,15 @@ fn enabled(
   Ok(libraries)
 }
 
-struct Place {
+struct Place<'a> {
   root: PathBuf,
   display: PathBuf,
+  env: &'a pkg::Env,
 }
 
 fn dependencies(
   deps: &BTreeMap<String, toml::Value>,
-  place: &Place,
+  place: &Place<'_>,
   shown: &str,
   stack: &mut Vec<PathBuf>,
 ) -> Result<Vec<Arc<Package>>, CliError> {
@@ -344,11 +352,15 @@ fn dependencies(
 
   for (key, value) in deps {
     let package = match value {
+      toml::Value::Table(table) if table.contains_key("git") => {
+        git_package(key, table, place, shown, stack)?
+      }
       toml::Value::Table(table) => match (table.get("path"), table.len()) {
         (Some(toml::Value::String(path)), 1) => path_package(
           key,
           &normalize(&place.root.join(path)),
           &place.display.join(path),
+          place.env,
           shown,
           stack,
         )?,
@@ -400,7 +412,50 @@ fn dependencies(
 fn dependency_shape(key: &str, shown: &str) -> CliError {
   invalid(
     shown,
-    &format!("the dependency `{key}` must be `{{ path = \"…\" }}`"),
+    &format!(
+      "the dependency `{key}` must be `{{ path = \"…\" }}` or `{{ git = \"…\", \
+       version = \"…\" }}`"
+    ),
+  )
+}
+
+fn git_package(
+  key: &str,
+  table: &toml::Table,
+  place: &Place<'_>,
+  shown: &str,
+  stack: &mut Vec<PathBuf>,
+) -> Result<Package, CliError> {
+  let want = pkg::requirement(key, table, shown)?;
+  let Some(entry) = place.env.lock.find(key) else {
+    return Err(invalid(
+      shown,
+      &format!(
+        "the dependency `{key}` isn't in {}; run `polar fetch`",
+        pkg::LOCK
+      ),
+    ));
+  };
+
+  if !entry.satisfies(&want) {
+    return Err(invalid(
+      shown,
+      &format!(
+        "{} doesn't satisfy the dependency `{key}`; run `polar fetch`",
+        pkg::LOCK
+      ),
+    ));
+  }
+
+  let dir = pkg::ensure_cached(entry, &place.env.settings)?;
+
+  path_package(
+    key,
+    &dir,
+    &PathBuf::from(entry.shown()),
+    place.env,
+    shown,
+    stack,
   )
 }
 
@@ -408,6 +463,7 @@ fn path_package(
   key: &str,
   dir: &Path,
   display: &Path,
+  env: &pkg::Env,
   shown: &str,
   stack: &mut Vec<PathBuf>,
 ) -> Result<Package, CliError> {
@@ -462,6 +518,7 @@ fn path_package(
     ));
   }
 
+  language_version(&section, display, &manifest)?;
   stack.push(dir.to_path_buf());
 
   let package = package_of(
@@ -469,7 +526,7 @@ fn path_package(
     parsed.launcher.as_ref(),
     parsed.plugin.as_ref(),
     &parsed.dependencies,
-    &Place { root: dir.to_path_buf(), display: display.to_path_buf() },
+    &Place { root: dir.to_path_buf(), display: display.to_path_buf(), env },
     &manifest,
     stack,
   );
@@ -478,12 +535,50 @@ fn path_package(
   package
 }
 
+/// The version of Polar this build is.
+pub const POLAR_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Warns when a dependency says it was written for an older Polar than this
+/// one; a package that doesn't say is left alone.
+fn language_version(
+  section: &PackageSection,
+  display: &Path,
+  manifest: &str,
+) -> Result<(), CliError> {
+  let Some(declared) = &section.polar else { return Ok(()) };
+  let Some(theirs) = pkg::Release::parse(declared) else {
+    return Err(invalid(
+      manifest,
+      &format!("`polar = \"{declared}\"` must be a version like `0.1.0`"),
+    ));
+  };
+  let ours = pkg::Release::parse(POLAR_VERSION).unwrap_or(theirs);
+
+  if theirs.older_than(ours) {
+    crate::plugin::notice(format!(
+      "warning: the package `{}` ({}) was written for Polar {declared}, but \
+       this is Polar {POLAR_VERSION}; it may not build or behave the same",
+      section.name,
+      display.display()
+    ));
+  } else if ours.older_than(theirs) {
+    crate::plugin::notice(format!(
+      "warning: the package `{}` ({}) needs Polar {declared}, but this is \
+       Polar {POLAR_VERSION}; update Polar, or it may not build",
+      section.name,
+      display.display()
+    ));
+  }
+
+  Ok(())
+}
+
 fn package_of(
   section: PackageSection,
   launcher: Option<&LauncherSection>,
   plugin: Option<&PluginSection>,
   deps: &BTreeMap<String, toml::Value>,
-  place: &Place,
+  place: &Place<'_>,
   shown: &str,
   stack: &mut Vec<PathBuf>,
 ) -> Result<Package, CliError> {
@@ -834,4 +929,31 @@ pub(crate) fn library(name: &str) -> CliError {
     "`{name}` is a package, which isn't built or run on its own: `polar check` \
      it, or depend on it from a project"
   ))
+}
+
+/// The dependency table of the manifest in `dir`, for the package commands.
+///
+/// # Errors
+///
+/// Fails if the manifest is missing or can't be parsed.
+pub fn manifest_dependencies(
+  dir: &Path,
+  cwd: &Path,
+) -> Result<(PathBuf, BTreeMap<String, toml::Value>), CliError> {
+  let root = normalize(&cwd.join(dir));
+  let config = root.join(CONFIG);
+
+  if !config.is_file() {
+    return Err(CliError::Message(format!(
+      "no {CONFIG} in {}",
+      root.display()
+    )));
+  }
+
+  let shown = dir.join(CONFIG).display().to_string();
+  let text =
+    std::fs::read_to_string(&config).map_err(|e| CliError::read(&shown, &e))?;
+  let parsed = parse(&text, &shown)?;
+
+  Ok((root, parsed.dependencies))
 }
