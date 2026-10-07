@@ -2,7 +2,7 @@
 
 A statically typed, row-polymorphic language that compiles to JavaScript.
 
-> Experimental (0.1.0): expect breaking changes before 1.0.
+> Experimental (0.2.0): expect breaking changes before 1.0.
 
 Requires Node.js.
 
@@ -56,6 +56,34 @@ polar start --host Node -- arg  # pick a host's build; args after `--` go to the
 
 `dist/` is self-contained: `node dist/start.mjs` runs it anywhere. See
 [`projects/`](projects/) for examples.
+
+### Dependencies
+
+A project or package lists what it needs under `[dependencies]`, either from disk or
+straight from a git repository (any host; no registry):
+
+```toml
+[dependencies]
+local = { path = "../local" }
+ticket = { git = "github.com/owner/ticket", version = "v0.2.0" }   # a tag
+tool = { git = "github.com/owner/tool", branch = "main" }          # locked to a commit
+pinned = { git = "github.com/owner/pinned", rev = "<40-char sha>" }
+```
+
+```sh
+polar add github.com/owner/ticket       # newest tag; edits polar.toml, writes polar.lock
+polar add github.com/owner/tool@v1.4.1  # or @branch, or @<commit>
+polar fetch                             # resolve and download; --verify re-checks checksums
+polar update [name]                     # move to the newest tags
+polar remove name
+polar --offline check                   # never touch the network (or POLAR_OFFLINE=1)
+```
+
+`polar.lock` pins every package in the graph to a commit and a sha-256 checksum; commit it.
+Builds use the lock and fetch what it names when the cache is cold. Where two packages
+want different versions of one dependency, the highest requested wins (Go's minimal
+version selection); a `v2+` major lives at an address ending `/v2`. Packages are cached
+once per commit under `~/.polar/pkg/` (`POLAR_HOME` overrides). Needs `git` on `PATH`.
 
 ### Command-line programs
 

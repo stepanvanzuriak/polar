@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0
+
+### Tooling
+
+- Git dependencies: `{ git = "github.com/owner/repo", version = "v1.2.3" }` (or `rev` / `branch`)
+  in `[dependencies]`, with `polar add`, `remove`, `fetch [--verify]` and `update`
+- `polar.lock` pins every package to a commit and a sha-256 checksum; packages are cached
+  once per commit under `~/.polar/pkg/` (`POLAR_HOME`), and `--offline` / `POLAR_OFFLINE=1`
+  forbid network access
+- Go-style minimal version selection: the highest requested version of a package wins; a
+  `v2+` major lives at an address ending `/v2`
+- `[package] polar = "0.2.0"` declares the Polar version a package was written for; importing
+  one for an older or newer Polar warns
+
 ## 0.1.0
 
 The first release.

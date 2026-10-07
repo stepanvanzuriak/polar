@@ -41,8 +41,10 @@ pub(crate) fn take_notices() -> Vec<String> {
   notices().lock().map(|mut n| std::mem::take(&mut *n)).unwrap_or_default()
 }
 
-fn notice(message: String) {
-  if let Ok(mut n) = notices().lock() {
+pub(crate) fn notice(message: String) {
+  if let Ok(mut n) = notices().lock()
+    && !n.contains(&message)
+  {
     n.push(message);
   }
 }
