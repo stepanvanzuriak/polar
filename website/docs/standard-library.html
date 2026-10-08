@@ -991,9 +991,15 @@ effects
               <tbody>
                 <tr>
                   <td>
-                    <code class="sig">compile(pattern: String) -&gt; Result&lt;String, Regex&gt;</code>
+                    <code class="sig"
+                      >compile(pattern: String) -&gt; Result&lt;String,
+                      Regex&gt;</code
+                    >
                   </td>
-                  <td><code>Ok</code> for a valid pattern, or <code>Err</code> with the engine's message</td>
+                  <td>
+                    <code>Ok</code> for a valid pattern, or
+                    <code>Err</code> with the engine's message
+                  </td>
                 </tr>
                 <tr>
                   <td>
@@ -1003,33 +1009,57 @@ effects
                 </tr>
                 <tr>
                   <td>
-                    <code class="sig">is_match(regex: Regex, text: String) -&gt; Bool</code>
+                    <code class="sig"
+                      >is_match(regex: Regex, text: String) -&gt; Bool</code
+                    >
                   </td>
-                  <td>Whether the pattern matches anywhere in <code>text</code></td>
+                  <td>
+                    Whether the pattern matches anywhere in <code>text</code>
+                  </td>
                 </tr>
                 <tr>
                   <td>
-                    <code class="sig">find(regex: Regex, text: String) -&gt; Option&lt;String&gt;</code>
+                    <code class="sig"
+                      >find(regex: Regex, text: String) -&gt;
+                      Option&lt;String&gt;</code
+                    >
                   </td>
-                  <td>The first match's text, or <code>None</code>. An empty match is <code>Some("")</code></td>
+                  <td>
+                    The first match's text, or <code>None</code>. An empty match
+                    is <code>Some("")</code>
+                  </td>
                 </tr>
                 <tr>
                   <td>
-                    <code class="sig">find_all(regex: Regex, text: String) -&gt; List&lt;String&gt;</code>
+                    <code class="sig"
+                      >find_all(regex: Regex, text: String) -&gt;
+                      List&lt;String&gt;</code
+                    >
                   </td>
                   <td>Every non-overlapping match, in order</td>
                 </tr>
                 <tr>
                   <td>
-                    <code class="sig">replace(regex: Regex, text: String, with: String) -&gt; String</code>
+                    <code class="sig"
+                      >replace(regex: Regex, text: String, with: String) -&gt;
+                      String</code
+                    >
                   </td>
-                  <td>Replaces every match with <code>with</code> verbatim; <code>$1</code> is not expanded</td>
+                  <td>
+                    Replaces every match with <code>with</code> verbatim;
+                    <code>$1</code> is not expanded
+                  </td>
                 </tr>
                 <tr>
                   <td>
-                    <code class="sig">matches(pattern: String, text: String) -&gt; Bool</code>
+                    <code class="sig"
+                      >matches(pattern: String, text: String) -&gt; Bool</code
+                    >
                   </td>
-                  <td><code>is_match</code> of <code>compile(pattern)</code>, and <code>false</code> for a bad pattern</td>
+                  <td>
+                    <code>is_match</code> of <code>compile(pattern)</code>, and
+                    <code>false</code> for a bad pattern
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1119,15 +1149,28 @@ effects
           <p>
             Hashing, signing and random tokens over <code>node:crypto</code>.
             <code>Crypto</code> works on <code>Node</code> only, so a
-            <code>Browser</code> build can't use <code>Random</code>.
-            Randomness is the <code>Random</code> effect, so a function that
-            makes a token says so in its type, and a program can bind
-            <code>Random</code> to a fixed value in a test. There is no
+            <code>Browser</code> build can't use <code>Random</code> or
+            <code>Password</code>. Randomness is the <code>Random</code> effect,
+            so a function that makes a token says so in its type, and a program
+            can bind <code>Random</code> to a fixed value in a test. There is no
             <code>Bytes</code> type: random bytes are a hex string.
+          </p>
+          <p>
+            Password hashing is the <code>Password</code> effect: scrypt runs on
+            Node's thread pool, so it is asynchronous and doesn't block the
+            event loop. A digest is a self-describing string,
+            <code>$scrypt$ln=15,r=8,p=1$&lt;salt&gt;$&lt;hash&gt;</code>, so
+            <code>verify_password</code> needs only the stored value and an old
+            digest still verifies after the defaults change.
           </p>
           <pre class="code" data-lang="polar"><code>effects
   Random {
     bytes(count: Int) -&gt; String
+  }
+
+  Password {
+    scrypt_hash(plain: String, salt: String) -&gt; String
+    scrypt_verify(plain: String, stored: String) -&gt; Bool
   }</code></pre>
           <div class="table-wrap">
             <table>
@@ -1139,28 +1182,102 @@ effects
               </thead>
               <tbody>
                 <tr>
-                  <td><code class="sig">sha256(text: String) -&gt; String</code></td>
+                  <td>
+                    <code class="sig">sha256(text: String) -&gt; String</code>
+                  </td>
                   <td>Lowercase hex SHA-256 of the string's UTF-8 bytes</td>
                 </tr>
                 <tr>
-                  <td><code class="sig">hmac_sha256(key: String, text: String) -&gt; String</code></td>
-                  <td>Lowercase hex HMAC-SHA-256 of <code>text</code> under <code>key</code></td>
+                  <td>
+                    <code class="sig"
+                      >hmac_sha256(key: String, text: String) -&gt; String</code
+                    >
+                  </td>
+                  <td>
+                    Lowercase hex HMAC-SHA-256 of <code>text</code> under
+                    <code>key</code>
+                  </td>
                 </tr>
                 <tr>
-                  <td><code class="sig">equal(a: String, b: String) -&gt; Bool</code></td>
-                  <td>Constant-time comparison; <code>false</code> for different lengths. Use it to check a signature</td>
+                  <td>
+                    <code class="sig"
+                      >equal(a: String, b: String) -&gt; Bool</code
+                    >
+                  </td>
+                  <td>
+                    Constant-time comparison; <code>false</code> for different
+                    lengths. Use it to check a signature
+                  </td>
                 </tr>
                 <tr>
-                  <td><code class="sig">base64url(text: String) -&gt; String</code></td>
+                  <td>
+                    <code class="sig"
+                      >base64url(text: String) -&gt; String</code
+                    >
+                  </td>
                   <td>URL-safe base64 of the UTF-8 bytes, no padding</td>
                 </tr>
                 <tr>
-                  <td><code class="sig">from_base64url(text: String) -&gt; Option&lt;String&gt;</code></td>
-                  <td>Decodes <code>base64url</code> output; <code>None</code> for invalid text</td>
+                  <td>
+                    <code class="sig"
+                      >from_base64url(text: String) -&gt;
+                      Option&lt;String&gt;</code
+                    >
+                  </td>
+                  <td>
+                    Decodes <code>base64url</code> output; <code>None</code> for
+                    invalid text
+                  </td>
                 </tr>
                 <tr>
-                  <td><code class="sig">Random.bytes(count: Int) -&gt; String</code></td>
-                  <td><code>count</code> random bytes as <code>2 × count</code> lowercase hex characters</td>
+                  <td>
+                    <code class="sig"
+                      >hash_password(plain: String) -&gt; String / {Random,
+                      Password}</code
+                    >
+                  </td>
+                  <td>
+                    Salted scrypt digest in PHC format
+                    (<code>ln=15,r=8,p=1</code>). Two hashes of the same
+                    password differ
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >verify_password(plain: String, stored: String) -&gt; Bool
+                      / {Password}</code
+                    >
+                  </td>
+                  <td>
+                    Constant-time check against a digest. Never throws: a
+                    malformed digest, an unknown algorithm or a cost above the
+                    cap is <code>false</code>, and a too-costly digest is
+                    rejected without running scrypt
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >needs_rehash(stored: String) -&gt; Bool</code
+                    >
+                  </td>
+                  <td>
+                    Whether the digest's parameters are weaker than the current
+                    defaults (or it can't be parsed). Rehash after a successful
+                    login
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >Random.bytes(count: Int) -&gt; String</code
+                    >
+                  </td>
+                  <td>
+                    <code>count</code> random bytes as
+                    <code>2 × count</code> lowercase hex characters
+                  </td>
                 </tr>
               </tbody>
             </table>

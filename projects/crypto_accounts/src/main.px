@@ -1,0 +1,65 @@
+module Main
+
+uses
+  Std.Crypto
+  Std.List
+  Std.Option
+  Std.Result
+
+hosts
+  Node
+
+types
+  Account = { name: String, digest: String }
+
+functions
+  register(name: String, plain: String) -> Account / {Random, Password} {
+    { name: name, digest: Crypto.hash_password(plain) }
+  }
+
+  login(account: Account, plain: String) -> Bool / {Password} {
+    Crypto.verify_password(plain, account.digest)
+  }
+
+  sign(secret: String, payload: String) -> String {
+    let body = Crypto.base64url(payload)
+
+    "#{body}.#{Crypto.hmac_sha256(secret, body)}"
+  }
+
+  verify_token(secret: String, token: String) -> Option<String> {
+    match String.split(token, ".") {
+      [body, mac] -> if Crypto.equal(Crypto.hmac_sha256(secret, body), mac) {
+        Crypto.from_base64url(body)
+      } else {
+        None
+      },
+      _ -> None,
+    }
+  }
+
+  show_token(result: Option<String>) -> String {
+    match result {
+      Some(payload) -> "ok #{payload}",
+      None -> "rejected",
+    }
+  }
+
+  main() -> {} / {Random, Password} {
+    let ada = register("ada", "correct horse")
+
+    Log.info("stored scrypt: #{String.starts_with(ada.digest, "$scrypt$")}")
+    Log.info("right password: #{login(ada, "correct horse")}")
+    Log.info("wrong password: #{login(ada, "battery staple")}")
+    Log.info("needs rehash: #{Crypto.needs_rehash(ada.digest)}")
+
+    let token = sign("s3cret", "user=ada")
+
+    Log.info("token: #{token}")
+    Log.info("verify: #{show_token(verify_token("s3cret", token))}")
+    Log.info("wrong secret: #{show_token(verify_token("other", token))}")
+    Log.info("sha256: #{Crypto.sha256("polar")}")
+  }
+
+exports
+  main

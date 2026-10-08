@@ -85,69 +85,11 @@ want different versions of one dependency, the highest requested wins (Go's mini
 version selection); a `v2+` major lives at an address ending `/v2`. Packages are cached
 once per commit under `~/.polar/pkg/` (`POLAR_HOME` overrides). Needs `git` on `PATH`.
 
-### Command-line programs
-
-A `Node` program reads its arguments and environment, sets its exit code and
-runs other programs through `Std.Process`:
-
-```polar
-uses
-  Std.List
-  Std.Process
-
-hosts
-  Node
-
-functions
-  main() -> {} / {Process} {
-    match Process.args() {
-      ["build", ..rest] -> {
-        let code = Process.run("polar", ["build", ..rest], Process.inherit())
-
-        Process.set_exit_code(code)
-      }
-      _ -> Process.set_exit_code(2),
-    }
-  }
-
-exports
-  main
-```
-
-`polar run -- a b`, `polar start -- a b` and `node dist/start.mjs -- a b` all
-pass `["a", "b"]`. A launcher sees them after a `--` in its own `process.argv`.
-`set_exit_code` sets the code the process exits with once `main` returns; an
-uncaught error exits 1. `run` streams the child's output and returns its exit
-code, `output` captures `{ code, stdout, stderr }`, and a command that can't be
-started gives 127. `Process.inherit() |> Process.in_dir("sub") |>
-Process.with_env("NAME", "value")` adjusts where and with what it runs.
-
-`Std.Fs` reads and writes text files. Operations that can fail return
-`Result<FsError, _>`, where `FsError` is `{ code, path, message }` and `code` is
-Node's (`ENOENT`, `EEXIST`, …). `Fs.list` and `Fs.walk` return sorted names.
-`Std.Path` (`join`, `dirname`, `basename`, `extension`, `normalize`,
-`relative`) is pure Polar and works on any host.
-
 ## Standard library
 
-`uses Std.<Name>` imports a module from [`std/`](std/):
-
-| Module | What |
-|---|---|
-| `Assert` | `assert` |
-| `Dom` | the `Browser` host and its `Dom` effect |
-| `Fs` | the `Node` host's `Fs` effect: `read`, `write`, `append`, `exists`, `is_dir`, `mkdir_all`, `list`, `walk`, `remove`, `remove_all` |
-| `Http` | `Request`, `Response`, `Header`, `header` lookup |
-| `Id` | typed ids, `Id<a>` |
-| `Json` | the `Json` trait, `encode`/`decode` |
-| `List`, `Map`, `Option`, `Result` | collections and their combinators |
-| `Math` | `pi` |
-| `Path` | POSIX path functions: `join`, `dirname`, `basename`, `extension`, `normalize`, `is_absolute`, `relative` |
-| `Prelude` | `Eq` and `Show` (always in scope) |
-| `Process` | the `Node` host's `Process` effect: `args`, `env`, `cwd`, `set_exit_code`, `run`, `output` |
-| `Ref` | mutable cells under the `Mut` effect |
-| `Table` | in-memory tables |
-| `Url` | `decode`/`encode` (percent-encoding, never throws), `parse_query`/`build_query` |
+`uses Std.<Name>` imports a module from [`std/`](std/). Every module, with its
+functions and effects, is documented in the
+[standard library reference](https://polar-lang.vercel.app/docs/standard-library.html).
 
 ## License
 

@@ -1,0 +1,5 @@
+[project]
+name = "crypto_accounts"
+src = "src"
+out = "dist"
+main = "src/main.px"
