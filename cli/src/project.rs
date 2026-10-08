@@ -33,6 +33,8 @@ struct RunSection {
   launcher: String,
   #[serde(default)]
   options: toml::Table,
+  #[serde(default)]
+  watch: Vec<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -147,6 +149,7 @@ pub struct Launch {
   pub package: String,
   pub script: PathBuf,
   pub options: serde_json::Value,
+  pub watch: Vec<PathBuf>,
 }
 
 /// Loads the project whose config sits in `dir`, or `None` if there is none.
@@ -679,7 +682,22 @@ fn launch_of(
     invalid(shown, &format!("`[run]` options can't be passed on: {e}"))
   })?;
 
-  Ok(Launch { package: run.launcher, script: script.clone(), options })
+  if let Some(path) = run.watch.iter().find(|p| p.is_absolute()) {
+    return Err(invalid(
+      shown,
+      &format!(
+        "`[run]` watch path `{}` must be relative to the project directory",
+        path.display()
+      ),
+    ));
+  }
+
+  Ok(Launch {
+    package: run.launcher,
+    script: script.clone(),
+    options,
+    watch: run.watch,
+  })
 }
 
 fn collisions(project: &Package, shown: &str) -> Result<(), CliError> {
