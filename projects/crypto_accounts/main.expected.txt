@@ -1,0 +1,8 @@
+stored scrypt: true
+right password: true
+wrong password: false
+needs rehash: false
+token: dXNlcj1hZGE.e69939d6cdedd84bbe5cb80665817d4e77601496cfe5e9cedd62751a9c7e4276
+verify: ok user=ada
+wrong secret: rejected
+sha256: f712d322b8f5a7e4431bbabfd7f4e5ec4a761cc130b36a2e6a3bad54a246425a

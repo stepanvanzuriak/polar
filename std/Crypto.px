@@ -11,6 +11,11 @@ effects
     bytes(count: Int) -> String
   }
 
+  Password {
+    scrypt_hash(plain: String, salt: String) -> String
+    scrypt_verify(plain: String, stored: String) -> Bool
+  }
+
 externs
   digest_sha256(text: String) -> String = "./bindings/Crypto.js" digest_sha256
   digest_hmac_sha256(key: String, text: String) -> String
@@ -20,9 +25,15 @@ externs
   base64url_encode(text: String) -> String = "./bindings/Crypto.js" base64url_encode
   base64url_decode(text: String) -> Option<String>
     = "./bindings/Crypto.js" base64url_decode
+  scrypt_hash(plain: String, salt: String) -> String = "./bindings/Crypto.js" scrypt_hash
+  scrypt_verify(plain: String, stored: String) -> Bool
+    = "./bindings/Crypto.js" scrypt_verify
+  scrypt_needs_rehash(stored: String) -> Bool = "./bindings/Crypto.js" scrypt_needs_rehash
 
 binds
   Random in Node = "./bindings/Crypto.js"
+
+  Password in Node = "./bindings/Crypto.js"
 
 functions
   sha256(text: String) -> String {
@@ -45,11 +56,27 @@ functions
     base64url_decode(text)
   }
 
+  hash_password(plain: String) -> String / {Random, Password} {
+    Password.scrypt_hash(plain, Random.bytes(16))
+  }
+
+  verify_password(plain: String, stored: String) -> Bool / {Password} {
+    Password.scrypt_verify(plain, stored)
+  }
+
+  needs_rehash(stored: String) -> Bool {
+    scrypt_needs_rehash(stored)
+  }
+
 exports
   Node
   Random
+  Password
   sha256
   hmac_sha256
   equal
   base64url
   from_base64url
+  hash_password
+  verify_password
+  needs_rehash
