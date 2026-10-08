@@ -3,14 +3,35 @@ use crate::{
   CliError, Ctx,
   files::{discover, rewrite_map, runtime_specifier},
   node,
-  project::{Project, Target},
+  project::{Launch, Project, Target},
   runtime::{LAUNCHER_JS, RUNTIME_JS},
 };
 use std::{
+  ffi::OsString,
   fs,
   path::{Path, PathBuf},
   process::Command,
 };
+use tempfile::TempDir;
+
+pub(crate) struct Prepared {
+  pub dir: TempDir,
+  pub script_args: Vec<OsString>,
+}
+
+impl Prepared {
+  pub fn command(&self, node: &Path, args: &[String], cwd: &Path) -> Command {
+    let mut command = Command::new(node);
+
+    command
+      .arg("--enable-source-maps")
+      .args(&self.script_args)
+      .arg("--")
+      .args(args)
+      .current_dir(cwd);
+    command
+  }
+}
 
 pub(crate) fn run(
   ctx: &mut Ctx<'_, '_>,
@@ -21,6 +42,35 @@ pub(crate) fn run(
 ) -> Result<u8, CliError> {
   let node = needs_node(ctx)?;
 
+  let Some(prepared) = prepare_file(ctx, file, host, configured)? else {
+    return Ok(1);
+  };
+
+  crate::watch::on_ctrl_c(|| {});
+
+  let status =
+    prepared.command(&node, args, &ctx.io.cwd).status().map_err(|e| {
+      CliError::Message(format!("cannot run {}: {e}", node.display()))
+    })?;
+
+  keep_if_debug(ctx, prepared);
+
+  Ok(status.code().map_or(1, |code| u8::try_from(code).unwrap_or(1)))
+}
+
+pub(crate) fn keep_if_debug(ctx: &mut Ctx<'_, '_>, prepared: Prepared) {
+  if ctx.debug {
+    let kept = prepared.dir.keep();
+    let _ = writeln!(ctx.io.err, "note: kept the build in {}", kept.display());
+  }
+}
+
+pub(crate) fn prepare_file(
+  ctx: &mut Ctx<'_, '_>,
+  file: &Path,
+  host: Option<&str>,
+  configured: Option<&[String]>,
+) -> Result<Option<Prepared>, CliError> {
   let inputs = discover(&[file.to_path_buf()], &ctx.io.cwd, None)?;
   let [input] = inputs.as_slice() else {
     return Err(CliError::Message(
@@ -48,7 +98,7 @@ pub(crate) fn run(
   render_compiled(ctx, &compiled);
 
   if compiled.iter().any(|c| c.has_errors() || c.output.is_none()) {
-    return Ok(1);
+    return Ok(None);
   }
 
   let dir = tempfile::Builder::new()
@@ -108,27 +158,13 @@ pub(crate) fn run(
     written.map_err(|e| CliError::write(path.display().to_string(), &e))?;
   }
 
-  crate::watch::on_ctrl_c(|| {});
+  let script_args = vec![
+    dir.path().join("launcher.mjs").into_os_string(),
+    main_js.into_os_string(),
+    OsString::from(&input.display),
+  ];
 
-  let status = Command::new(&node)
-    .arg("--enable-source-maps")
-    .arg(dir.path().join("launcher.mjs"))
-    .arg(&main_js)
-    .arg(&input.display)
-    .arg("--")
-    .args(args)
-    .current_dir(&ctx.io.cwd)
-    .status()
-    .map_err(|e| {
-      CliError::Message(format!("cannot run {}: {e}", node.display()))
-    })?;
-
-  if ctx.debug {
-    let kept = dir.keep();
-    let _ = writeln!(ctx.io.err, "note: kept the build in {}", kept.display());
-  }
-
-  Ok(status.code().map_or(1, |code| u8::try_from(code).unwrap_or(1)))
+  Ok(Some(Prepared { dir, script_args }))
 }
 
 pub(crate) fn launch(
@@ -140,6 +176,27 @@ pub(crate) fn launch(
     return run(ctx, &project.main, None, Some(&project.hosts), args);
   };
   let node = needs_node(ctx)?;
+  let Some(prepared) = prepare_launch(ctx, project, launch)? else {
+    return Ok(1);
+  };
+
+  crate::watch::on_ctrl_c(|| {});
+
+  let status =
+    prepared.command(&node, args, &ctx.io.cwd).status().map_err(|e| {
+      CliError::Message(format!("cannot run {}: {e}", node.display()))
+    })?;
+
+  keep_if_debug(ctx, prepared);
+
+  Ok(status.code().map_or(1, |code| u8::try_from(code).unwrap_or(1)))
+}
+
+pub(crate) fn prepare_launch(
+  ctx: &mut Ctx<'_, '_>,
+  project: &Project,
+  launch: &Launch,
+) -> Result<Option<Prepared>, CliError> {
   let dir = tempfile::Builder::new()
     .prefix("polar-run-")
     .tempdir()
@@ -154,7 +211,7 @@ pub(crate) fn launch(
     start: None,
   };
   let Some(written) = build_into(ctx, &[target], None, false)? else {
-    return Ok(1);
+    return Ok(None);
   };
   let hosts: serde_json::Map<String, serde_json::Value> = written
     .iter()
@@ -181,26 +238,12 @@ pub(crate) fn launch(
   fs::write(&manifest_path, manifest.to_string())
     .map_err(|e| CliError::write(manifest_path.display().to_string(), &e))?;
 
-  crate::watch::on_ctrl_c(|| {});
+  let script_args = vec![
+    launch.script.clone().into_os_string(),
+    manifest_path.into_os_string(),
+  ];
 
-  let status = Command::new(&node)
-    .arg("--enable-source-maps")
-    .arg(&launch.script)
-    .arg(&manifest_path)
-    .arg("--")
-    .args(args)
-    .current_dir(&ctx.io.cwd)
-    .status()
-    .map_err(|e| {
-      CliError::Message(format!("cannot run {}: {e}", node.display()))
-    })?;
-
-  if ctx.debug {
-    let kept = dir.keep();
-    let _ = writeln!(ctx.io.err, "note: kept the build in {}", kept.display());
-  }
-
-  Ok(status.code().map_or(1, |code| u8::try_from(code).unwrap_or(1)))
+  Ok(Some(Prepared { dir, script_args }))
 }
 
 pub(crate) fn needs_node(ctx: &Ctx<'_, '_>) -> Result<PathBuf, CliError> {

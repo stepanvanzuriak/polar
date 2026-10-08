@@ -1220,3 +1220,241 @@ fn browser_rejected() {
     ran.err
   );
 }
+
+mod watch {
+  use super::{POLAR, project};
+  use std::{
+    fs,
+    io::{BufRead, BufReader},
+    path::Path,
+    process::{Child, Command, Stdio},
+    sync::mpsc::{self, Receiver},
+    thread,
+    time::{Duration, Instant},
+  };
+
+  const WAIT: Duration = Duration::from_secs(20);
+  const QUIET: Duration = Duration::from_millis(1500);
+
+  const GOOD: &str = "module Main\n\nfunctions\n  main() {\n    Log.info(\"v1\")\n  }\n\nexports\n  main\n";
+  const BROKEN: &str = "module Main\n\nfunctions\n  main() {\n    Log.info(1 + \"x\")\n  }\n\nexports\n  main\n";
+
+  struct Watched {
+    child: Child,
+    lines: Receiver<String>,
+    seen: Vec<String>,
+  }
+
+  impl Watched {
+    fn spawn(app: &Path, env: &[(&str, &str)]) -> Self {
+      let mut command = Command::new(POLAR);
+
+      command
+        .args(["run", "--watch", "--debounce", "100"])
+        .current_dir(app)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+      for (k, v) in env {
+        command.env(k, v);
+      }
+
+      let mut child = command.spawn().expect("spawn polar");
+      let (tx, lines) = mpsc::channel();
+      let out = child.stdout.take().unwrap();
+      let err = child.stderr.take().unwrap();
+      let tx_err = tx.clone();
+
+      thread::spawn(move || {
+        for line in BufReader::new(out).lines().map_while(Result::ok) {
+          let _ = tx.send(format!("out: {line}"));
+        }
+      });
+      thread::spawn(move || {
+        for line in BufReader::new(err).lines().map_while(Result::ok) {
+          let _ = tx_err.send(format!("err: {line}"));
+        }
+      });
+
+      Self { child, lines, seen: Vec::new() }
+    }
+
+    fn until(&mut self, what: &str, count: usize) {
+      let deadline = Instant::now() + WAIT;
+
+      while self.seen.iter().filter(|l| l.contains(what)).count() < count {
+        let left = deadline.saturating_duration_since(Instant::now());
+
+        match self.lines.recv_timeout(left) {
+          Ok(line) => self.seen.push(line),
+          Err(e) => panic!("no {count}x `{what}` ({e}) in {:#?}", self.seen),
+        }
+      }
+    }
+
+    fn quiet(&mut self) {
+      let deadline = Instant::now() + QUIET;
+
+      while let Ok(line) = self
+        .lines
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+      {
+        self.seen.push(line);
+      }
+    }
+
+    fn count(&self, what: &str) -> usize {
+      self.seen.iter().filter(|l| l.contains(what)).count()
+    }
+  }
+
+  impl Drop for Watched {
+    fn drop(&mut self) {
+      let _ = self.child.kill();
+      let _ = self.child.wait();
+    }
+  }
+
+  fn app() -> tempfile::TempDir {
+    project(&[
+      (
+        "kit/polar.toml",
+        "[package]\nname = \"kit\"\nmodule = \"Kit\"\n\n[launcher]\nscript = \"launch.mjs\"\n",
+      ),
+      (
+        "kit/launch.mjs",
+        "console.log(`launched port=${process.env.PORT ?? ''} cwd=${process.cwd()} args=${process.argv.slice(3).join(' ')}`);\nprocess.on('SIGTERM', () => process.exit(0));\nsetInterval(() => {}, 1000);\n",
+      ),
+      ("kit/src/.keep", ""),
+      (
+        "app/polar.toml",
+        "[project]\nname = \"app\"\n\n[run]\nlauncher = \"kit\"\nwatch = [\"extra.toml\"]\n\n[dependencies]\nkit = { path = \"../kit\" }\n",
+      ),
+      ("app/extra.toml", "a = 1\n"),
+      ("app/README.md", "hi\n"),
+      ("app/src/main.px", GOOD),
+    ])
+  }
+
+  fn edit(app: &Path, file: &str, text: &str) {
+    let path = app.join(file);
+
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, text).unwrap();
+  }
+
+  #[test]
+  fn watch_rebuilds() {
+    let dir = app();
+    let app = dir.path().join("app");
+    let mut run = Watched::spawn(&app, &[]);
+
+    run.until("launched", 1);
+    edit(&app, "src/main.px", &GOOD.replace("v1", "v2"));
+    run.until("restarted", 1);
+    run.until("launched", 2);
+    assert!(
+      run.seen.iter().any(|l| l.contains("change: ") && l.contains("main.px"))
+    );
+
+    edit(&app, "extra.toml", "a = 2\n");
+    run.until("launched", 3);
+  }
+
+  #[test]
+  fn watch_ignores_dist() {
+    let dir = app();
+    let app = dir.path().join("app");
+    let mut run = Watched::spawn(&app, &[]);
+
+    run.until("launched", 1);
+    edit(&app, "dist/main.px", GOOD);
+    edit(&app, ".polar/x.px", GOOD);
+    edit(&app, "README.md", "changed\n");
+    run.quiet();
+    assert_eq!(run.count("change:"), 0, "{:#?}", run.seen);
+    assert_eq!(run.count("launched"), 1);
+  }
+
+  #[test]
+  fn watch_debounce() {
+    let dir = app();
+    let app = dir.path().join("app");
+    let mut run = Watched::spawn(&app, &[]);
+
+    run.until("launched", 1);
+
+    for n in 0..5 {
+      edit(&app, "src/main.px", &GOOD.replace("v1", &format!("w{n}")));
+    }
+
+    run.until("restarted", 1);
+    run.quiet();
+    assert_eq!(run.count("restarted"), 1, "{:#?}", run.seen);
+    assert_eq!(run.count("launched"), 2);
+  }
+
+  #[test]
+  fn watch_broken() {
+    let dir = app();
+    let app = dir.path().join("app");
+    let mut run = Watched::spawn(&app, &[]);
+
+    run.until("launched", 1);
+    edit(&app, "src/main.px", BROKEN);
+    run.until("keeping the running launcher", 1);
+    run.quiet();
+    assert_eq!(run.count("launched"), 1, "{:#?}", run.seen);
+    assert!(run.child.try_wait().unwrap().is_none());
+
+    edit(&app, "src/main.px", &GOOD.replace("v1", "v3"));
+    run.until("restarted", 1);
+    run.until("launched", 2);
+  }
+
+  #[test]
+  fn watch_args() {
+    let dir = app();
+    let app = dir.path().join("app");
+    let mut run = Watched::spawn(&app, &[("PORT", "4000")]);
+
+    run.until("port=4000", 1);
+    edit(&app, "src/main.px", &GOOD.replace("v1", "v2"));
+    run.until("port=4000", 2);
+
+    let launches: Vec<&String> =
+      run.seen.iter().filter(|l| l.contains("launched")).collect();
+
+    assert_eq!(launches[0], launches[1]);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn watch_ctrl_c() {
+    let dir = app();
+    let app = dir.path().join("app");
+    let mut run = Watched::spawn(&app, &[]);
+
+    run.until("launched", 1);
+
+    let signalled = Command::new("kill")
+      .args(["-INT", &run.child.id().to_string()])
+      .status()
+      .unwrap();
+
+    assert!(signalled.success());
+
+    let deadline = Instant::now() + WAIT;
+
+    let status = loop {
+      if let Some(status) = run.child.try_wait().unwrap() {
+        break status;
+      }
+
+      assert!(Instant::now() < deadline, "polar did not exit");
+      thread::sleep(Duration::from_millis(50));
+    };
+
+    assert_eq!(status.code(), Some(0));
+  }
+}

@@ -137,6 +137,10 @@ pub(crate) enum Command {
     file: Option<PathBuf>,
     #[arg(long)]
     host: Option<String>,
+    #[arg(long)]
+    watch: bool,
+    #[arg(long, value_name = "MS", default_value_t = 100, requires = "watch")]
+    debounce: u64,
     #[arg(last = true)]
     args: Vec<String>,
   },

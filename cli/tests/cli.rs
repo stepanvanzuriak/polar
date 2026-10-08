@@ -940,7 +940,7 @@ mod watch {
       paths: vec![PathBuf::from("src")],
       cwd: dir.to_path_buf(),
       mode,
-      debounce: Duration::from_millis(50),
+      debounce: Duration::from_millis(300),
       compiler: Compiler::default(),
       color: false,
       clear_screen: false,

@@ -5,6 +5,7 @@ mod init;
 mod packages;
 mod repl;
 mod run;
+mod run_watch;
 mod start;
 mod testing;
 
@@ -69,7 +70,16 @@ pub(crate) fn dispatch(
     Command::Check { paths, out, watch: false } => {
       check::check(ctx, &targets(&paths, &cwd, out.as_deref())?)
     }
-    Command::Run { file, host, args } => {
+    Command::Run { file, host, args, watch: true, debounce } => {
+      run_watch::watch(
+        ctx,
+        file.as_deref(),
+        host.as_deref(),
+        &args,
+        std::time::Duration::from_millis(debounce),
+      )
+    }
+    Command::Run { file, host, args, .. } => {
       match (project::run_target(file.as_deref(), &cwd)?, host) {
         (project::RunTarget::Launch(project), None) => {
           run::launch(ctx, &project, &args)
