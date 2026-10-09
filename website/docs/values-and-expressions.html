@@ -253,7 +253,10 @@ hello-world</code></pre>
           ><code>let mark = if done { "x" } else { " " }</code></pre>
           <p>
             Because it always has to produce a value, every
-            <code>if</code> needs an <code>else</code>:
+            <code>if</code> needs an <code>else</code>, unless its branch has no
+            value (<code>{}</code>), as when it ends in
+            <a href="functions.html#return"><code>return</code></a> or a
+            <code>throw</code>:
           </p>
           <pre
             class="code"

@@ -86,12 +86,26 @@ export function words(text) {
             </p>
           </div>
 
-          <h3 id="sync">Externs are synchronous</h3>
+          <h3 id="sync">Externs are synchronous by default</h3>
           <p>
             An extern called from an ordinary function is a plain, synchronous
             call. JavaScript that returns a <code>Promise</code>, like a network
             request or a timer, belongs behind an effect, which can be
             asynchronous. That's the next section.
+          </p>
+          <p>
+            For a single async call, there is a lighter way: declare the extern
+            with the built-in <code>Async</code> effect. Polar awaits it, and
+            any function that calls it becomes <code>async</code>, with no
+            effect declaration, binding or host to write:
+          </p>
+          <pre class="code" data-lang="polar"><code>externs
+  scrypt_hash(plain: String, salt: String) -&gt; String / {Async}
+    = "./bindings/Crypto.js" scrypt</code></pre>
+          <p>
+            <code>Async</code> is part of the function's type, like
+            <code>Mut</code>, so callers see it. Use an effect when you want to
+            bind a different implementation in a test.
           </p>
 
           <h2 id="binding-to-a-file">Implementing an effect in JavaScript</h2>

@@ -185,6 +185,66 @@ first_two(xs: List&lt;String&gt;) -> String {
             Arms are tried top to bottom, so put specific patterns before
             general ones.
           </p>
+
+          <h3 id="guards">Guards</h3>
+          <p>
+            An arm can add a condition with <code>if</code>. It runs only when
+            the pattern fits and the condition is true:
+          </p>
+          <pre class="code" data-lang="polar"><code>size(shape: Shape) -> Int {
+  match shape {
+    Circle(r) if r > 10 -> 100,
+    Circle(r) -> r,
+    Rect(w, h) -> w * h,
+  }
+}</code></pre>
+          <p>
+            The compiler can't know when a condition is true, so a guarded arm
+            never counts toward covering every case. Here the second
+            <code>Circle</code> arm is what covers circles.
+          </p>
+
+          <h3 id="or-patterns">Or-patterns</h3>
+          <p>
+            <code>|</code> lets one arm take several patterns, also inside
+            another pattern. Every alternative has to bind the same names:
+          </p>
+          <pre class="code" data-lang="polar"><code>sign(text: String) -> Int {
+  match text {
+    "+" | "plus" -> 1,
+    "-" | "minus" -> -1,
+    _ -> 0,
+  }
+}
+
+small(o: Option&lt;Int&gt;) -> Bool {
+  match o {
+    Some(1 | 2 | 3) -> true,
+    _ -> false,
+  }
+}</code></pre>
+
+          <h3 id="several-values">Matching several values</h3>
+          <p>
+            List more than one value after <code>match</code> and give each arm
+            one pattern per value:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>describe(a: Option&lt;Int&gt;, b: Option&lt;Int&gt;) -> String {
+  match a, b {
+    Some(x), Some(y) if x == y -> "same #{x}",
+    Some(x), Some(y) -> "#{x} and #{y}",
+    Some(x), None | None, Some(x) -> "one #{x}",
+    None, None -> "none",
+  }
+}</code></pre>
+          <p>
+            In an arm like this, <code>|</code> separates whole rows:
+            <code>Some(x), None | None, Some(x)</code> is two rows that share an
+            arm.
+          </p>
           <div class="callout">
             <p>
               <span class="label">Note:</span> <code>_</code> covers every

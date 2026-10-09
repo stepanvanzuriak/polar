@@ -124,6 +124,34 @@
 }</code></pre>
           <p><code>apply_twice(double, 5)</code> is <code>20</code>.</p>
 
+          <h2 id="return">Returning early</h2>
+          <p>
+            A function's value is its last expression. To leave sooner, use
+            <code>return</code>, which ends the innermost function or lambda
+            with the value after it. A bare <code>return</code> gives
+            <code>{}</code>. Because the branch has no value,
+            <code>if</code> needs no <code>else</code> here:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>parse(text: String) -> Option&lt;Int&gt; {
+  let pair = match String.split_once(text, "=") {
+    Some(p) -> p,
+    None -> return None,
+  }
+
+  if pair.before == "" { return None }
+
+  Int.parse(pair.after)
+}</code></pre>
+          <p>
+            In a lambda, <code>return</code> leaves only the lambda, not the
+            function around it. Outside any function it is an error. A
+            <code>return</code> of a call to the function itself still compiles
+            to a loop.
+          </p>
+
           <h2 id="generics">Generic functions</h2>
           <p>
             A lowercase name in a type, like <code>a</code>, is a

@@ -90,22 +90,32 @@
           <h2 id="exports">Exports</h2>
           <p>
             The <code>exports</code> zone lists the functions, constants,
-            effects and hosts that other modules can use. Anything not listed
-            stays private to the file.
+            effects, hosts and types that other modules can use. Anything not
+            listed stays private to the file.
           </p>
           <p>
-            Types are different: they're always exported, so they never go in
-            the list. If you add one anyway, Polar tells you to remove it:
+            Listing a type exports its cases too, so other modules can build and
+            match on <code>Circle</code> and <code>Rect</code>. A type you leave
+            out is private, which is how you keep a representation to yourself.
+            An exported function, constant or effect can't mention a private
+            type, because other modules couldn't name it:
           </p>
           <pre
             class="code"
-          ><code><span class="er">error[POLAR0301]</span>: `Shape` is a type, and types are always exported
+          ><code><span class="er">error[POLAR0322]</span>: `area` is exported, but it uses the private type `Shape`
    --> tour.px:115:3
     |
-115 |   Shape
-    |   ^^^^^
+115 |   area
+    |   ^^^^
+    |   other modules can't name `Shape`
     |
-    = help: remove it from `exports`</code></pre>
+    = help: export `Shape` too: add it to `exports`</code></pre>
+          <p>
+            Types that a zone plugin generates, such as the ones from
+            <code>schema</code>, are exported automatically. An extern can be
+            listed in <code>exports</code> directly, so a binding doesn't need a
+            wrapper function.
+          </p>
 
           <h2 id="packages">Packages</h2>
           <p>
@@ -141,14 +151,16 @@ ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }</code></pre>
           <h3 id="git-dependencies">Git dependencies</h3>
           <p>
             There is no registry: the repository address is the package's
-            identity, as in Go. Any git host works, and private repositories
-            use your own git credentials. A dependency pins exactly one of
+            identity, as in Go. Any git host works, and private repositories use
+            your own git credentials. A dependency pins exactly one of
             <code>version</code> (a tag like <code>v1.2.3</code>),
             <code>branch</code> (locked to a commit when you add or update it)
             or <code>rev</code> (a full 40-character commit). The key must be
             the package's own <code>name</code>.
           </p>
-          <pre class="code"><code><span class="pr">$</span> polar add github.com/owner/ticket       <span class="cm"># newest tag</span>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar add github.com/owner/ticket       <span class="cm"># newest tag</span>
 <span class="pr">$</span> polar add github.com/owner/tool@v1.4.1
 <span class="pr">$</span> polar fetch                             <span class="cm"># download what polar.lock names</span>
 <span class="pr">$</span> polar update                            <span class="cm"># move to the newest tags</span>
@@ -177,7 +189,7 @@ ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }</code></pre>
           <pre class="code"><code>[package]
 name = "ticket"
 module = "Ticket"
-polar = "0.2.0"</code></pre>
+polar = "0.3.0"</code></pre>
           <p>
             If you import a package written for an older Polar, or one that
             needs a newer Polar than yours, <code>polar</code> prints a warning
