@@ -67,6 +67,18 @@ pub const BUILTINS: &[BuiltinInfo] = &[
     signature: "function(String, String) -> List<String>",
   },
   BuiltinInfo {
+    module: "String",
+    member: "split_once",
+    arity: 2,
+    signature: "function(String, String) -> Option<{ before: String, after: String }>",
+  },
+  BuiltinInfo {
+    module: "String",
+    member: "chars",
+    arity: 1,
+    signature: "function(String) -> List<String>",
+  },
+  BuiltinInfo {
     module: "Int",
     member: "to_base",
     arity: 2,

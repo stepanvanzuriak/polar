@@ -13,7 +13,7 @@ types
   Regex = Regex(String)
 
 externs
-  test_pattern(pattern: String, text: String) -> Bool = "./bindings/Regex.js" test_pattern
+  matches(pattern: String, text: String) -> Bool = "./bindings/Regex.js" test_pattern
   first_match(pattern: String, text: String) -> Option<String>
     = "./bindings/Regex.js" first_match
   all_matches(pattern: String, text: String) -> List<String>
@@ -37,7 +37,7 @@ functions
   }
 
   is_match(regex: Regex, text: String) -> Bool {
-    test_pattern(pattern(regex), text)
+    matches(pattern(regex), text)
   }
 
   find(regex: Regex, text: String) -> Option<String> {
@@ -50,10 +50,6 @@ functions
 
   replace(regex: Regex, text: String, with: String) -> String {
     replace_all(pattern(regex), text, with)
-  }
-
-  matches(pattern: String, text: String) -> Bool {
-    test_pattern(pattern, text)
   }
 
 impls
@@ -70,6 +66,7 @@ impls
   }
 
 exports
+  Regex
   Node
   Browser
   compile

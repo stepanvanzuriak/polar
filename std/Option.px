@@ -26,6 +26,7 @@ functions
   }
 
 exports
+  Option
   and_then
   map
   with_default

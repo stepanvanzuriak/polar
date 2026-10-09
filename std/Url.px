@@ -7,18 +7,10 @@ types
   Pair = { name: String, value: String } derive(Eq, Show)
 
 externs
-  decode_component(text: String) -> String = "./bindings/Url.js" decode
-  encode_component(text: String) -> String = "./bindings/Url.js" encode
+  decode(text: String) -> String = "./bindings/Url.js" decode
+  encode(text: String) -> String = "./bindings/Url.js" encode
 
 functions
-  decode(text: String) -> String {
-    decode_component(text)
-  }
-
-  encode(text: String) -> String {
-    encode_component(text)
-  }
-
   parse_query(text: String) -> List<Pair> {
     let body = if String.starts_with(text, "?") {
       String.slice(text, 1, String.length(text))
@@ -63,6 +55,7 @@ functions
   }
 
 exports
+  Pair
   build_query
   decode
   encode

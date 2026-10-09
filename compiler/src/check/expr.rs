@@ -13,11 +13,13 @@ use crate::{
     solve::{GroupCall, Source, free_vars, trait_name},
   },
   core::lower::Resolved,
+  shared::codes::DiagnosticCode::MissingElse,
+  shared::diagnostic::{Diagnostic, Label},
   shared::source::Span,
   syntax::ast::{
     Binary, BinaryOp, Block, Else, Expr, FieldAccess, FieldInit, If, Lambda,
-    LetStmt, ListLit, Match, Name, Pattern, Pipe, RecordLit, Stmt, StringPart,
-    Unary, UnaryOp,
+    LetStmt, ListLit, Match, MatchArm, Name, Pattern, Pipe, RecordLit, Return,
+    Stmt, StringPart, Unary, UnaryOp,
   },
   types::{
     generalise::{
@@ -67,6 +69,7 @@ impl<'a> Checker<'a> {
       Expr::Block(block) => self.block(block),
       Expr::If(node) => self.if_expr(node),
       Expr::Match(node) => self.match_expr(node),
+      Expr::Return(node) => self.return_expr(node),
       Expr::Throw(t) => self.throw_expr(t),
       Expr::Try(t) => self.try_expr(t),
       Expr::Invalid(_) => self.fresh(),
@@ -596,29 +599,29 @@ impl<'a> Checker<'a> {
       Some(_) => self.convert_effects(lambda.effects.as_ref()),
       None => Effects::open(self.fresh_var()),
     };
+    let slot = match &lambda.return_type {
+      Some(annotation) => self.convert(annotation),
+      None => self.fresh(),
+    };
     let owner = match &lambda.return_type {
       Some(_) => RowOwner::Lambda {
         row: lambda.effects.as_ref().map(|r| r.span.clone()),
       },
       None => RowOwner::Free,
     };
-    let (body, row) = self.with_row(row, owner, |c| c.block(&lambda.body));
+    let (body, row) = self.with_row(row, owner, |c| {
+      c.with_return(slot.clone(), |c| c.block(&lambda.body))
+    });
     let uses = std::mem::take(&mut self.last_uses);
-    let ret = match &lambda.return_type {
-      Some(annotation) => {
-        let ret = self.convert(annotation);
-        let blame = last_expr(&lambda.body.result).span();
-
-        self.expect_because(
-          &ret,
-          &body,
-          blame,
-          Because::Annotation(annotation.span().clone()),
-        );
-        ret
-      }
-      None => body,
+    let blame = last_expr(&lambda.body.result).span();
+    let because = match &lambda.return_type {
+      Some(annotation) => Because::Annotation(annotation.span().clone()),
+      None => Because::Nothing,
     };
+
+    self.expect_because(&slot, &body, blame, because);
+
+    let ret = slot;
     let row = self.store.zonk_effects(&row);
     let at = lambda.span.start..lambda.span.start + "function".len();
     let blame = Blame {
@@ -711,15 +714,32 @@ impl<'a> Checker<'a> {
     let then_ty = self.block(&node.then_branch);
     let first = last_expr(&node.then_branch.result).span().clone();
 
-    let (else_ty, blame) = match &*node.else_branch {
-      Else::Block(block) => {
+    let (else_ty, blame) = match node.else_branch.as_deref() {
+      Some(Else::Block(block)) => {
         (self.block(block), last_expr(&block.result).span().clone())
       }
-      Else::If(inner) => {
+      Some(Else::If(inner)) => {
         let ty = self.if_expr(inner);
 
         self.record_expr(&inner.span, &ty);
         (ty, last_expr(&inner.then_branch.result).span().clone())
+      }
+      None => {
+        let mut scratch = self.store.clone();
+
+        if unify(&mut scratch, &Type::unit(), &then_ty).is_err() {
+          self.push(
+            Diagnostic::error(
+              MissingElse,
+              "`if` without `else` has no value to give when the condition is false",
+              Label::new(node.span.clone())
+                .with_message("this branch gives a value"),
+            )
+            .with_help("add `else { … }`, or end the branch with `return` or `throw`"),
+          );
+        }
+
+        return Type::unit();
       }
     };
 
@@ -729,12 +749,51 @@ impl<'a> Checker<'a> {
     then_ty
   }
 
+  pub(crate) fn guard(&mut self, arm: &'a MatchArm) {
+    if let Some(guard) = &arm.guard {
+      self.check_expr(guard, &Type::bool());
+    }
+  }
+
+  fn return_expr(&mut self, node: &'a Return) -> Type {
+    match self.returns.last().cloned() {
+      Some(ret) => {
+        self.check_expr(&node.value, &ret);
+      }
+      None => {
+        self.infer(&node.value);
+      }
+    }
+
+    self.fresh()
+  }
+
   fn match_expr(&mut self, node: &'a Match) -> Type {
-    let scrutinee = self.infer(&node.scrutinee);
+    let subjects: Vec<Type> =
+      node.subjects.iter().map(|subject| self.infer(subject)).collect();
     let mut result: Option<(Type, Span)> = None;
 
     for arm in &node.arms {
-      self.check_pattern(&arm.pattern, &scrutinee);
+      for (r, row) in arm.rows.iter().enumerate() {
+        if r > 0 {
+          self.alternatives += 1;
+        }
+
+        for (i, pattern) in row.iter().enumerate() {
+          let ty = match subjects.get(i) {
+            Some(ty) => ty.clone(),
+            None => self.fresh(),
+          };
+
+          self.check_pattern(pattern, &ty);
+        }
+
+        if r > 0 {
+          self.alternatives -= 1;
+        }
+      }
+
+      self.guard(arm);
 
       let body = self.infer(&arm.body);
       let blame = last_expr(&arm.body).span().clone();

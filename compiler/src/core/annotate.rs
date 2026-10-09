@@ -87,7 +87,9 @@ fn expr(e: &mut CExpr, types: &Types) {
       expr(handler, types);
     }
     CExprKind::Dict { args, .. } => all(args, types),
-    CExprKind::Lam { body, .. } => expr(body, types),
+    CExprKind::Lam { body, .. } | CExprKind::Return { value: body } => {
+      expr(body, types);
+    }
     CExprKind::App { func, args } => {
       expr(func, types);
       all(args, types);
@@ -116,7 +118,11 @@ fn expr(e: &mut CExpr, types: &Types) {
     CExprKind::Case { scrutinee, arms } => {
       expr(scrutinee, types);
 
-      for CArm { body, .. } in arms {
+      for CArm { guard, body, .. } in arms {
+        if let Some(guard) = guard {
+          expr(guard, types);
+        }
+
         expr(body, types);
       }
     }

@@ -813,13 +813,23 @@ fn relative_specifier_run() {
 }
 
 #[test]
-fn run_needs_a_host() {
+fn run_prefers_node_among_several_hosts() {
   let ran = run_with_args(&[("notes.px", NOTES)], &["run", "notes.px"]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "node:k\n");
+}
+
+const NO_NODE: &str = "module Main\n\nhosts\n  DOM\n  Browser\n\nfunctions\n  main() {\n    Log.info(\"hi\")\n  }\n\nexports\n  DOM\n  Browser\n  main\n";
+
+#[test]
+fn run_needs_a_host_without_node() {
+  let ran = run_with_args(&[("main.px", NO_NODE)], &["run", "main.px"]);
 
   assert_eq!(ran.code, Some(1));
   assert_eq!(
     ran.err,
-    "error: this program declares hosts `DOM` and `Node`; choose one with `--host`\n"
+    "error: this program declares hosts `Browser` and `DOM`; choose one with `--host`\n"
   );
 }
 
@@ -943,7 +953,7 @@ fn run_uses_the_only_configured_host() {
 }
 
 #[test]
-fn run_with_several_configured_hosts_asks_for_one() {
+fn run_with_several_configured_hosts_uses_node() {
   let ran = run_with_args(
     &[
       ("polar.toml", "[project]\nname = \"n\"\nhosts = [\"DOM\", \"Node\"]\n"),
@@ -952,10 +962,27 @@ fn run_with_several_configured_hosts_asks_for_one() {
     &["run"],
   );
 
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "node:k\n");
+}
+
+#[test]
+fn run_with_several_configured_hosts_without_node_asks_for_one() {
+  let ran = run_with_args(
+    &[
+      (
+        "polar.toml",
+        "[project]\nname = \"n\"\nhosts = [\"DOM\", \"Browser\"]\n",
+      ),
+      ("src/main.px", NO_NODE),
+    ],
+    &["run"],
+  );
+
   assert_eq!(ran.code, Some(1));
   assert_eq!(
     ran.err,
-    "error: this project builds for hosts `DOM`, `Node`; choose one with `--host`\n"
+    "error: this project builds for hosts `DOM`, `Browser`; choose one with `--host`\n"
   );
 }
 

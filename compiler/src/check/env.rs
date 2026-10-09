@@ -181,9 +181,13 @@ fn simple(expr: &TypeExpr, info: &BuiltinInfo) -> Type {
       f.params.iter().map(|p| simple(p, info)).collect(),
       simple(&f.ret, info),
     ),
-    TypeExpr::Record(r) if r.fields.is_empty() && r.tail.is_none() => {
-      Type::Record(Row::new(Vec::new(), Tail::anonymous()))
-    }
+    TypeExpr::Record(r) if r.tail.is_none() => Type::Record(Row::new(
+      r.fields
+        .iter()
+        .map(|f| (f.name.text.as_str().into(), simple(&f.ty, info)))
+        .collect(),
+      Tail::anonymous(),
+    )),
     TypeExpr::Ref(_)
     | TypeExpr::Var(_)
     | TypeExpr::Record(_)

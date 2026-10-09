@@ -193,6 +193,7 @@ impls
   }
 
 exports
+  Shape
   Describe { describe }
 ";
 
@@ -241,6 +242,7 @@ impls
   }
 
 exports
+  Shape
   Describe { describe }
   loud
 ";

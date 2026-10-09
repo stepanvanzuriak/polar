@@ -250,6 +250,11 @@ impl Dump<'_> {
         self.expr(out, value);
         out.push(')');
       }
+      CExprKind::Return { value } => {
+        out.push_str("(return ");
+        self.expr(out, value);
+        out.push(')');
+      }
       CExprKind::Try { body, caught, handler, .. } => {
         out.push_str("(try ");
         self.expr(out, body);
@@ -285,6 +290,13 @@ impl Dump<'_> {
     out.push_str("(arm ");
     self.pattern(out, &arm.pattern);
     out.push(' ');
+
+    if let Some(guard) = &arm.guard {
+      out.push_str("(if ");
+      self.expr(out, guard);
+      out.push_str(") ");
+    }
+
     self.expr(out, &arm.body);
     out.push(')');
   }
@@ -311,6 +323,16 @@ impl Dump<'_> {
           let _ = write!(out, " ({name} ");
           self.pattern(out, pattern);
           out.push(')');
+        }
+
+        out.push(')');
+      }
+      CPattern::Or(alternatives) => {
+        out.push_str("(or");
+
+        for alternative in alternatives {
+          out.push(' ');
+          self.pattern(out, alternative);
         }
 
         out.push(')');

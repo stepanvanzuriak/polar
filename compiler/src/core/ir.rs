@@ -240,6 +240,9 @@ pub enum CExprKind {
     value: Box<CExpr>,
     tag: String,
   },
+  Return {
+    value: Box<CExpr>,
+  },
   Try {
     body: Box<CExpr>,
     caught: Sym,
@@ -251,6 +254,7 @@ pub enum CExprKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CArm {
   pub pattern: CPattern,
+  pub guard: Option<CExpr>,
   pub body: CExpr,
   pub origin: Option<Span>,
 }
@@ -262,6 +266,7 @@ pub enum CPattern {
   Lit(Lit),
   Ctor { ctor: CtorId, args: Vec<CPattern> },
   Record { fields: Vec<(String, CPattern)> },
+  Or(Vec<CPattern>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

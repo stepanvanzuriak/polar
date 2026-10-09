@@ -136,22 +136,20 @@ fn every_kind_dumps() {
   let case = e(CExprKind::Case {
     scrutinee: Box::new(var(&s)),
     arms: vec![
-      CArm {
-        pattern: CPattern::Ctor {
+      arm(
+        CPattern::Ctor {
           ctor: CtorId(0),
           args: vec![CPattern::Bind(r.clone())],
         },
-        body: var(&r),
-        origin: None,
-      },
-      CArm {
-        pattern: CPattern::Record {
+        var(&r),
+      ),
+      arm(
+        CPattern::Record {
           fields: vec![("a".into(), CPattern::Lit(Lit::Number(-1.0)))],
         },
-        body: num(0.5),
-        origin: None,
-      },
-      CArm { pattern: CPattern::Wildcard, body: num(0.0), origin: None },
+        num(0.5),
+      ),
+      arm(CPattern::Wildcard, num(0.0)),
     ],
   });
 
@@ -290,4 +288,8 @@ fn module_dump() {
 #[test]
 fn dump_is_stable() {
   assert_eq!(dump_module(&module()), dump_module(&module()));
+}
+
+fn arm(pattern: CPattern, body: CExpr) -> CArm {
+  CArm { pattern, guard: None, body, origin: None }
 }

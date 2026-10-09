@@ -2,7 +2,7 @@ use crate::core::ir::{
   CArm, CDecl, CExpr, CExprKind, CModule, CPattern, CtorId, CtorInfo,
   PatternTest, PrimOp, Sym, SymGen,
 };
-use crate::shared::source::Span;
+use crate::shared::{ice::ice, source::Span};
 
 #[must_use]
 pub fn compile_matches(mut module: CModule) -> CModule {
@@ -43,10 +43,106 @@ struct Matcher {
 
 type Path = Vec<String>;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Plan {
   tests: Vec<(Path, PatternTest)>,
   binds: Vec<(Path, Sym)>,
+}
+
+struct Planned {
+  plans: Vec<Plan>,
+  guard: Option<CExpr>,
+  body: CExpr,
+  origin: Option<Span>,
+}
+
+fn plan_arm(arm: CArm) -> Vec<Planned> {
+  let plans: Vec<Plan> = alternatives(arm.pattern)
+    .into_iter()
+    .map(|pattern| {
+      let mut plan = Plan::default();
+
+      plan_pattern(pattern, &mut Vec::new(), &mut plan);
+      plan
+    })
+    .collect();
+  let same_binds =
+    plans.windows(2).all(|w| same_paths(&w[0].binds, &w[1].binds));
+
+  if same_binds {
+    return vec![Planned {
+      plans,
+      guard: arm.guard,
+      body: arm.body,
+      origin: arm.origin,
+    }];
+  }
+
+  plans
+    .into_iter()
+    .map(|plan| Planned {
+      plans: vec![plan],
+      guard: arm.guard.clone(),
+      body: arm.body.clone(),
+      origin: arm.origin.clone(),
+    })
+    .collect()
+}
+
+fn same_paths(a: &[(Path, Sym)], b: &[(Path, Sym)]) -> bool {
+  let key = |binds: &[(Path, Sym)]| {
+    let mut key: Vec<(Path, u32)> =
+      binds.iter().map(|(p, s)| (p.clone(), s.id)).collect();
+
+    key.sort();
+    key
+  };
+
+  key(a) == key(b)
+}
+
+fn alternatives(pattern: CPattern) -> Vec<CPattern> {
+  match pattern {
+    CPattern::Or(options) => {
+      options.into_iter().flat_map(alternatives).collect()
+    }
+    CPattern::Ctor { ctor, args } => product(args)
+      .into_iter()
+      .map(|args| CPattern::Ctor { ctor, args })
+      .collect(),
+    CPattern::Record { fields } => {
+      let (names, patterns): (Vec<String>, Vec<CPattern>) =
+        fields.into_iter().unzip();
+
+      product(patterns)
+        .into_iter()
+        .map(|values| CPattern::Record {
+          fields: names.iter().cloned().zip(values).collect(),
+        })
+        .collect()
+    }
+    other @ (CPattern::Wildcard | CPattern::Bind(_) | CPattern::Lit(_)) => {
+      vec![other]
+    }
+  }
+}
+
+fn product(patterns: Vec<CPattern>) -> Vec<Vec<CPattern>> {
+  patterns.into_iter().fold(vec![Vec::new()], |rows, pattern| {
+    let options = alternatives(pattern);
+
+    rows
+      .iter()
+      .flat_map(|row| {
+        options.iter().map(move |option| {
+          let mut row = row.clone();
+
+          row.push(option.clone());
+          row
+        })
+      })
+      .collect()
+  })
 }
 
 impl Matcher {
@@ -71,6 +167,9 @@ impl Matcher {
       | CExprKind::Extern { .. }) => kind,
       CExprKind::Throw { value, tag } => {
         CExprKind::Throw { value: self.boxed(*value), tag }
+      }
+      CExprKind::Return { value } => {
+        CExprKind::Return { value: self.boxed(*value) }
       }
       CExprKind::Try { body, caught, handler, handles } => CExprKind::Try {
         body: self.boxed(*body),
@@ -149,30 +248,40 @@ impl Matcher {
     };
 
     let mut chain = CExpr::new(CExprKind::MatchFail, origin.clone());
-    let planned: Vec<(Plan, CExpr, Option<Span>)> = arms
-      .into_iter()
-      .map(|arm| {
-        let mut plan = Plan::default();
-
-        plan_pattern(arm.pattern, &mut Vec::new(), &mut plan);
-        (plan, arm.body, arm.origin)
-      })
-      .collect();
+    let planned: Vec<Planned> = arms.into_iter().flat_map(plan_arm).collect();
     let last = planned.len().saturating_sub(1);
     let last_is_implied = self.last_is_implied(&planned);
 
-    for (i, (mut plan, body, arm_origin)) in
-      planned.into_iter().enumerate().rev()
-    {
-      let body = self.expr(body);
+    for (i, mut arm) in planned.into_iter().enumerate().rev() {
+      let body = self.expr(arm.body);
       let then_branch =
-        self.bind(&root, &plan.binds, body, arm_origin.as_ref());
+        self.bind(&root, &arm.plans[0].binds, body, arm.origin.as_ref());
 
       if last_is_implied && i == last {
-        plan.tests.clear();
+        arm.plans[0].tests.clear();
       }
 
-      chain = match conjoin(&root, plan.tests, arm_origin.as_ref()) {
+      let guard = arm.guard.map(|guard| {
+        let guard = self.expr(guard);
+
+        self.bind(&root, &arm.plans[0].binds, guard, arm.origin.as_ref())
+      });
+      let tests = arm
+        .plans
+        .into_iter()
+        .map(|plan| conjoin(&root, plan.tests, arm.origin.as_ref()))
+        .collect::<Option<Vec<CExpr>>>()
+        .and_then(|alternatives| disjoin(alternatives, arm.origin.as_ref()));
+      let cond = match (tests, guard) {
+        (None, None) => None,
+        (Some(test), None) | (None, Some(test)) => Some(test),
+        (Some(tests), Some(guard)) => Some(CExpr::new(
+          CExprKind::Prim { op: PrimOp::And, args: vec![tests, guard] },
+          arm.origin.clone(),
+        )),
+      };
+
+      chain = match cond {
         None => then_branch,
         Some(cond) => CExpr::new(
           CExprKind::If {
@@ -180,7 +289,7 @@ impl Matcher {
             then_branch: Box::new(then_branch),
             else_branch: Box::new(chain),
           },
-          arm_origin.clone(),
+          arm.origin.clone(),
         ),
       };
     }
@@ -198,15 +307,16 @@ impl Matcher {
     }
   }
 
-  fn last_is_implied(&self, planned: &[(Plan, CExpr, Option<Span>)]) -> bool {
-    let root_tag = |plan: &Plan| match plan.tests.as_slice() {
-      [(path, PatternTest::Tag(ctor))] if path.is_empty() => Some(*ctor),
+  fn last_is_implied(&self, planned: &[Planned]) -> bool {
+    let root_tag = |arm: &Planned| match (arm.plans.as_slice(), &arm.guard) {
+      ([plan], None) => match plan.tests.as_slice() {
+        [(path, PatternTest::Tag(ctor))] if path.is_empty() => Some(*ctor),
+        _ => None,
+      },
       _ => None,
     };
-    let Some(tags) = planned
-      .iter()
-      .map(|(plan, _, _)| root_tag(plan))
-      .collect::<Option<Vec<CtorId>>>()
+    let Some(tags) =
+      planned.iter().map(root_tag).collect::<Option<Vec<CtorId>>>()
     else {
       return false;
     };
@@ -299,7 +409,17 @@ fn plan_pattern(pattern: CPattern, path: &mut Path, plan: &mut Plan) {
         path.pop();
       }
     }
+    CPattern::Or(_) => ice("an or-pattern reached planning", None),
   }
+}
+
+fn disjoin(alternatives: Vec<CExpr>, origin: Option<&Span>) -> Option<CExpr> {
+  alternatives.into_iter().reduce(|lhs, rhs| {
+    CExpr::new(
+      CExprKind::Prim { op: PrimOp::Or, args: vec![lhs, rhs] },
+      origin.cloned(),
+    )
+  })
 }
 
 fn conjoin(
@@ -391,6 +511,11 @@ fn pattern_max(p: &CPattern, max: &mut u32) {
         pattern_max(field, max);
       }
     }
+    CPattern::Or(alternatives) => {
+      for alternative in alternatives {
+        pattern_max(alternative, max);
+      }
+    }
   }
 }
 
@@ -406,7 +531,9 @@ fn expr_max(e: &CExpr, max: &mut u32) {
     | CExprKind::Op { .. }
     | CExprKind::Extern { .. } => {}
     CExprKind::Var(s) => sym_max(s, max),
-    CExprKind::Throw { value, .. } => expr_max(value, max),
+    CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+      expr_max(value, max);
+    }
     CExprKind::Try { body, caught, handler, .. } => {
       sym_max(caught, max);
       expr_max(body, max);
@@ -448,6 +575,9 @@ fn expr_max(e: &CExpr, max: &mut u32) {
       expr_max(scrutinee, max);
       for arm in arms {
         pattern_max(&arm.pattern, max);
+        if let Some(guard) = &arm.guard {
+          expr_max(guard, max);
+        }
         expr_max(&arm.body, max);
       }
     }

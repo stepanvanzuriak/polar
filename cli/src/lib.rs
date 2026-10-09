@@ -158,6 +158,10 @@ pub(crate) enum Command {
   },
   Test {
     path: Option<PathBuf>,
+    #[arg(long, value_name = "TEXT")]
+    filter: Option<String>,
+    #[arg(long, value_name = "MS", default_value_t = 5000)]
+    timeout: u64,
     #[arg(last = true)]
     args: Vec<String>,
   },

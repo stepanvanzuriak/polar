@@ -28,6 +28,25 @@ pub fn file(path: &str) -> String {
   format!("{}.px", segments.join("/"))
 }
 
+#[must_use]
+pub fn module_path<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+  segments.into_iter().map(pascal_case).collect::<Vec<_>>().join(".")
+}
+
+#[must_use]
+pub fn pascal_case(segment: &str) -> String {
+  segment
+    .split('_')
+    .map(|part| {
+      let mut chars = part.chars();
+
+      chars
+        .next()
+        .map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect())
+    })
+    .collect()
+}
+
 fn snake_case(segment: &str) -> String {
   let mut out = String::new();
   let mut prev_lower = false;

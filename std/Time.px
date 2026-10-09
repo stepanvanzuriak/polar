@@ -2,6 +2,7 @@ module Time
 
 uses
   Std.Json
+  Std.List
   Std.Option
   Std.Result
 
@@ -12,15 +13,27 @@ hosts
 types
   Time = Time(Int)
 
+  Parts = {
+    year: Int,
+    month: Int,
+    day: Int,
+    hour: Int,
+    minute: Int,
+    second: Int,
+    milli: Int,
+  } derive(Eq)
+
+constants
+  ms_per_minute = 60000
+
 effects
   Clock {
     now() -> Time
   }
 
 externs
-  format_iso(ms: Int) -> String = "./bindings/Time.js" format_iso
-  format_compact(ms: Int) -> String = "./bindings/Time.js" format_compact
-  parse_iso(text: String) -> Option<Int> = "./bindings/Time.js" parse_iso
+  to_parts(ms: Int) -> Parts = "./bindings/Time.js" to_parts
+  from_parts(parts: Parts) -> Int = "./bindings/Time.js" from_parts
 
 binds
   Clock in Node = "./bindings/Time.js"
@@ -39,18 +52,152 @@ functions
   }
 
   to_iso(time: Time) -> String {
-    format_iso(millis(time))
-  }
+    let p = to_parts(millis(time))
 
-  from_iso(text: String) -> Option<Time> {
-    match parse_iso(text) {
-      None -> None,
-      Some(ms) -> Some(Time(ms)),
-    }
+    "#{pad(p.year, 4)}-#{pad(p.month, 2)}-#{pad(p.day, 2)}T#{pad(p.hour, 2)}:#{pad(p.minute, 2)}:#{pad(p.second, 2)}.#{pad(p.milli, 3)}Z"
   }
 
   compact(time: Time) -> String {
-    format_compact(millis(time))
+    let p = to_parts(millis(time))
+
+    "#{pad(p.year, 4)}#{pad(p.month, 2)}#{pad(p.day, 2)}_#{pad(p.hour, 2)}#{pad(p.minute, 2)}#{pad(p.second, 2)}"
+  }
+
+  from_iso(text: String) -> Option<Time> {
+    let separator = String.slice(text, 10, 11)
+
+    if separator != "T" && separator != " " { return None }
+
+    match parse_date(String.slice(text, 0, 10)), parse_time(
+      String.slice(text, 11, String.length(text)),
+    ) {
+      Some(d), Some(t) -> match parse_zone(t.zone, separator == " ") {
+        Some(offset) -> build(
+          {
+            year: d.year,
+            month: d.month,
+            day: d.day,
+            hour: t.hour,
+            minute: t.minute,
+            second: t.second,
+            milli: t.milli,
+          },
+          offset,
+        ),
+        None -> None,
+      },
+      _, _ -> None,
+    }
+  }
+
+  build(parts: Parts, offset_minutes: Int) -> Option<Time> {
+    let ms = from_parts(parts)
+
+    if to_parts(ms) != parts { return None }
+
+    Some(Time(ms - offset_minutes * ms_per_minute))
+  }
+
+  parse_date(text: String) -> Option<{ year: Int, month: Int, day: Int }> {
+    let fields = match String.split(text, "-") {
+      [year, month, day] -> { year: year, month: month, day: day },
+      _ -> return None,
+    }
+
+    match number(fields.year, 4), number(fields.month, 2), number(fields.day, 2) {
+      Some(y), Some(m), Some(d) -> Some({ year: y, month: m, day: d }),
+      _, _, _ -> None,
+    }
+  }
+
+  parse_time(text: String) -> Option<{
+    hour: Int,
+    minute: Int,
+    second: Int,
+    milli: Int,
+    zone: String,
+  }> {
+    let fields = match String.split(String.slice(text, 0, 8), ":") {
+      [hour, minute, second] -> { hour: hour, minute: minute, second: second },
+      _ -> return None,
+    }
+    let fraction = parse_fraction(String.slice(text, 8, String.length(text)))
+
+    match number(fields.hour, 2), number(fields.minute, 2), number(
+      fields.second,
+      2,
+    ), fraction {
+      Some(h), Some(m), Some(s), Some(f) -> Some(
+        { hour: h, minute: m, second: s, milli: f.milli, zone: f.zone },
+      ),
+      _, _, _, _ -> None,
+    }
+  }
+
+  parse_fraction(text: String) -> Option<{ milli: Int, zone: String }> {
+    if !String.starts_with(text, ".") { return Some({ milli: 0, zone: text }) }
+
+    let digits = leading_digits(String.slice(text, 1, String.length(text)))
+    let width = String.length(digits)
+
+    if width < 1 || width > 9 { return None }
+
+    Some(
+      {
+        milli: Option.with_default(Int.parse(String.slice("#{digits}00", 0, 3)), 0),
+        zone: String.slice(text, 1 + width, String.length(text)),
+      },
+    )
+  }
+
+  parse_zone(zone: String, spaced: Bool) -> Option<Int> {
+    if spaced { return if zone == "" { Some(0) } else { None } }
+    if zone == "Z" { return Some(0) }
+
+    let sign = match String.slice(zone, 0, 1) {
+      "+" -> 1,
+      "-" -> -1,
+      _ -> return None,
+    }
+
+    match String.split(String.slice(zone, 1, String.length(zone)), ":") {
+      [hours, minutes] -> match number(hours, 2), number(minutes, 2) {
+        Some(h), Some(m) if h <= 23 && m <= 59 -> Some(sign * (h * 60 + m)),
+        _, _ -> None,
+      },
+      _ -> None,
+    }
+  }
+
+  number(text: String, width: Int) -> Option<Int> {
+    if String.length(text) != width || !List.all(String.chars(text), is_digit) {
+      return None
+    }
+
+    Int.parse(text)
+  }
+
+  leading_digits(text: String) -> String {
+    match String.chars(text) {
+      [c, .._] if is_digit(
+        c,
+      ) -> "#{c}#{leading_digits(String.slice(text, 1, String.length(text)))}",
+      _ -> "",
+    }
+  }
+
+  is_digit(c: String) -> Bool {
+    c != "" && String.contains("0123456789", c)
+  }
+
+  pad(n: Int, width: Int) -> String {
+    if n < 0 {
+      "-#{pad(0 - n, width)}"
+    } else {
+      let text = Int.to_string(n)
+
+      "#{String.repeat("0", width - String.length(text))}#{text}"
+    }
   }
 
   compare(a: Time, b: Time) -> Int {
@@ -99,6 +246,7 @@ impls
   }
 
 exports
+  Time
   Node
   Browser
   Clock

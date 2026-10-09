@@ -122,7 +122,15 @@ fn inlinable(decl: &CDecl) -> bool {
     && colour(decl.effects.as_ref(), &[]) == Colour::Poly
     && tail_var(decl.effects.as_ref()).is_some()
     && !mentions(&decl.body, decl.sym.id)
+    && !returns_early(&decl.body)
     && size(&decl.body) <= INLINE_LIMIT
+}
+
+fn returns_early(e: &CExpr) -> bool {
+  let mut found = false;
+
+  walk(e, &mut |e| found |= matches!(e.kind, CExprKind::Return { .. }));
+  found
 }
 
 fn mentions(e: &CExpr, id: u32) -> bool {
@@ -433,7 +441,15 @@ impl<'a> Copy<'a> {
   fn pattern(&mut self, pattern: &mut CPattern) {
     match pattern {
       CPattern::Wildcard | CPattern::Lit(_) => {}
-      CPattern::Bind(sym) => self.fresh(sym),
+      CPattern::Bind(sym) => match self.renames.get(&sym.id) {
+        Some(fresh) => *sym = fresh.clone(),
+        None => self.fresh(sym),
+      },
+      CPattern::Or(alternatives) => {
+        for alternative in alternatives {
+          self.pattern(alternative);
+        }
+      }
       CPattern::Ctor { ctor, args } => {
         if let Some(foreign) = &mut self.foreign {
           foreign.ctor(ctor);
@@ -523,6 +539,7 @@ fn children(e: &mut CExpr) -> Vec<&mut CExpr> {
     | CExprKind::Op { .. }
     | CExprKind::Extern { .. } => Vec::new(),
     CExprKind::Throw { value: target, .. }
+    | CExprKind::Return { value: target }
     | CExprKind::Lam { body: target, .. }
     | CExprKind::Field { target, .. }
     | CExprKind::Test { target, .. } => vec![&mut **target],
@@ -541,7 +558,11 @@ fn children(e: &mut CExpr) -> Vec<&mut CExpr> {
       vec![&mut **cond, &mut **then_branch, &mut **else_branch]
     }
     CExprKind::Case { scrutinee, arms } => std::iter::once(&mut **scrutinee)
-      .chain(arms.iter_mut().map(|arm| &mut arm.body))
+      .chain(
+        arms
+          .iter_mut()
+          .flat_map(|arm| arm.guard.iter_mut().chain([&mut arm.body])),
+      )
       .collect(),
     CExprKind::Record { fields } => {
       fields.iter_mut().map(|(_, value)| value).collect()

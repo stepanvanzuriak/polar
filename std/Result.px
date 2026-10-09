@@ -29,6 +29,7 @@ functions
   }
 
 exports
+  Result
   and_then
   map
   map_err

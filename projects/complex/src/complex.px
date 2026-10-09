@@ -67,6 +67,7 @@ functions
   }
 
 exports
+  Complex
   add
   conjugate
   invert

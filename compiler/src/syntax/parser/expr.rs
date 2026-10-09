@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
   shared::codes::DiagnosticCode::{
-    self, ChainedComparison, EmptyBlock, LocalFnDeclaration, MissingElse,
+    self, ChainedComparison, EmptyBlock, LocalFnDeclaration, MatchPatternCount,
     RecordLiteralInCondition, SpreadNotFirst, StatementsOnSameLine,
     TrailingLet, UnexpectedToken,
   },
@@ -13,15 +13,16 @@ use crate::{
   syntax::ast::{
     Binary, BinaryOp, Block, BoolLit, Call, Else, Expr, ExprStmt, FieldAccess,
     FieldInit, FloatLit, If, IntLit, InvalidExpr, Lambda, LetStmt, ListLit,
-    Match, MatchArm, Name, PVar, Pattern, Pipe, RecordLit, Stmt, StringInterp,
-    StringLit, StringPart, StringText, Throw, Try, Unary, UnaryOp, Var,
+    Match, MatchArm, Name, PVar, Pattern, Pipe, RecordLit, Return, Stmt,
+    StringInterp, StringLit, StringPart, StringText, Throw, Try, Unary,
+    UnaryOp, Var,
   },
   syntax::lexer::token::TokenKind::{
     self, Amp, AndAnd, Arrow, Bang, BangEq, Bar, Caret, Colon, Comma, Dot,
     DotDot, Eof, Eq, EqEq, Float, Ge, Gt, Int, InterpEnd, InterpStart, KwCatch,
-    KwElse, KwFalse, KwFunction, KwIf, KwLet, KwMatch, KwThrow, KwTrue, KwTry,
-    LBrace, LBracket, LParen, Le, Lower, Lt, Minus, OrOr, Percent, PipeOp,
-    Plus, RBrace, RBracket, RParen, Slash, Star, StringEnd,
+    KwElse, KwFalse, KwFunction, KwIf, KwLet, KwMatch, KwReturn, KwThrow,
+    KwTrue, KwTry, LBrace, LBracket, LParen, Le, Lower, Lt, Minus, OrOr,
+    Percent, PipeOp, Plus, RBrace, RBracket, RParen, Slash, Star, StringEnd,
     StringPart as StringPartTok, StringStart, Tilde, Underscore, Upper,
   },
 };
@@ -190,6 +191,7 @@ impl Parser<'_> {
       },
       KwMatch => self.match_expr(),
       KwThrow => self.throw_expr(),
+      KwReturn => self.return_expr(),
       KwTry => self.try_expr(),
       Minus | Bang | Tilde => self.unary(),
       _ => {
@@ -295,7 +297,7 @@ impl Parser<'_> {
 
     self.bump();
 
-    let arms = self.arms();
+    let arms = self.arms(1);
 
     self.expect(RBrace, "to close the `catch`");
 
@@ -512,64 +514,57 @@ impl Parser<'_> {
     let then_branch = self.block("to open the `if` branch");
 
     let else_branch = if self.eat(KwElse).is_some() {
-      if self.at(KwIf) {
+      Some(Box::new(if self.at(KwIf) {
         match self.nested(Self::if_expr) {
           Some(inner) => Else::If(inner),
           None => Else::Block(self.missing_block()),
         }
       } else {
         Else::Block(self.block("to open the `else` branch"))
-      }
+      }))
     } else {
-      self.error(
-        MissingElse,
-        "`if` without `else`",
-        self.span_from(&start),
-        Some("`if` is an expression, so it needs a value on both branches: add `else { … }`"),
-      );
-
-      Else::Block(self.missing_block())
+      None
     };
 
     If {
       span: self.span_from(&start),
       cond: Box::new(cond),
       then_branch: Box::new(then_branch),
-      else_branch: Box::new(else_branch),
+      else_branch,
     }
   }
 
   fn match_expr(&mut self) -> Expr {
     let start = self.bump().span.clone();
-    let scrutinee = self.with_restriction(true, Self::expr);
+    let mut subjects = vec![self.with_restriction(true, Self::expr)];
+
+    while self.eat(Comma).is_some() {
+      subjects.push(self.with_restriction(true, Self::expr));
+    }
 
     if self.expect(LBrace, "to open the `match` arms").is_none() {
       return Expr::Match(Match {
         span: self.span_from(&start),
-        scrutinee: Box::new(scrutinee),
+        subjects,
         arms: vec![],
       });
     }
 
-    let arms = self.arms();
+    let arms = self.arms(subjects.len());
 
     self.expect(RBrace, "to close the `match`");
 
-    Expr::Match(Match {
-      span: self.span_from(&start),
-      scrutinee: Box::new(scrutinee),
-      arms,
-    })
+    Expr::Match(Match { span: self.span_from(&start), subjects, arms })
   }
 
-  fn arms(&mut self) -> Vec<MatchArm> {
+  fn arms(&mut self, subjects: usize) -> Vec<MatchArm> {
     let mut arms = Vec::new();
 
     self.with_restriction(false, |p| {
       while !p.at(RBrace) && !p.at(Eof) {
         let before = p.pos;
 
-        arms.push(p.match_arm());
+        arms.push(p.match_arm(subjects));
 
         let braced = p.pos > before && p.tokens[p.pos - 1].kind == RBrace;
 
@@ -584,15 +579,74 @@ impl Parser<'_> {
     arms
   }
 
-  fn match_arm(&mut self) -> MatchArm {
-    let pattern = self.pattern();
-    let start = pattern.span().clone();
+  fn match_arm(&mut self, subjects: usize) -> MatchArm {
+    let mut rows = vec![self.pattern_row(subjects)];
+    let start = rows[0][0].span().clone();
+
+    while self.eat(Bar).is_some() {
+      rows.push(self.pattern_row(subjects));
+    }
+
+    let guard = if self.eat(KwIf).is_some() {
+      Some(Box::new(self.with_restriction(false, Self::expr)))
+    } else {
+      None
+    };
 
     self.expect(Arrow, "after a `match` pattern");
 
     let body = self.delimited_expr();
 
-    MatchArm { span: self.span_from(&start), pattern, body }
+    MatchArm { span: self.span_from(&start), rows, guard, body }
+  }
+
+  fn pattern_row(&mut self, subjects: usize) -> Vec<Pattern> {
+    let mut patterns = vec![self.single_pattern()];
+    let start = patterns[0].span().clone();
+
+    while self.eat(Comma).is_some() {
+      patterns.push(self.single_pattern());
+    }
+
+    if patterns.len() != subjects {
+      let span = start.join(patterns.last().map_or(&start, Pattern::span));
+      let what = |n: usize| {
+        if n == 1 { "1 pattern".to_string() } else { format!("{n} patterns") }
+      };
+
+      self.error(
+        MatchPatternCount,
+        format!(
+          "this arm has {}, but the `match` has {} {}",
+          what(patterns.len()),
+          subjects,
+          if subjects == 1 { "value" } else { "values" }
+        ),
+        span,
+        Some("write one pattern per value, separated by commas"),
+      );
+    }
+
+    patterns
+  }
+
+  fn return_expr(&mut self) -> Expr {
+    let start = self.bump().span.clone();
+    let next = self.peek(0);
+    let value = if starts_expr(next.kind) && !next.newline_before {
+      self.expr()
+    } else {
+      Expr::Record(RecordLit {
+        span: start.clone(),
+        spread: None,
+        fields: Vec::new(),
+      })
+    };
+
+    Expr::Return(Return {
+      span: self.span_from(&start),
+      value: Box::new(value),
+    })
   }
 
   pub(super) fn block(&mut self, context: &str) -> Block {
@@ -927,6 +981,7 @@ fn starts_expr(kind: TokenKind) -> bool {
       | KwIf
       | KwMatch
       | KwThrow
+      | KwReturn
       | KwTry
       | Bang
   )

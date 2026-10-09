@@ -1,0 +1,10 @@
+now: 2026-10-09T12:00:00.000Z
+skipped someday: "next week" is not a time
+skipped leap day: "2027-02-29T00:00:00Z" is not a time
+2026-10-01T00:00:00.000Z  renew domain: overdue
+2026-10-09T12:00:00.000Z  standup: due now
+2026-10-09T12:40:00.000Z  coffee: due within the hour
+2026-10-09T16:30:00.000Z  ship P19: due in 4h
+2026-10-12T09:00:00.000Z  write tickets: due in 2d 21h
+backup-20261009_120000.json
+json round trip: 5 tasks, same: true

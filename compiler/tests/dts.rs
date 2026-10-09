@@ -69,7 +69,7 @@ fn throws_alone_is_not_a_promise() {
     exported(
       "  f(a: Int) -> Int / {Throws<Oops>} {\n    if a == 0 { throw Oops(\"zero\") } else { a }\n  }\n"
     )
-  );
+  ) + "  Oops\n";
 
   assert!(
     dts(&src).contains("export declare function f(a: number): number;"),
@@ -95,7 +95,7 @@ fn effect_polymorphic_export_has_three_signatures() {
 #[test]
 fn variants_are_tagged_unions() {
   let text = dts(
-    "types\n  Status = Draft | Published(Int)\n  Pair<a, b> = Pair(a, b)\n",
+    "types\n  Status = Draft | Published(Int)\n  Pair<a, b> = Pair(a, b)\n\nexports\n  Status\n  Pair\n",
   );
 
   assert!(
@@ -120,7 +120,8 @@ fn record_aliases_and_open_rows() {
     )
   )
   .replacen("types\n  Post", "uses\n  Std.List\n\ntypes\n  Post", 1)
-  .replacen("\nuses\n  Std.List\n\nfunctions", "\nfunctions", 1);
+  .replacen("\nuses\n  Std.List\n\nfunctions", "\nfunctions", 1)
+    + "  Post\n";
   let text = dts(&src);
 
   assert!(

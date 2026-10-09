@@ -16,8 +16,10 @@ With `hosts`, `polar build` builds every listed host into its own directory,
 The JavaScript files a host's externs use are copied next to its output, so each
 directory runs on its own.
 `--host Node` builds just one, into `dist/`. `polar run` uses the only listed
-host, or needs `--host` when there are several. Without `hosts`, a program that
-declares one host builds for it, and one that declares several needs `--host`.
+host. When there are several, it uses `Node` if it's one of them (`polar run`
+always runs in Node), and needs `--host` otherwise. Without `hosts`, a program
+that declares one host builds for it, and one that declares several follows the
+same rule for `polar run`.
 
 Paths are relative to the project directory, so each project builds into its own
 `dist/` (ignored by git):
@@ -194,6 +196,24 @@ the server and `start` runs in the browser. Its `e2e.mjs` starts the same
 server with `serve()`, then lists, creates, fetches, rejects and deletes posts
 over HTTP, fetches the client bundle and runs the browser's `start`.
 
+## `deadlines`
+
+A task list built on `Std.Time`: due dates arrive as text, in ISO 8601 with or
+without an offset, or in SQLite's `YYYY-MM-DD HH:MM:SS`, and are parsed, sorted
+and compared with the current time.
+
+- `deadline.px` (`Deadline`): `parse` turns text into `Valid(Task)` or
+  `Invalid(…)` with `Time.from_iso`; `by_due` sorts with `Time.before`; `status`
+  matches on `Time.compare` and the hours left; `backup_name` stamps a file
+  name with `Time.compact`. `Task` derives `Json`, so times travel as ISO text.
+- `main.px` binds `Clock` in Node to a fixed instant, so the output never
+  changes and `main.expected.txt` can check it.
+
+```sh
+cd projects/deadlines
+polar run      # compared with main.expected.txt
+```
+
 ## `testing_project`
 
 A small shop checkout with tests, run by `polar test`:
@@ -209,5 +229,6 @@ A small shop checkout with tests, run by `polar test`:
 ```sh
 cd projects/testing_project
 polar test     # 9 tests in 2 files
+polar test --filter discount   # the 5 discount tests
 polar run      # prints a checkout, compared with main.expected.txt
 ```

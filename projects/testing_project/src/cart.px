@@ -41,6 +41,7 @@ functions
   }
 
 exports
+  Item
   empty
   add
   remove

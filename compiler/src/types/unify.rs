@@ -388,6 +388,30 @@ fn bind_effects(store: &mut Store, var: TVar, effects: Effects) {
   store.set_effects(var, effects);
 }
 
+pub fn subsume_effects(
+  store: &mut Store,
+  ambient: &Effects,
+  used: &Effects,
+) -> Result<(), UnifyError> {
+  let ambient = store.zonk_effects(ambient);
+  let used = store.zonk_effects(used);
+  let same_tail = match (ambient.tail, used.tail) {
+    (EffTail::Open(a), EffTail::Open(b))
+    | (EffTail::Rigid(a), EffTail::Rigid(b)) => a == b,
+    (EffTail::Gen(a), EffTail::Gen(b)) => a == b,
+    _ => false,
+  };
+
+  if !same_tail {
+    return unify_effects(store, &ambient, &used);
+  }
+
+  match split_labels(&ambient, &used).1.into_iter().next() {
+    Some(label) => Err(UnifyError::ExtraEffect { label, row: ambient }),
+    None => Ok(()),
+  }
+}
+
 pub fn unify_effects(
   store: &mut Store,
   expected: &Effects,

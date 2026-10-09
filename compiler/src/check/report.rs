@@ -8,6 +8,7 @@ use crate::{
   },
   shared::diagnostic::{Diagnostic, Label},
   shared::source::Span,
+  shared::text::quoted_list,
   types::{
     print::{Printer, bare},
     store::Store,
@@ -266,7 +267,7 @@ impl Report<'_> {
 
     labels.sort();
 
-    let names = join_names(&labels);
+    let names = quoted_list(&labels);
     let message = if labels.len() == 1 {
       format!("missing field {names}")
     } else {
@@ -397,16 +398,6 @@ pub fn argument_count(
 
 fn arguments(n: usize) -> String {
   if n == 1 { "1 argument".to_string() } else { format!("{n} arguments") }
-}
-
-fn join_names(labels: &[Arc<str>]) -> String {
-  let quoted: Vec<String> = labels.iter().map(|l| format!("`{l}`")).collect();
-
-  match quoted.as_slice() {
-    [] => String::new(),
-    [one] => one.clone(),
-    [init @ .., last] => format!("{} and {last}", init.join(", ")),
-  }
 }
 
 fn strip(ty: &Type) -> Type {

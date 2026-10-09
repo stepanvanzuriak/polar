@@ -1,0 +1,58 @@
+module Deadline
+
+uses
+  Std.Json
+  Std.List
+  Std.Option
+  Std.Time
+
+types
+  Task = { title: String, due: Time } derive(Eq, Json)
+
+  Parsed = Valid(Task) | Invalid({ title: String, due: String })
+
+functions
+  parse(title: String, due: String) -> Parsed {
+    match Time.from_iso(due) {
+      Some(time) -> Valid({ title: title, due: time }),
+      None -> Invalid({ title: title, due: due }),
+    }
+  }
+
+  by_due(tasks: List<Task>) -> List<Task> {
+    List.fold(tasks, [], insert)
+  }
+
+  insert(sorted: List<Task>, task: Task) -> List<Task> {
+    match sorted {
+      [first, ..rest] if Time.before(first.due, task.due) -> [
+        first,
+        ..insert(rest, task),
+      ],
+      _ -> [task, ..sorted],
+    }
+  }
+
+  status(task: Task, now: Time) -> String {
+    let hours = (Time.millis(task.due) - Time.millis(now)) / 3600000
+
+    match Time.compare(task.due, now), hours {
+      -1, _ -> "overdue",
+      0, _ -> "due now",
+      _, 0 -> "due within the hour",
+      _, h if h < 24 -> "due in #{h}h",
+      _, h -> "due in #{h / 24}d #{h % 24}h",
+    }
+  }
+
+  backup_name(now: Time) -> String {
+    "backup-#{Time.compact(now)}.json"
+  }
+
+exports
+  Task
+  Parsed
+  parse
+  by_due
+  status
+  backup_name

@@ -110,6 +110,7 @@ token_kinds! {
     KwNative => "native",
     KwForce => "force",
     KwThrow => "throw",
+    KwReturn => "return",
     KwTry => "try",
     KwCatch => "catch",
     KwHost => "host",

@@ -115,6 +115,8 @@ functions
   }
 
 exports
+  Post
+  Status
   main
   slug
   title_of

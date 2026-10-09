@@ -397,11 +397,8 @@ fn expr_with(stmts: bool, depth: u32) -> BoxedStrategy<Expr> {
           |(scrutinee, arms)| {
             Expr::Match(Match {
               span: sp(),
-              scrutinee: Box::new(scrutinee),
-              arms: arms
-                .into_iter()
-                .map(|(pattern, body)| MatchArm { span: sp(), pattern, body })
-                .collect(),
+              subjects: vec![scrutinee],
+              arms: arms_of(arms),
             })
           }
         ),
@@ -410,6 +407,18 @@ fn expr_with(stmts: bool, depth: u32) -> BoxedStrategy<Expr> {
       ]
     })
     .boxed()
+}
+
+fn arms_of(arms: Vec<(Pattern, Expr)>) -> Vec<MatchArm> {
+  arms
+    .into_iter()
+    .map(|(pattern, body)| MatchArm {
+      span: sp(),
+      rows: vec![vec![pattern]],
+      guard: None,
+      body,
+    })
+    .collect()
 }
 
 fn raising(
@@ -426,10 +435,7 @@ fn raising(
           span: sp(),
           body: Box::new(body),
           catch_span: sp(),
-          arms: arms
-            .into_iter()
-            .map(|(pattern, body)| MatchArm { span: sp(), pattern, body })
-            .collect(),
+          arms: arms_of(arms),
         })
       }
     ),
@@ -468,7 +474,7 @@ fn if_expr(
         span: sp(),
         cond: Box::new(cond),
         then_branch: Box::new(then_branch),
-        else_branch: Box::new(Else::Block(else_branch)),
+        else_branch: Some(Box::new(Else::Block(else_branch))),
       })
     },
   );
@@ -481,7 +487,7 @@ fn if_expr(
     span: sp(),
     cond: Box::new(cond),
     then_branch: Box::new(then_branch),
-    else_branch: Box::new(else_branch),
+    else_branch: Some(Box::new(else_branch)),
   })
 }
 

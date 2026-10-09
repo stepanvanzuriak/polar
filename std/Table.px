@@ -68,6 +68,7 @@ functions
   }
 
 exports
+  Table
   all
   delete
   find

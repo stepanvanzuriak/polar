@@ -70,7 +70,9 @@ fn all_exprs(module: &CModule) -> Vec<&CExpr> {
       | CExprKind::MatchFail
       | CExprKind::Op { .. }
       | CExprKind::Extern { .. } => {}
-      CExprKind::Throw { value, .. } => each(value),
+      CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+        each(value);
+      }
       CExprKind::Try { body, handler, .. } => {
         each(body);
         each(handler);

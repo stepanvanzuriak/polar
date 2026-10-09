@@ -3,6 +3,7 @@ pub mod builder;
 #[doc(hidden)]
 pub mod derive;
 pub mod expand;
+pub mod externs;
 pub mod lexer;
 pub mod params;
 pub mod parser;

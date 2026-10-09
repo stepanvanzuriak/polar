@@ -121,6 +121,11 @@ pub const MODULES: &[StdModule] = &[
     files: &[],
   },
   StdModule {
+    name: "Test",
+    source: include_str!("../../std/Test.px"),
+    files: &[("bindings/Test.js", include_str!("../../std/bindings/Test.js"))],
+  },
+  StdModule {
     name: "Time",
     source: include_str!("../../std/Time.px"),
     files: &[("bindings/Time.js", include_str!("../../std/bindings/Time.js"))],
@@ -206,6 +211,7 @@ pub struct Interface {
   pub effects: Vec<EffectSig>,
   pub binds: Vec<(String, String)>,
   pub inline: Vec<InlineBody>,
+  pub broken: bool,
 }
 
 impl Interface {
@@ -366,14 +372,14 @@ fn build_within(
   let header = module.name.as_ref().map(|n| n.text.clone());
 
   if bag.has_errors() {
-    return Ok((header, shape(&module)));
+    return Ok((header, broken(shape(&module))));
   }
 
   let expansion =
     crate::syntax::expand::expand(&mut module, &file, modules, &mut bag);
 
   if bag.has_errors() {
-    return Ok((header, shape(&module)));
+    return Ok((header, broken(shape(&module))));
   }
 
   let mut interface = shape(&module);
@@ -384,18 +390,23 @@ fn build_within(
   }
 
   if bag.has_errors() {
-    return Ok((header, interface));
+    return Ok((header, broken(interface)));
   }
 
   let types = check::check_as(&module, &lowered, Some(path), &mut bag);
 
   harvest(&mut interface, &types);
+  interface.broken = bag.has_errors();
 
   let core = crate::core::annotate::annotate(lowered.core, &types);
   let core = crate::core::dictionaries::elaborate(core, &types, modules);
 
   interface.inline = exportable(&core, path);
   Ok((header, interface))
+}
+
+fn broken(interface: Interface) -> Interface {
+  Interface { broken: true, ..interface }
 }
 
 fn harvest(interface: &mut Interface, types: &Types) {
@@ -416,7 +427,12 @@ fn harvest(interface: &mut Interface, types: &Types) {
       Some((name.clone(), scheme))
     })
     .collect();
-  interface.types.clone_from(&types.type_defs);
+  interface.types = types
+    .type_defs
+    .iter()
+    .filter(|(name, _)| types.exported_types.iter().any(|e| e == name))
+    .cloned()
+    .collect();
 
   for sig in &mut interface.traits {
     let Some(def) = types
@@ -460,6 +476,7 @@ fn empty() -> Interface {
     effects: Vec::new(),
     binds: Vec::new(),
     inline: Vec::new(),
+    broken: false,
   }
 }
 
@@ -470,6 +487,7 @@ fn shape(module: &Module) -> Interface {
   let arity = |name: &str| {
     decls.iter().find_map(|decl| match decl {
       Decl::Fn(f) if f.name.text == name => Some(f.params.len()),
+      Decl::Extern(e) if e.name.text == name => Some(e.params.len()),
       _ => None,
     })
   };
@@ -541,13 +559,16 @@ fn shape(module: &Module) -> Interface {
     })
     .collect();
 
+  let exported_types = module.exported_types();
   let ctors = decls
     .iter()
     .filter_map(|decl| match decl {
-      Decl::Type(ty) => match &ty.body {
-        TypeBody::Variants(v) => Some((ty, v)),
-        TypeBody::Alias(_) => None,
-      },
+      Decl::Type(ty) if exported_types.contains(&ty.name.text) => {
+        match &ty.body {
+          TypeBody::Variants(v) => Some((ty, v)),
+          TypeBody::Alias(_) => None,
+        }
+      }
       _ => None,
     })
     .flat_map(|(ty, v)| {

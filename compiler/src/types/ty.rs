@@ -20,6 +20,7 @@ pub struct Label {
 }
 
 pub const MUT: &str = "Mut";
+pub const ASYNC: &str = "Async";
 
 impl Label {
   #[must_use]
@@ -40,6 +41,16 @@ impl Label {
   #[must_use]
   pub fn is_mut(&self) -> bool {
     &*self.name == MUT
+  }
+
+  #[must_use]
+  pub fn is_async(&self) -> bool {
+    &*self.name == ASYNC
+  }
+
+  #[must_use]
+  pub fn is_builtin(&self) -> bool {
+    self.is_free() || self.is_async()
   }
 
   #[must_use]

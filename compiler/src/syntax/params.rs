@@ -8,7 +8,7 @@ use crate::{
 
 pub const PREFIX: &str = "$arg";
 
-pub fn desugar(module: &mut Module) {
+pub fn destructure(module: &mut Module) {
   for zone in &mut module.zones {
     for decl in &mut zone.decls {
       match decl {
@@ -110,22 +110,32 @@ fn expr(e: &mut Expr) {
     Expr::Block(b) => block(b),
     Expr::If(i) => if_expr(i),
     Expr::Match(m) => {
-      expr(&mut m.scrutinee);
-      m.arms.iter_mut().for_each(|arm| expr(&mut arm.body));
+      m.subjects.iter_mut().for_each(expr);
+      m.arms.iter_mut().for_each(arm);
     }
+    Expr::Return(r) => expr(&mut r.value),
     Expr::Throw(t) => expr(&mut t.value),
     Expr::Try(t) => {
       block(&mut t.body);
-      t.arms.iter_mut().for_each(|arm| expr(&mut arm.body));
+      t.arms.iter_mut().for_each(arm);
     }
   }
+}
+
+fn arm(a: &mut crate::syntax::ast::MatchArm) {
+  if let Some(guard) = &mut a.guard {
+    expr(guard);
+  }
+
+  expr(&mut a.body);
 }
 
 fn if_expr(i: &mut crate::syntax::ast::If) {
   expr(&mut i.cond);
   block(&mut i.then_branch);
-  match &mut *i.else_branch {
-    Else::Block(b) => block(b),
-    Else::If(inner) => if_expr(inner),
+  match i.else_branch.as_deref_mut() {
+    Some(Else::Block(b)) => block(b),
+    Some(Else::If(inner)) => if_expr(inner),
+    None => {}
   }
 }

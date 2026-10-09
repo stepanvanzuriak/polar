@@ -92,6 +92,7 @@ impls
   }
 
 exports
+  Html
   Render { render }
   concat
   document

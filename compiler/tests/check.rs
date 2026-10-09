@@ -324,7 +324,9 @@ mod builtins {
           ["Std.Option.Option", "Std.List.List"].contains(&&**name)
             && args.iter().all(primitive)
         }
-        Type::Record(row) => row.fields.is_empty() && row.tail.is_closed(),
+        Type::Record(row) => {
+          row.tail.is_closed() && row.fields.iter().all(|(_, t)| primitive(t))
+        }
         Type::Fn { params, ret, .. } => {
           params.iter().all(primitive) && primitive(ret)
         }

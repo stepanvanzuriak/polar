@@ -58,7 +58,9 @@ fn all_exprs(expr: &CExpr) -> Vec<&CExpr> {
       | CExprKind::MatchFail
       | CExprKind::Op { .. }
       | CExprKind::Extern { .. } => {}
-      CExprKind::Throw { value, .. } => walk(value, out),
+      CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+        walk(value, out);
+      }
       CExprKind::Try { body, handler, .. } => {
         walk(body, out);
         walk(handler, out);

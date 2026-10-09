@@ -150,3 +150,84 @@ fn extern_in_a_bind_is_still_awaited() {
     "2\n"
   );
 }
+
+const ASYNC_EXTERN: &str =
+  "externs\n  later(n: Int) -> Int / {Async} = \"./ffi.js\" later\n\n";
+
+#[test]
+fn async_extern_is_awaited_and_its_caller_is_async() {
+  let src = format!(
+    "{ASYNC_EXTERN}functions\n  bump(n: Int) -> Int / {{Async}} {{\n    later(n) + 1\n  }}\n\n  main() {{\n    Log.info(\"#{{bump(1)}}\")\n  }}\n\nexports\n  main\n"
+  );
+  let js = js(&src);
+
+  assert!(js.contains("async function bump"), "{js}");
+  assert!(js.contains("await $ext$later(n)"), "{js}");
+  assert_eq!(run(&src), "3\n");
+}
+
+#[test]
+fn async_needs_no_host_or_binding() {
+  let src = format!(
+    "{ASYNC_EXTERN}functions\n  main() -> {{}} / {{Async}} {{\n    Log.info(\"#{{later(4)}}\")\n  }}\n\nexports\n  main\n"
+  );
+
+  assert_eq!(run(&src), "5\n");
+}
+
+#[test]
+fn async_in_a_signature_makes_the_function_async() {
+  let src =
+    "functions\n  one() -> Int / {Async} {\n    1\n  }\n\nexports\n  one\n";
+
+  assert!(js(src).contains("export async function one"), "{}", js(src));
+}
+
+#[test]
+fn async_extern_in_a_pure_function_is_an_error() {
+  let src = format!(
+    "{ASYNC_EXTERN}functions\n  total(n: Int) -> Int {{\n    later(n)\n  }}\n\nexports\n  total\n"
+  );
+  let out = compile(&src, "app.px", &CompileOptions::default());
+
+  assert!(
+    out.diagnostics.iter().any(|d| d.message.contains("uses `Async`")),
+    "{:#?}",
+    out.diagnostics
+  );
+}
+
+#[test]
+fn exported_extern_needs_no_wrapper() {
+  let src = "externs\n  shout(s: String) -> String = \"./ffi.js\" shout\n\nexports\n  shout\n";
+  let out = compile(src, "app.px", &CompileOptions::default());
+
+  assert!(out.diagnostics.is_empty(), "{:#?}", out.diagnostics);
+  assert!(out.js.contains("export function shout(s)"), "{}", out.js);
+  assert!(
+    out.dts.contains("export declare function shout(s: string): string;"),
+    "{}",
+    out.dts
+  );
+}
+
+#[test]
+fn exported_extern_is_still_callable_inside_its_module() {
+  let src = "externs\n  shout(s: String) -> String = \"./ffi.js\" shout\n\nfunctions\n  main() {\n    Log.info(shout(\"hi\"))\n  }\n\nexports\n  shout\n  main\n";
+
+  assert_eq!(run(src), "HI\n");
+}
+
+#[test]
+fn exported_async_extern_is_async() {
+  let src = format!("{ASYNC_EXTERN}exports\n  later\n");
+
+  assert!(js(&src).contains("export async function later(n)"), "{}", js(&src));
+}
+
+#[test]
+fn exported_extern_keeps_its_name_in_runtime_errors() {
+  let src = "uses\n  Std.Result\n\nexterns\n  parse(s: String) -> Result<String, Int> = \"./ffi.js\" sum\n\nexports\n  parse\n";
+
+  assert!(js(src).contains("\"parse\")"), "{}", js(src));
+}

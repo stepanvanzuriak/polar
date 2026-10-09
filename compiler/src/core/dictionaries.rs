@@ -332,6 +332,9 @@ impl Elaborator<'_> {
       CExprKind::Throw { value, tag } => {
         CExprKind::Throw { value: self.boxed(*value), tag }
       }
+      CExprKind::Return { value } => {
+        CExprKind::Return { value: self.boxed(*value) }
+      }
       CExprKind::Try { body, caught, handler, handles } => CExprKind::Try {
         body: self.boxed(*body),
         caught,
@@ -360,6 +363,7 @@ impl Elaborator<'_> {
           .into_iter()
           .map(|arm| CArm {
             pattern: arm.pattern,
+            guard: arm.guard.map(|g| self.expr(g)),
             body: self.expr(arm.body),
             origin: arm.origin,
           })
@@ -459,7 +463,9 @@ pub(crate) fn walk(e: &CExpr, f: &mut dyn FnMut(&CExpr)) {
     | CExprKind::MatchFail
     | CExprKind::Op { .. }
     | CExprKind::Extern { .. } => {}
-    CExprKind::Throw { value, .. } => walk(value, f),
+    CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+      walk(value, f);
+    }
     CExprKind::Try { body, handler, .. } => {
       walk(body, f);
       walk(handler, f);
@@ -487,6 +493,9 @@ pub(crate) fn walk(e: &CExpr, f: &mut dyn FnMut(&CExpr)) {
     CExprKind::Case { scrutinee, arms } => {
       walk(scrutinee, f);
       for arm in arms {
+        if let Some(guard) = &arm.guard {
+          walk(guard, f);
+        }
         walk(&arm.body, f);
       }
     }
@@ -596,7 +605,9 @@ fn collect(e: &CExpr, out: &mut Vec<String>) {
     | CExprKind::MatchFail
     | CExprKind::Op { .. }
     | CExprKind::Extern { .. } => {}
-    CExprKind::Throw { value, .. } => collect(value, out),
+    CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+      collect(value, out);
+    }
     CExprKind::Try { body, handler, .. } => {
       collect(body, out);
       collect(handler, out);
@@ -628,6 +639,9 @@ fn collect(e: &CExpr, out: &mut Vec<String>) {
     CExprKind::Case { scrutinee, arms } => {
       collect(scrutinee, out);
       for arm in arms {
+        if let Some(guard) = &arm.guard {
+          collect(guard, out);
+        }
         collect(&arm.body, out);
       }
     }

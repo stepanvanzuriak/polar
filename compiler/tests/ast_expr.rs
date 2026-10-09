@@ -182,14 +182,15 @@ fn if_expr(src: &Src) -> Expr {
   let arms = vec![
     MatchArm {
       span: src.at("1_000 => !true", 0),
-      pattern: Pattern::Lit(PLit {
+      rows: vec![vec![Pattern::Lit(PLit {
         span: src.at("1_000", 0),
         lit: PatLit::Int(IntLit {
           span: src.at("1_000", 0),
           raw: "1_000".to_string(),
         }),
         negative: false,
-      }),
+      })]],
+      guard: None,
       body: Expr::Unary(Unary {
         span: src.at("!true", 0),
         op: UnaryOp::Not,
@@ -201,17 +202,18 @@ fn if_expr(src: &Src) -> Expr {
     },
     MatchArm {
       span: src.at("wu => wu", 0),
-      pattern: Pattern::Var(PVar {
+      rows: vec![vec![Pattern::Var(PVar {
         span: src.at("wu", 0),
         name: src.name("wu", 0),
-      }),
+      })]],
+      guard: None,
       body: src.var("wu", 1),
     },
   ];
 
   let matched = Expr::Match(Match {
     span: src.at("match pee { 1_000 => !true, wu => wu }", 0),
-    scrutinee: Box::new(src.var("pee", 0)),
+    subjects: vec![src.var("pee", 0)],
     arms,
   });
 
@@ -227,11 +229,11 @@ fn if_expr(src: &Src) -> Expr {
         field: src.name("eff", 0),
       }),
     )),
-    else_branch: Box::new(Else::Block(src.block(
+    else_branch: Some(Box::new(Else::Block(src.block(
       "{ match pee { 1_000 => !true, wu => wu } }",
       0,
       matched,
-    ))),
+    )))),
   };
 
   Expr::If(If {
@@ -244,7 +246,7 @@ fn if_expr(src: &Src) -> Expr {
       right: Box::new(src.var("bee", 0)),
     })),
     then_branch: Box::new(src.block(r#"{ "s #{alpha} t" }"#, 0, string)),
-    else_branch: Box::new(Else::If(else_if)),
+    else_branch: Some(Box::new(Else::If(else_if))),
   })
 }
 
@@ -407,11 +409,11 @@ fn binary_op_span_is_the_operator() {
 fn else_if_is_typed() {
   let block = every_kind();
   let Expr::If(outer) = &*block.result else { panic!("expected an if") };
-  let Else::If(inner) = &*outer.else_branch else {
+  let Some(Else::If(inner)) = outer.else_branch.as_deref() else {
     panic!("expected `else if`")
   };
 
-  assert!(matches!(&*inner.else_branch, Else::Block(_)));
+  assert!(matches!(inner.else_branch.as_deref(), Some(Else::Block(_))));
 }
 
 #[test]

@@ -88,7 +88,9 @@ impl Expansion {
       | CExprKind::MatchFail
       | CExprKind::Op { .. }
       | CExprKind::Extern { .. } => {}
-      CExprKind::Throw { value, .. } => self.remap_expr(value),
+      CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+        self.remap_expr(value);
+      }
       CExprKind::Try { body, handler, .. } => {
         self.remap_expr(body);
         self.remap_expr(handler);
@@ -123,6 +125,10 @@ impl Expansion {
         for arm in arms {
           if let Some(origin) = &arm.origin {
             arm.origin = Some(self.real_span(origin));
+          }
+
+          if let Some(guard) = &mut arm.guard {
+            self.remap_expr(guard);
           }
 
           self.remap_expr(&mut arm.body);
@@ -327,14 +333,15 @@ impl Gen {
   ) -> Expr {
     let arms = arms
       .into_iter()
-      .map(|(pattern, body)| MatchArm { span: self.span(), pattern, body })
+      .map(|(pattern, body)| MatchArm {
+        span: self.span(),
+        rows: vec![vec![pattern]],
+        guard: None,
+        body,
+      })
       .collect();
 
-    Expr::Match(Match {
-      span: self.span(),
-      scrutinee: Box::new(scrutinee),
-      arms,
-    })
+    Expr::Match(Match { span: self.span(), subjects: vec![scrutinee], arms })
   }
 
   pub fn p_var(&mut self, name: &str) -> Pattern {

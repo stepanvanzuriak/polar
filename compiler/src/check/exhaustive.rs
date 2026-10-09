@@ -330,7 +330,13 @@ impl Checker<'_> {
         Site::Catch { arms, ty, span } => {
           let ty = self.store.zonk(ty);
 
-          self.check_arms(arms, &ty, span, "catch", &mut diagnostics);
+          self.check_arms(
+            arms,
+            std::slice::from_ref(&ty),
+            span,
+            "catch",
+            &mut diagnostics,
+          );
         }
       }
     }
@@ -348,32 +354,50 @@ impl Checker<'_> {
   }
 
   fn check_match(&self, node: &Match, out: &mut Vec<Diagnostic>) {
-    let ty = self.scrutinee_type(node.scrutinee.span());
-    let span = Span {
-      file: node.span.file.clone(),
-      start: node.span.start,
-      end: node.scrutinee.span().end,
-    };
+    let types: Vec<Type> = node
+      .subjects
+      .iter()
+      .map(|subject| self.scrutinee_type(subject.span()))
+      .collect();
+    let end = node.subjects.last().map_or(node.span.end, |s| s.span().end);
+    let span =
+      Span { file: node.span.file.clone(), start: node.span.start, end };
     let arms: Vec<&MatchArm> = node.arms.iter().collect();
 
-    self.check_arms(&arms, &ty, &span, "match", out);
+    self.check_arms(&arms, &types, &span, "match", out);
+  }
+
+  fn rows(&self, arm: &MatchArm) -> Vec<Vec<Pat>> {
+    arm
+      .rows
+      .iter()
+      .flat_map(|row| product(row.iter().map(|p| self.pats(p)).collect()))
+      .collect()
   }
 
   fn check_arms(
     &self,
     arms: &[&MatchArm],
-    ty: &Type,
+    types: &[Type],
     span: &Span,
     what: &str,
     out: &mut Vec<Diagnostic>,
   ) {
     let sigs = Env { checker: self };
-    let rows: Vec<Vec<Pat>> =
-      arms.iter().map(|arm| vec![self.pat(&arm.pattern)]).collect();
-    let types = [ty.clone()];
+    let rows: Vec<Vec<Vec<Pat>>> =
+      arms.iter().map(|arm| self.rows(arm)).collect();
+    let covering = |i: usize| -> Vec<Vec<Pat>> {
+      (0..i)
+        .filter(|&j| arms[j].guard.is_none())
+        .flat_map(|j| rows[j].clone())
+        .collect()
+    };
 
     for (i, arm) in arms.iter().enumerate() {
-      if useful(&rows[..i], &rows[i], &types, &sigs).is_some() {
+      let earlier = covering(i);
+
+      if rows[i].iter().any(|row| useful(&earlier, row, types, &sigs).is_some())
+      {
         continue;
       }
 
@@ -383,12 +407,11 @@ impl Checker<'_> {
         Label::new(arm.span.clone())
           .with_message("earlier arms already match everything it would"),
       );
-      let covering = (0..i).find(|&j| {
-        useful(std::slice::from_ref(&rows[j]), &rows[i], &types, &sigs)
-          .is_none()
+      let by = (0..i).filter(|&j| arms[j].guard.is_none()).find(|&j| {
+        rows[i].iter().all(|row| useful(&rows[j], row, types, &sigs).is_none())
       });
 
-      if let Some(j) = covering {
+      if let Some(j) = by {
         diagnostic = diagnostic.with_secondary(
           Label::new(arms[j].span.clone())
             .with_message("this arm already covers it"),
@@ -398,12 +421,17 @@ impl Checker<'_> {
       out.push(diagnostic);
     }
 
-    if let Some(witness) = useful(&rows, &[Pat::Wild], &types, &sigs) {
+    let all = covering(arms.len());
+    let wild = vec![Pat::Wild; types.len()];
+
+    if let Some(witness) = useful(&all, &wild, types, &sigs) {
+      let shown: Vec<String> = witness.iter().map(show).collect();
+
       out.push(Diagnostic::error(
         NonExhaustiveMatch,
         format!("this `{what}` doesn't cover every case"),
         Label::new(span.clone())
-          .with_message(format!("`{}` is not covered", show(&witness[0]))),
+          .with_message(format!("`{}` is not covered", shown.join(", "))),
       ));
     }
   }
@@ -411,7 +439,8 @@ impl Checker<'_> {
   fn check_let(&self, stmt: &LetStmt, out: &mut Vec<Diagnostic>) {
     let ty = self.scrutinee_type(stmt.value.span());
     let sigs = Env { checker: self };
-    let rows = vec![vec![self.pat(&stmt.pattern)]];
+    let rows: Vec<Vec<Pat>> =
+      self.pats(&stmt.pattern).into_iter().map(|p| vec![p]).collect();
 
     if let Some(witness) = useful(&rows, &[Pat::Wild], &[ty], &sigs) {
       let parameter = matches!(&stmt.value, Expr::Var(v) if params::is_synthetic(&v.name.text));
@@ -439,9 +468,108 @@ impl Checker<'_> {
     }
   }
 
-  fn pat(&self, pattern: &Pattern) -> Pat {
+  fn pats(&self, pattern: &Pattern) -> Vec<Pat> {
     match pattern {
-      Pattern::Wildcard(_) | Pattern::Var(_) | Pattern::Invalid(_) => Pat::Wild,
+      Pattern::Or(or) => {
+        or.alternatives.iter().flat_map(|p| self.pats(p)).collect()
+      }
+      Pattern::Ctor(ctor) => {
+        let name = self.ctor_name(ctor);
+
+        product(ctor.args.iter().map(|a| self.pats(a)).collect())
+          .into_iter()
+          .map(|args| Pat::Ctor { name: name.clone(), args, list: false })
+          .collect()
+      }
+      Pattern::Record(record) => {
+        let mut names: Vec<&str> = Vec::new();
+        let mut columns: Vec<Vec<Pat>> = Vec::new();
+
+        for field in &record.fields {
+          if !names.contains(&field.name.text.as_str()) {
+            names.push(&field.name.text);
+            columns.push(self.pats(&field.pattern));
+          }
+        }
+
+        product(columns)
+          .into_iter()
+          .map(|values| {
+            let mut fields: Vec<(Arc<str>, Pat)> =
+              names.iter().map(|n| Arc::from(*n)).zip(values).collect();
+
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+            Pat::Record(fields)
+          })
+          .collect()
+      }
+      Pattern::List(list) => {
+        let (nil, cons) = self.list_ctors(list);
+        let ends = match &list.tail {
+          Some(tail) => self.pats(tail),
+          None => {
+            vec![Pat::Ctor { name: nil.clone(), args: Vec::new(), list: false }]
+          }
+        };
+        let items: Vec<Vec<Pat>> =
+          list.items.iter().map(|i| self.pats(i)).collect();
+
+        ends
+          .into_iter()
+          .flat_map(|end| {
+            let cons = cons.clone();
+
+            product(items.clone()).into_iter().map(move |values| {
+              values.into_iter().rev().fold(end.clone(), |acc, item| {
+                Pat::Ctor {
+                  name: cons.clone(),
+                  args: vec![item, acc],
+                  list: false,
+                }
+              })
+            })
+          })
+          .collect()
+      }
+      _ => vec![Self::pat(pattern)],
+    }
+  }
+
+  fn ctor_name(&self, ctor: &crate::syntax::ast::PCtor) -> Arc<str> {
+    let name = match self.resolutions.get(&ctor.name.span) {
+      Some(Resolved::Ctor(id)) => self
+        .core
+        .ctors
+        .get(id.0 as usize)
+        .map_or(ctor.name.text.clone(), |c| c.name.clone()),
+      _ => ctor.name.text.clone(),
+    };
+
+    Arc::from(name.as_str())
+  }
+
+  fn list_ctors(
+    &self,
+    list: &crate::syntax::ast::PList,
+  ) -> (Arc<str>, Arc<str>) {
+    match self.resolutions.get(&list.span) {
+      Some(Resolved::List { nil, cons }) => {
+        let name = |id: crate::core::ir::CtorId| {
+          self
+            .core
+            .ctors
+            .get(id.0 as usize)
+            .map_or_else(String::new, |c| c.name.clone())
+        };
+
+        (Arc::from(name(*nil).as_str()), Arc::from(name(*cons).as_str()))
+      }
+      _ => (Arc::from("Nil"), Arc::from("Cons")),
+    }
+  }
+
+  fn pat(pattern: &Pattern) -> Pat {
+    match pattern {
       Pattern::Lit(lit) => match &lit.lit {
         PatLit::Bool(b) => Pat::Bool(b.value),
         PatLit::Int(int) => Pat::Lit(number(&int.raw, lit.negative)),
@@ -459,69 +587,25 @@ impl Checker<'_> {
           Pat::Lit(format!("\"{text}\""))
         }
       },
-      Pattern::Ctor(ctor) => {
-        let name = match self.resolutions.get(&ctor.name.span) {
-          Some(Resolved::Ctor(id)) => self
-            .core
-            .ctors
-            .get(id.0 as usize)
-            .map_or(ctor.name.text.clone(), |c| c.name.clone()),
-          _ => ctor.name.text.clone(),
-        };
-
-        Pat::Ctor {
-          name: Arc::from(name.as_str()),
-          args: ctor.args.iter().map(|a| self.pat(a)).collect(),
-          list: false,
-        }
-      }
-      Pattern::Record(record) => {
-        let mut fields: Vec<(Arc<str>, Pat)> = Vec::new();
-
-        for field in &record.fields {
-          if !fields.iter().any(|(n, _)| **n == *field.name.text) {
-            fields.push((
-              Arc::from(field.name.text.as_str()),
-              self.pat(&field.pattern),
-            ));
-          }
-        }
-
-        fields.sort_by(|a, b| a.0.cmp(&b.0));
-        Pat::Record(fields)
-      }
-      Pattern::List(list) => {
-        let (nil, cons) = match self.resolutions.get(&list.span) {
-          Some(Resolved::List { nil, cons }) => {
-            let name = |id: crate::core::ir::CtorId| {
-              self
-                .core
-                .ctors
-                .get(id.0 as usize)
-                .map_or_else(String::new, |c| c.name.clone())
-            };
-
-            (name(*nil), name(*cons))
-          }
-          _ => ("Nil".to_string(), "Cons".to_string()),
-        };
-        let end = match &list.tail {
-          Some(tail) => self.pat(tail),
-          None => Pat::Ctor {
-            name: Arc::from(nil.as_str()),
-            args: Vec::new(),
-            list: false,
-          },
-        };
-
-        list.items.iter().rev().fold(end, |acc, item| Pat::Ctor {
-          name: Arc::from(cons.as_str()),
-          args: vec![self.pat(item), acc],
-          list: false,
-        })
-      }
+      _ => Pat::Wild,
     }
   }
+}
+
+fn product(columns: Vec<Vec<Pat>>) -> Vec<Vec<Pat>> {
+  columns.into_iter().fold(vec![Vec::new()], |rows, column| {
+    rows
+      .iter()
+      .flat_map(|row| {
+        column.iter().map(move |pat| {
+          let mut row = row.clone();
+
+          row.push(pat.clone());
+          row
+        })
+      })
+      .collect()
+  })
 }
 
 fn number(raw: &str, negative: bool) -> String {

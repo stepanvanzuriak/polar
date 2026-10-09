@@ -10,7 +10,7 @@ mod start;
 mod testing;
 
 pub(crate) use build::{
-  build_into, write_externs, write_output, write_runtime, write_std,
+  TestCase, build_into, write_externs, write_output, write_runtime, write_std,
 };
 
 use crate::{
@@ -98,7 +98,11 @@ pub(crate) fn dispatch(
     Command::Start { path, host, args } => {
       start::start(ctx, path.as_deref(), host.as_deref(), &args)
     }
-    Command::Test { path, args } => testing::test(ctx, path.as_deref(), &args),
+    Command::Test { path, filter, timeout, args } => testing::test(
+      ctx,
+      path.as_deref(),
+      &testing::Options { filter: filter.as_deref(), timeout, args: &args },
+    ),
     Command::Repl { path, setup, expr } => {
       repl::repl(ctx, path.as_deref(), setup.as_deref(), expr.as_deref())
     }
