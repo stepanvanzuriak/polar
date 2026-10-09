@@ -1,0 +1,40 @@
+module CartTest
+
+uses
+  Cart
+  Std.Assert
+  Std.List
+
+functions
+  sample() -> List<Item> {
+    Cart.empty() |> Cart.add("book", 1999) |> Cart.add("pen", 250) |> Cart.add("pen", 250)
+  }
+
+  test_empty_cart() -> {} / {Throws<Failed>} {
+    Assert.equal(Cart.count(Cart.empty()), 0)
+    Assert.equal(Cart.subtotal(Cart.empty()), 0)
+  }
+
+  test_add_merges_same_item() -> {} / {Throws<Failed>} {
+    let items = sample()
+
+    Assert.equal(List.length(items), 2)
+    Assert.equal(Cart.count(items), 3)
+  }
+
+  test_subtotal() -> {} / {Throws<Failed>} {
+    Assert.equal(Cart.subtotal(sample()), 2499)
+  }
+
+  test_remove() -> {} / {Throws<Failed>} {
+    let items = Cart.remove(sample(), "pen")
+
+    Assert.equal(Cart.count(items), 1)
+    Assert.equal(Cart.subtotal(items), 1999)
+  }
+
+exports
+  test_empty_cart
+  test_add_merges_same_item
+  test_subtotal
+  test_remove

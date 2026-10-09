@@ -3,14 +3,14 @@ use crate::{
   CliError, Ctx,
   files::{
     discover, normalize, relative_path, rewrite_map, runtime_specifier,
-    write_atomic,
+    without_tests, write_atomic,
   },
   guard, plural,
   project::{Start, Target},
   runtime::{LAUNCHER_JS, RUNTIME_JS, START_JS},
 };
 use polar_compiler::{
-  CompileOptions, Stage, shared::diagnostic::Severity, stdlib,
+  CompileOptions, CompileOutput, Stage, shared::diagnostic::Severity, stdlib,
 };
 use std::{
   path::{Path, PathBuf},
@@ -27,7 +27,7 @@ pub(crate) fn build(
   targets: &[Target],
   host: Option<&str>,
 ) -> Result<u8, CliError> {
-  Ok(u8::from(build_into(ctx, targets, host, true)?.is_none()))
+  Ok(u8::from(build_into(ctx, targets, host, true, None)?.is_none()))
 }
 
 pub(crate) fn build_into(
@@ -35,6 +35,7 @@ pub(crate) fn build_into(
   targets: &[Target],
   host: Option<&str>,
   announce: bool,
+  manifest_root: Option<&Path>,
 ) -> Result<Option<Vec<Written>>, CliError> {
   let start = Instant::now();
   let mut built = Vec::new();
@@ -48,6 +49,11 @@ pub(crate) fn build_into(
     }
 
     let inputs = discover(&target.paths, &ctx.io.cwd, Some(&target.out))?;
+    let inputs = if manifest_root.is_some() {
+      inputs
+    } else {
+      without_tests(inputs, &target.paths, &ctx.io.cwd)
+    };
     let project = target.project.as_ref().map(|_| target.hosts.as_slice());
     let hosts = Plan::hosts(host, project, &inputs)?;
     let several = hosts.len() > 1;
@@ -107,6 +113,10 @@ pub(crate) fn build_into(
 
     write_bridges(&out_dir, compiled)?;
 
+    if let Some(root) = manifest_root {
+      write_test_manifest(ctx, &out_dir, root, compiled)?;
+    }
+
     if !announce {
       continue;
     }
@@ -140,6 +150,58 @@ pub(crate) fn build_into(
   }
 
   Ok(Some(written))
+}
+
+fn write_test_manifest(
+  ctx: &Ctx<'_, '_>,
+  out_dir: &Path,
+  root: &Path,
+  compiled: &[Compiled],
+) -> Result<(), CliError> {
+  let mut files: Vec<(String, &Compiled, &CompileOutput)> = compiled
+    .iter()
+    .filter_map(|c| {
+      let output = c.output.as_ref()?;
+      let hidden = c
+        .input
+        .output
+        .components()
+        .any(|part| part.as_os_str().to_string_lossy().starts_with('_'));
+
+      (!output.tests.is_empty() && !hidden).then(|| {
+        let file =
+          relative_path(root, &normalize(&ctx.io.cwd.join(&c.input.path)));
+
+        (file, c, output)
+      })
+    })
+    .collect();
+
+  files.sort_by(|a, b| a.0.cmp(&b.0));
+
+  let tests: Vec<serde_json::Value> = files
+    .iter()
+    .flat_map(|(file, c, output)| {
+      let js = c.input.output.with_extension("js");
+      let js = js.to_string_lossy().replace('\\', "/");
+
+      output.tests.iter().map(move |test| {
+        serde_json::json!({
+          "file": file,
+          "module": output.module,
+          "js": js,
+          "name": test.name,
+          "line": test.line,
+        })
+      })
+    })
+    .collect();
+
+  let manifest = serde_json::json!({ "version": 1, "tests": tests });
+  let path = out_dir.join("_polar").join("tests.json");
+
+  write_atomic(&path, manifest.to_string().as_bytes())
+    .map_err(|e| CliError::write(path.display().to_string(), &e))
 }
 
 fn write_start(

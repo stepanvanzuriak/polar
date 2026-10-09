@@ -1,0 +1,47 @@
+module Main
+
+uses
+  Cart
+  Pricing.Discount
+  Std.List
+  Std.Option
+  Std.Result
+
+functions
+  money(cents: Int) -> String {
+    let rest = cents % 100
+    let pad = if rest < 10 { "0" } else { "" }
+
+    "$#{cents / 100}.#{pad}#{rest}"
+  }
+
+  checkout(items: List<Item>, code: String) -> {} {
+    let subtotal = Cart.subtotal(items)
+
+    match Discount.parse(code) {
+      Ok(c) -> {
+        let total = Discount.apply(subtotal, c)
+
+        Log.info(
+          "#{code}: #{money(total)} + shipping #{money(Discount.shipping(total, Some(c)))}",
+        )
+      }
+      Err(message) -> Log.info(message),
+    }
+  }
+
+  main() {
+    let items = Cart.empty()
+      |> Cart.add("book", 1999)
+      |> Cart.add("pen", 250)
+      |> Cart.add("pen", 250)
+
+    Log.info("items: #{Cart.count(items)}")
+    Log.info("subtotal: #{money(Cart.subtotal(items))}")
+    checkout(items, "SAVE10")
+    checkout(items, "SHIPFREE")
+    checkout(items, "BOGUS")
+  }
+
+exports
+  main

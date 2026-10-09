@@ -1,7 +1,7 @@
 use crate::{
   CliError, Compiler, Ctx,
   commands::{Compiled, compile_input, has_errors, render},
-  files::{Input, discover, normalize, runtime_specifier},
+  files::{Input, discover, normalize, runtime_specifier, without_tests},
   plural,
 };
 use notify_debouncer_full::{
@@ -221,7 +221,16 @@ impl Cycler {
 
     match discover(&self.options.paths, &self.options.cwd, self.out.as_deref())
     {
-      Ok(inputs) => self.update(&inputs, changed, &mut result, &mut report),
+      Ok(inputs) => {
+        let inputs = match self.options.mode {
+          WatchMode::Build { .. } => {
+            without_tests(inputs, &self.options.paths, &self.options.cwd)
+          }
+          WatchMode::Check { .. } => inputs,
+        };
+
+        self.update(&inputs, changed, &mut result, &mut report);
+      }
       Err(e) => {
         e.report(&mut report, self.options.debug);
         result.errors += 1;

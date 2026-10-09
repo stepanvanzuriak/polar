@@ -193,3 +193,21 @@ Its `polar.toml` picks `simple_framework`'s launcher, so `polar run` in
 the server and `start` runs in the browser. Its `e2e.mjs` starts the same
 server with `serve()`, then lists, creates, fetches, rejects and deletes posts
 over HTTP, fetches the client bundle and runs the browser's `start`.
+
+## `testing_project`
+
+A small shop checkout with tests, run by `polar test`:
+
+- `cart.px` (`Cart`): a cart as a `List<Item>`, with `add` (which merges the same
+  item), `remove`, `count` and `subtotal`;
+- `pricing/discount.px` (`Pricing.Discount`): parses discount codes into a `Code`
+  variant and applies them, plus a shipping rule;
+- `cart_test.px` and `pricing/discount_test.px`: exported `test_*` functions that
+  throw `Assert.Failed`. Helpers such as `sample()` stay unexported, so they get no
+  "not run as a test" warning.
+
+```sh
+cd projects/testing_project
+polar test     # 9 tests in 2 files
+polar run      # prints a checkout, compared with main.expected.txt
+```

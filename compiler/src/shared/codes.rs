@@ -118,6 +118,8 @@ diagnostic_codes! {
   BridgeTargetUnbound         = 818,
   BridgeNotWireSafe           = 819,
   BridgeChain                 = 820,
+  TestHasParams               = 821,
+  NotRunAsTest                = 822,
   PluginError                 = 901,
   PluginFailed                = 902,
 }

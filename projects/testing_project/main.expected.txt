@@ -1,0 +1,5 @@
+items: 3
+subtotal: $24.99
+SAVE10: $22.50 + shipping $4.99
+SHIPFREE: $24.99 + shipping $0.00
+unknown code BOGUS

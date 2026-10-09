@@ -210,7 +210,7 @@ pub(crate) fn prepare_launch(
     library: false,
     start: None,
   };
-  let Some(written) = build_into(ctx, &[target], None, false)? else {
+  let Some(written) = build_into(ctx, &[target], None, false, None)? else {
     return Ok(None);
   };
   let hosts: serde_json::Map<String, serde_json::Value> = written

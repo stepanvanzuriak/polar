@@ -1,0 +1,5 @@
+[project]
+name = "testing_project"
+src = "src"
+out = "dist"
+main = "src/main.px"

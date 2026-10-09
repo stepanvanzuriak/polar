@@ -1,33 +1,37 @@
-import { describe, test } from "node:test";
-import { readdirSync } from "node:fs";
-import { join, sep } from "node:path";
+import { test } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [out] = process.argv.slice(2);
-const files = readdirSync(out, { recursive: true })
-  .filter((file) => file.endsWith("_test.js"))
-  .filter((file) => !file.split(sep).some((part) => part.startsWith("_")))
-  .sort();
+const { tests } = JSON.parse(readFileSync(join(out, "_polar", "tests.json"), "utf8"));
 
-if (files.length === 0) {
+if (tests.length === 0) {
   console.log("no tests found (looked for *_test.px under src)");
 }
 
-for (const file of files) {
-  const module = await import(pathToFileURL(join(out, file)).href);
-  const names = Object.keys(module).filter((name) => name.startsWith("test_")).sort();
+const modules = new Map();
 
-  describe(file.replace(/\.js$/, ".px"), () => {
-    for (const name of names) {
-      test(name, async () => {
-        try {
-          await module[name]();
-        } catch (error) {
-          throw readable(error);
-        }
-      });
+for (const { js } of tests) {
+  if (!modules.has(js)) {
+    modules.set(js, await import(pathToFileURL(join(out, js)).href));
+  }
+}
+
+for (const { js, name } of tests) {
+  const module = modules.get(js);
+
+  test(qualified(js, name), async () => {
+    try {
+      await module[name]();
+    } catch (error) {
+      throw readable(error);
     }
   });
+}
+
+function qualified(js, name) {
+  return [...js.replace(/\.js$/, "").split("/"), name].join("::");
 }
 
 function readable(error) {
