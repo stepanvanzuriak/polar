@@ -252,15 +252,7 @@ mod lowering {
       let (_, diagnostics) =
         lower_src(&format!("types\n  {ty}\n\nexports\n  {name}\n"));
 
-      assert_eq!(codes(&diagnostics), [UnknownName]);
-      assert_eq!(
-        diagnostics[0].message,
-        format!("`{name}` is a type, and types are always exported")
-      );
-      assert_eq!(
-        diagnostics[0].help.as_deref(),
-        Some("remove it from `exports`")
-      );
+      assert_eq!(codes(&diagnostics), []);
     }
   }
 }

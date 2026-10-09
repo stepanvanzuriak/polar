@@ -1,0 +1,86 @@
+module Main
+
+uses
+  Deadline
+  Std.Json
+  Std.List
+  Std.Option
+  Std.Result
+  Std.Time
+
+hosts
+  Node
+
+binds
+  Clock in Node {
+    now() {
+      Option.with_default(Time.from_iso("2026-10-09T12:00:00Z"), Time.from_millis(0))
+    }
+  }
+
+functions
+  main() -> {} / {Clock} {
+    let now = Clock.now()
+    let parsed = [
+      Deadline.parse("ship P19", "2026-10-09T18:30:00+02:00"),
+      Deadline.parse("write tickets", "2026-10-12 09:00:00"),
+      Deadline.parse("renew domain", "2026-10-01T00:00:00Z"),
+      Deadline.parse("standup", "2026-10-09T12:00:00Z"),
+      Deadline.parse("coffee", "2026-10-09T12:40:00Z"),
+      Deadline.parse("someday", "next week"),
+      Deadline.parse("leap day", "2027-02-29T00:00:00Z"),
+    ]
+    let tasks = List.concat_map(
+      parsed,
+      function(p) {
+        match p {
+          Valid(task) -> [task],
+          Invalid(_) -> [],
+        }
+      },
+    )
+
+    Log.info("now: #{now}")
+
+    for_each(
+      parsed,
+      function(p) {
+        match p {
+          Invalid(bad) -> Log.info("skipped #{bad.title}: \"#{bad.due}\" is not a time"),
+          Valid(_) -> {},
+        }
+      },
+    )
+
+    for_each(
+      Deadline.by_due(tasks),
+      function(task) {
+        Log.info("#{Time.to_iso(task.due)}  #{task.title}: #{Deadline.status(task, now)}")
+      },
+    )
+
+    Log.info(Deadline.backup_name(now))
+
+    let saved = Json.encode(tasks)
+    let loaded: Result<JsonError, List<Task>> = Json.decode(saved)
+
+    match loaded {
+      Ok(back) -> Log.info(
+        "json round trip: #{List.length(back)} tasks, same: #{back == tasks}",
+      ),
+      Err(error) -> Log.info("json failed: #{Json.message(error)}"),
+    }
+  }
+
+  for_each(xs: List<a>, f: function(a) -> {} / {| e}) -> {} / {| e} {
+    match xs {
+      [] -> {},
+      [x, ..rest] -> {
+        f(x)
+        for_each(rest, f)
+      }
+    }
+  }
+
+exports
+  main

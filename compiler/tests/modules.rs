@@ -1,7 +1,8 @@
 use polar_compiler::{
   CompileOptions, CompileOutput, compile,
   shared::codes::DiagnosticCode::{
-    self, CallArity, DuplicateDefinition, UnknownBuiltinMember, UnknownModule,
+    self, BrokenImport, CallArity, DuplicateDefinition, UnknownBuiltinMember,
+    UnknownModule,
   },
   shared::modules::{ModuleSource, file, imports},
 };
@@ -24,6 +25,7 @@ functions
   }
 
 exports
+  Shape
   area
 ";
 
@@ -97,6 +99,19 @@ fn header_names_the_last_segment() {
   assert_eq!(
     codes(&using("Geometry.Shapes", "1"), vec![wrong]),
     [UnknownModule]
+  );
+}
+
+#[test]
+fn an_import_with_errors_is_reported_at_the_import() {
+  let broken = ModuleSource {
+    source: SHAPES.replace("w * w", "w * \"two\""),
+    ..shapes("Shapes")
+  };
+
+  assert_eq!(
+    codes(&using("Shapes", "Shapes.area(Circle(1.0))"), vec![broken]),
+    [BrokenImport]
   );
 }
 

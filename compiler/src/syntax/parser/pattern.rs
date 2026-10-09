@@ -3,18 +3,35 @@ use crate::{
   shared::codes::DiagnosticCode::InterpolationInPattern,
   shared::source::Span,
   syntax::ast::{
-    BoolLit, FloatLit, IntLit, InvalidPattern, PCtor, PField, PList, PLit,
+    BoolLit, FloatLit, IntLit, InvalidPattern, PCtor, PField, PList, PLit, POr,
     PRecord, PVar, PWildcard, PatLit, Pattern, StringPart,
   },
   syntax::lexer::token::TokenKind::{
-    Colon, Comma, DotDot, Eof, Float, Int, KwFalse, KwTrue, LBrace, LBracket,
-    LParen, Lower, Minus, RBrace, RBracket, RParen, StringStart, Underscore,
-    Upper,
+    Bar, Colon, Comma, DotDot, Eof, Float, Int, KwFalse, KwTrue, LBrace,
+    LBracket, LParen, Lower, Minus, RBrace, RBracket, RParen, StringStart,
+    Underscore, Upper,
   },
 };
 
 impl Parser<'_> {
   pub fn pattern(&mut self) -> Pattern {
+    let first = self.single_pattern();
+
+    if !self.at(Bar) {
+      return first;
+    }
+
+    let start = first.span().clone();
+    let mut alternatives = vec![first];
+
+    while self.eat(Bar).is_some() {
+      alternatives.push(self.single_pattern());
+    }
+
+    Pattern::Or(POr { span: self.span_from(&start), alternatives })
+  }
+
+  pub(super) fn single_pattern(&mut self) -> Pattern {
     match self.nested(Self::pattern_inner) {
       Some(pattern) => pattern,
       None => self.invalid_pattern(),

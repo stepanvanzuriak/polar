@@ -37,7 +37,9 @@ pub fn emit(
   let mut body = String::new();
 
   for (name, def) in &types.type_defs {
-    body.push_str(&printer.type_def(name, def));
+    if types.exported_types.iter().any(|e| e == bare(name)) {
+      body.push_str(&printer.type_def(name, def));
+    }
   }
 
   for decl in module.decls.iter().filter(|d| d.exported) {

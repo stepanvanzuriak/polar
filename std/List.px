@@ -114,6 +114,7 @@ functions
   }
 
 exports
+  List
   all
   any
   append

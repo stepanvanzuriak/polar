@@ -35,6 +35,8 @@ functions
   }
 
 exports
+  NewUser
+  User
   Node
   Users
   describe

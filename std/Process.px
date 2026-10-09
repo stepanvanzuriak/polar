@@ -41,6 +41,9 @@ functions
   }
 
 exports
+  EnvVar
+  RunOptions
+  Output
   Node
   Process
   inherit

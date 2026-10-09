@@ -28,5 +28,6 @@ binds
   Fs in Node = "./bindings/Fs.js"
 
 exports
+  FsError
   Node
   Fs

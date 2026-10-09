@@ -250,6 +250,8 @@ impls
   }
 
 exports
+  JsonValue
+  JsonError
   Json { to_json, from_json }
   decode
   encode

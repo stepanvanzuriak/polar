@@ -43,7 +43,7 @@ export function show(x) {
  * @param {...unknown} args
  * @returns {object}
  */
-function variant(name, ...values) {
+export function variant(name, ...values) {
   const value = { $: name };
 
   values.forEach((arg, i) => {
@@ -81,7 +81,7 @@ function args(value) {
  * @param {object} value
  * @returns {unknown}
  */
-function payload(value) {
+export function payload(value) {
   return value._0;
 }
 
@@ -422,6 +422,18 @@ export const String = {
   /** @param {string} s @param {string} sep @returns {object} a `List<String>` */
   split(s, sep) {
     return list(s.split(sep));
+  },
+
+  split_once(s, sep) {
+    const at = s.indexOf(sep);
+
+    return at < 0
+      ? none()
+      : some({ before: s.slice(0, at), after: s.slice(at + sep.length) });
+  },
+
+  chars(s) {
+    return list(Array.from(s));
   },
 };
 

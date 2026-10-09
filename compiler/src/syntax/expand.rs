@@ -8,7 +8,7 @@ use crate::{
   shared::modules::ModuleSource,
   shared::source::{SourceFile, Span},
   syntax::ast::{
-    Builtin, Decl, Module, TypeExpr, Zone, ZoneKind,
+    Builtin, Decl, ExportDecl, Module, Name, TypeExpr, Zone, ZoneKind,
     fields::{AsNode, NodeRef, children},
   },
   syntax::builder::{Expansion, Gen},
@@ -25,10 +25,19 @@ pub fn expand(
   modules: &[ModuleSource],
   bag: &mut DiagnosticBag,
 ) -> Expansion {
-  params::desugar(module);
+  params::destructure(module);
+  super::externs::wrap_exported(module);
 
   let mut builder = Gen::new(file);
   let emitted = expand_plugins(module, file, &mut builder, bag);
+
+  let generated_types: Vec<Name> = emitted
+    .iter()
+    .filter_map(|(_, d)| match d {
+      Decl::Type(t) => Some(t.name.clone()),
+      _ => None,
+    })
+    .collect();
 
   for kind in Builtin::ALL {
     let decls: Vec<Decl> = emitted
@@ -41,6 +50,8 @@ pub fn expand(
       insert_decls(module, kind, decls, &builder.file.clone());
     }
   }
+
+  export_generated(module, generated_types, &builder.file.clone());
 
   derive::expand(module, modules, &mut builder);
   builder.finish()
@@ -193,7 +204,7 @@ pub(crate) fn siblings(
 ) -> Vec<(String, String)> {
   let mut module = module.clone();
 
-  params::desugar(&mut module);
+  params::destructure(&mut module);
 
   let lexed = lex(file, &mut DiagnosticBag::default());
   let summary = summarize(&module);
@@ -399,6 +410,29 @@ fn type_text(ty: &TypeExpr) -> String {
       format!("{{ {} }}", fields.join(", "))
     }
     TypeExpr::Invalid(_) => String::new(),
+  }
+}
+
+fn export_generated(module: &mut Module, names: Vec<Name>, file: &Arc<str>) {
+  let exported: Vec<String> = module
+    .zones
+    .iter()
+    .flat_map(|z| &z.decls)
+    .filter_map(|d| match d {
+      Decl::Export(e) => Some(e.name.text.clone()),
+      _ => None,
+    })
+    .collect();
+  let exports: Vec<Decl> = names
+    .into_iter()
+    .filter(|name| !exported.contains(&name.text))
+    .map(|name| {
+      Decl::Export(ExportDecl { span: name.span.clone(), name, methods: None })
+    })
+    .collect();
+
+  if !exports.is_empty() {
+    insert_decls(module, Builtin::Exports, exports, file);
   }
 }
 

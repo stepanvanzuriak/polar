@@ -169,6 +169,12 @@ macro_rules! ast {
         Field::Nodes(self.iter().map(AsNode::as_node).collect())
       }
     }
+
+    impl AsField for Vec<Vec<$t>> {
+      fn as_field(&self) -> Field<'_> {
+        Field::Nodes(self.iter().flatten().map(AsNode::as_node).collect())
+      }
+    }
   };
 }
 

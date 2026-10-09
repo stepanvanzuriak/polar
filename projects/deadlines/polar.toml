@@ -1,0 +1,5 @@
+[project]
+name = "deadlines"
+src = "src"
+out = "dist"
+main = "src/main.px"

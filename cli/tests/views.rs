@@ -60,7 +60,7 @@ fn diagnostics(src: &str) -> Vec<Diagnostic> {
 const HEADER: &str = "uses\n  Framework.Html\n  Std.List\n\ntypes\n  Post = { id: Int, title: String }\n\n";
 
 fn program(views: &str) -> String {
-  format!("{HEADER}views\n{views}\nexports\n  card\n")
+  format!("{HEADER}views\n{views}\nexports\n  Post\n  card\n")
 }
 
 #[track_caller]

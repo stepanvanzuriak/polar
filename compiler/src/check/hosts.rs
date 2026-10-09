@@ -6,6 +6,7 @@ use crate::{
   shared::codes::DiagnosticCode::{BindCycle, EffectNotOnHost, NoHost},
   shared::diagnostic::{Diagnostic, Label},
   shared::source::Span,
+  shared::text::quoted_list,
   types::ty::{Effects, Label as EffectLabel},
 };
 
@@ -33,7 +34,7 @@ pub fn effect_hosts(table: &EffectTable, effect: &str) -> HostSet {
 
 #[must_use]
 pub fn label_hosts(table: &EffectTable, label: &EffectLabel) -> HostSet {
-  if label.is_free() { None } else { effect_hosts(table, &label.name) }
+  if label.is_builtin() { None } else { effect_hosts(table, &label.name) }
 }
 
 #[must_use]
@@ -69,16 +70,6 @@ pub fn runs_on(set: &HostSet, host: &str) -> bool {
   set.as_ref().is_none_or(|hosts| hosts.contains(host))
 }
 
-fn quoted(names: &[&str]) -> String {
-  let quoted: Vec<String> = names.iter().map(|n| format!("`{n}`")).collect();
-
-  match quoted.as_slice() {
-    [] => String::new(),
-    [one] => one.clone(),
-    [init @ .., last] => format!("{} and {last}", init.join(", ")),
-  }
-}
-
 pub(crate) struct Blame<'u> {
   pub(crate) what: String,
   pub(crate) at: Span,
@@ -95,7 +86,7 @@ impl Checker<'_> {
     }
 
     let mut labels: Vec<&EffectLabel> =
-      row.labels.iter().filter(|l| !l.is_free()).collect();
+      row.labels.iter().filter(|l| !l.is_builtin()).collect();
 
     labels.sort_by_key(|l| blame.uses.position(l).unwrap_or(usize::MAX));
     let pair = labels.iter().enumerate().find_map(|(i, a)| {
@@ -123,9 +114,9 @@ impl Checker<'_> {
 
     let names: Vec<&str> = involved.iter().map(|l| &*l.name).collect();
     let message = if names.len() == 2 {
-      format!("no host provides both {}", quoted(&names))
+      format!("no host provides both {}", quoted_list(&names))
     } else {
-      format!("no host provides all of {}", quoted(&names))
+      format!("no host provides all of {}", quoted_list(&names))
     };
     let mut diagnostic = Diagnostic::error(
       NoHost,
@@ -182,7 +173,7 @@ impl Checker<'_> {
         nodes.push(node.clone());
       }
 
-      for label in row.labels.iter().filter(|l| !l.is_free()) {
+      for label in row.labels.iter().filter(|l| !l.is_builtin()) {
         let at = uses
           .iter()
           .find(|(l, _)| l == label)

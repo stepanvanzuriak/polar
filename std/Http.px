@@ -29,4 +29,7 @@ functions
   }
 
 exports
+  Header
+  Request
+  Response
   header

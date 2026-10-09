@@ -19,8 +19,8 @@ use crate::{
     TypeDecl, TypeExpr, TypeRef,
   },
   types::ty::{
-    Brand, EffTail, Effects, Label as EffectLabel, MUT, Pred, Row, Scheme,
-    Tail, Type,
+    ASYNC, Brand, EffTail, Effects, Label as EffectLabel, MUT, Pred, Row,
+    Scheme, Tail, Type,
   },
 };
 
@@ -656,6 +656,8 @@ impl<'a> Checker<'a> {
         self.throws_entry(entry)
       } else if entry.name.text == MUT && entry.args.is_empty() {
         Some(EffectLabel::effect(MUT))
+      } else if entry.name.text == ASYNC && entry.args.is_empty() {
+        Some(EffectLabel::effect(ASYNC))
       } else {
         self.effect_entry(entry)
       };

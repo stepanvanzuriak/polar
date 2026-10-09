@@ -702,3 +702,25 @@ mod inference {
     }
   }
 }
+
+mod subsumption {
+  use super::*;
+
+  #[test]
+  fn a_call_with_the_signatures_own_row_fits_under_extra_labels() {
+    let src = with_effects(
+      "run(f: function() -> String / {| e}) -> String / {Db | e} {\n    let id = Db.load(1)\n\n    f()\n  }",
+    );
+
+    assert_eq!(errors_of(&src), Vec::<String>::new());
+  }
+
+  #[test]
+  fn a_call_with_a_label_the_signature_lacks_is_still_an_error() {
+    let src = with_effects(
+      "run(f: function() -> String / {Db | e}) -> String / {| e} {\n    f()\n  }",
+    );
+
+    assert_eq!(errors_of(&src).len(), 1, "{:?}", errors_of(&src));
+  }
+}

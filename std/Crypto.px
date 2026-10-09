@@ -1,77 +1,130 @@
 module Crypto
 
 uses
+  Std.List
+  Std.Map
   Std.Option
 
 hosts
   Node
+
+types
+  Params = { ln: Int, r: Int, p: Int }
+
+  Stored = { params: Params, salt: String, hash: String }
+
+constants
+  defaults: Params = { ln: 15, r: 8, p: 1 }
+  max_cost = 16
+  hex_digits = "0123456789abcdef"
 
 effects
   Random {
     bytes(count: Int) -> String
   }
 
-  Password {
-    scrypt_hash(plain: String, salt: String) -> String
-    scrypt_verify(plain: String, stored: String) -> Bool
-  }
-
 externs
-  digest_sha256(text: String) -> String = "./bindings/Crypto.js" digest_sha256
-  digest_hmac_sha256(key: String, text: String) -> String
+  sha256(text: String) -> String = "./bindings/Crypto.js" digest_sha256
+  hmac_sha256(key: String, text: String) -> String
     = "./bindings/Crypto.js" digest_hmac_sha256
-  timing_safe_equal(a: String, b: String) -> Bool
-    = "./bindings/Crypto.js" timing_safe_equal
-  base64url_encode(text: String) -> String = "./bindings/Crypto.js" base64url_encode
-  base64url_decode(text: String) -> Option<String>
-    = "./bindings/Crypto.js" base64url_decode
-  scrypt_hash(plain: String, salt: String) -> String = "./bindings/Crypto.js" scrypt_hash
-  scrypt_verify(plain: String, stored: String) -> Bool
-    = "./bindings/Crypto.js" scrypt_verify
-  scrypt_needs_rehash(stored: String) -> Bool = "./bindings/Crypto.js" scrypt_needs_rehash
+  equal(a: String, b: String) -> Bool = "./bindings/Crypto.js" timing_safe_equal
+  base64url(text: String) -> String = "./bindings/Crypto.js" base64url_encode
+  from_base64url(text: String) -> Option<String> = "./bindings/Crypto.js" base64url_decode
+  scrypt(plain: String, salt: String, ln: Int, r: Int, p: Int) -> String / {Async}
+    = "./bindings/Crypto.js" scrypt
+  try_scrypt(plain: String, salt: String, ln: Int, r: Int, p: Int) -> Option<String> / {
+    Async,
+  }
+    = "./bindings/Crypto.js" try_scrypt
 
 binds
   Random in Node = "./bindings/Crypto.js"
 
-  Password in Node = "./bindings/Crypto.js"
-
 functions
-  sha256(text: String) -> String {
-    digest_sha256(text)
+  hash_password(plain: String) -> String / {Random, Async} {
+    let salt = Random.bytes(16)
+    let hash = scrypt(plain, salt, defaults.ln, defaults.r, defaults.p)
+
+    "$scrypt$ln=#{defaults.ln},r=#{defaults.r},p=#{defaults.p}$#{salt}$#{hash}"
   }
 
-  hmac_sha256(key: String, text: String) -> String {
-    digest_hmac_sha256(key, text)
-  }
-
-  equal(a: String, b: String) -> Bool {
-    timing_safe_equal(a, b)
-  }
-
-  base64url(text: String) -> String {
-    base64url_encode(text)
-  }
-
-  from_base64url(text: String) -> Option<String> {
-    base64url_decode(text)
-  }
-
-  hash_password(plain: String) -> String / {Random, Password} {
-    Password.scrypt_hash(plain, Random.bytes(16))
-  }
-
-  verify_password(plain: String, stored: String) -> Bool / {Password} {
-    Password.scrypt_verify(plain, stored)
+  verify_password(plain: String, stored: String) -> Bool / {Async} {
+    match parse(stored) {
+      None -> false,
+      Some(s) -> match try_scrypt(plain, s.salt, s.params.ln, s.params.r, s.params.p) {
+        None -> false,
+        Some(actual) -> equal(actual, s.hash),
+      },
+    }
   }
 
   needs_rehash(stored: String) -> Bool {
-    scrypt_needs_rehash(stored)
+    match parse(stored) {
+      None -> true,
+      Some(s) -> s.params.ln < defaults.ln
+        || s.params.r < defaults.r
+        || s.params.p < defaults.p,
+    }
+  }
+
+  parse(stored: String) -> Option<Stored> {
+    match String.split(stored, "$") {
+      ["", "scrypt", params, salt, hash] if is_hex(salt) && is_hex(hash) -> Option.map(
+        parse_params(params),
+        function(found) { { params: found, salt: salt, hash: hash } },
+      ),
+      _ -> None,
+    }
+  }
+
+  parse_params(text: String) -> Option<Params> {
+    let pairs = match read_pairs(String.split(text, ",")) {
+      Some(pairs) -> pairs,
+      None -> return None,
+    }
+
+    match cost(pairs, "ln"), cost(pairs, "r"), cost(pairs, "p") {
+      Some(ln), Some(r), Some(p) -> Some({ ln: ln, r: r, p: p }),
+      _, _, _ -> None,
+    }
+  }
+
+  read_pairs(pairs: List<String>) -> Option<Map<String, String>> {
+    List.fold(
+      pairs,
+      Some(Map.empty()),
+      function(found, pair) {
+        match found, String.split_once(pair, "=") {
+          Some(map), Some(p) if is_number(p.after) -> Some(
+            Map.insert(map, p.before, p.after),
+          ),
+          _, _ -> None,
+        }
+      },
+    )
+  }
+
+  cost(pairs: Map<String, String>, key: String) -> Option<Int> {
+    match Option.and_then(Map.get(pairs, key), function(value) { Int.parse(value) }) {
+      Some(n) if n >= 1 && n <= max_cost -> Some(n),
+      _ -> None,
+    }
+  }
+
+  is_number(text: String) -> Bool {
+    text != ""
+      && List.all(String.chars(text), function(c) { String.contains("0123456789", c) })
+  }
+
+  is_hex(text: String) -> Bool {
+    text != ""
+      && String.length(text) % 2 == 0
+      && List.all(String.chars(text), function(c) { String.contains(hex_digits, c) })
   }
 
 exports
   Node
   Random
-  Password
   sha256
   hmac_sha256
   equal

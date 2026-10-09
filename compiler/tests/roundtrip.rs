@@ -249,7 +249,7 @@ fn ambiguities_are_generated() {
         }
         NodeRef::If(i) => conditions += usize::from(exposes_record(&i.cond)),
         NodeRef::Match(m) => {
-          conditions += usize::from(exposes_record(&m.scrutinee));
+          conditions += m.subjects.iter().filter(|s| exposes_record(s)).count();
         }
         _ => {}
       }

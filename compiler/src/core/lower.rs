@@ -9,12 +9,13 @@ use crate::{
     scope::{Scopes, suggest},
   },
   shared::codes::DiagnosticCode::{
-    self, BuiltinModuleAsValue, CallArity, ConstantCalled, ConstantUsesBelow,
-    ConstructorArity, DuplicateDefinition, DuplicateImpl, ImportCycle,
-    ImportNotSupported, IncompleteTraitExport, ListTypeNotInScope,
-    MissingMethod, NotDerivable, NumberOutOfRange, OrphanImpl,
-    UnknownBuiltinMember, UnknownMethod, UnknownModule, UnknownName,
-    UnknownStdModule, UnknownTrait, UnknownUppercaseName,
+    self, AlternativeBindings, BrokenImport, BuiltinModuleAsValue, CallArity,
+    ConstantCalled, ConstantUsesBelow, ConstructorArity, DuplicateDefinition,
+    DuplicateImpl, ImportCycle, ImportNotSupported, IncompleteTraitExport,
+    ListTypeNotInScope, MissingMethod, NotDerivable, NumberOutOfRange,
+    OrphanImpl, ReturnOutsideFunction, UnknownBuiltinMember, UnknownMethod,
+    UnknownModule, UnknownName, UnknownStdModule, UnknownTrait,
+    UnknownUppercaseName,
   },
   shared::diagnostic::{Diagnostic, DiagnosticBag, Label},
   shared::ice::ice,
@@ -105,6 +106,8 @@ pub fn lower_expanded(
     fns: BTreeMap::new(),
     consts: BTreeMap::new(),
     lowering_const: None,
+    functions: 0,
+    alternative: None,
     ctors: Vec::new(),
     ctor_ids: BTreeMap::new(),
     imports: BTreeMap::new(),
@@ -214,6 +217,8 @@ pub(super) struct Lowerer<'a> {
   pub(super) fns: BTreeMap<String, TopFn>,
   pub(super) consts: BTreeMap<String, TopConst>,
   pub(super) lowering_const: Option<usize>,
+  pub(super) functions: usize,
+  pub(super) alternative: Option<Vec<Sym>>,
   pub(super) ctors: Vec<CtorInfo>,
   pub(super) ctor_ids: BTreeMap<String, (CtorId, Span)>,
   pub(super) imports: BTreeMap<String, (Origin, Interface)>,
@@ -461,12 +466,7 @@ impl Lowerer<'_> {
             )),
           );
         }
-        None if self.local_types.contains(&name.text) => self.error(
-          UnknownName,
-          format!("`{}` is a type, and types are always exported", name.text),
-          name.span.clone(),
-          Some("remove it from `exports`".to_string()),
-        ),
+        None if self.local_types.contains(&name.text) => {}
         None => self.unknown_name(name, "function or constant", "to export"),
       }
 
@@ -890,6 +890,15 @@ impl Lowerer<'_> {
       }
     };
 
+    if interface.broken && self.cycle.is_none() {
+      self.error(
+        BrokenImport,
+        format!("the module `{path}` has errors"),
+        span.clone(),
+        Some(format!("fix the errors in `{file}` first")),
+      );
+    }
+
     if let Some(header) = header.filter(|h| *h != last.text) {
       return self.error(
         UnknownModule,
@@ -1139,10 +1148,12 @@ impl Lowerer<'_> {
     };
 
     self.scopes.push();
+    self.functions += 1;
 
     let params = self.params(&f.params);
     let body = self.block(&f.body);
 
+    self.functions -= 1;
     self.scopes.pop();
 
     CDecl {
@@ -1257,6 +1268,18 @@ impl Lowerer<'_> {
       Expr::Block(block) => return self.block(block),
       Expr::If(node) => return self.if_expr(node),
       Expr::Match(node) => self.match_expr(node),
+      Expr::Return(node) => {
+        if self.functions == 0 {
+          self.error(
+            ReturnOutsideFunction,
+            "`return` is only allowed inside a function",
+            node.span.clone(),
+            Some("a constant's value can't return early".to_string()),
+          );
+        }
+
+        CExprKind::Return { value: Box::new(self.expr(&node.value)) }
+      }
       Expr::Throw(node) => CExprKind::Throw {
         value: Box::new(self.expr(&node.value)),
         tag: String::new(),
@@ -1906,10 +1929,12 @@ impl Lowerer<'_> {
 
   fn lambda(&mut self, lambda: &Lambda) -> CExprKind {
     self.scopes.push();
+    self.functions += 1;
 
     let params = self.params(&lambda.params);
     let body = self.block(&lambda.body);
 
+    self.functions -= 1;
     self.scopes.pop();
 
     CExprKind::Lam { params, body: Box::new(body) }
@@ -1960,7 +1985,12 @@ impl Lowerer<'_> {
         Step::Match(value, pattern, span) => CExpr::new(
           CExprKind::Case {
             scrutinee: Box::new(value),
-            arms: vec![CArm { pattern, body: acc, origin: Some(span.clone()) }],
+            arms: vec![CArm {
+              pattern,
+              guard: None,
+              body: acc,
+              origin: Some(span.clone()),
+            }],
           },
           Some(span),
         ),
@@ -1975,9 +2005,10 @@ impl Lowerer<'_> {
   fn if_expr(&mut self, node: &If) -> CExpr {
     let cond = self.expr(&node.cond);
     let then_branch = self.block(&node.then_branch);
-    let else_branch = match &*node.else_branch {
-      Else::Block(block) => self.block(block),
-      Else::If(inner) => self.if_expr(inner),
+    let else_branch = match node.else_branch.as_deref() {
+      Some(Else::Block(block)) => self.block(block),
+      Some(Else::If(inner)) => self.if_expr(inner),
+      None => CExpr::new(CExprKind::Record { fields: Vec::new() }, None),
     };
 
     CExpr::new(
@@ -1991,10 +2022,24 @@ impl Lowerer<'_> {
   }
 
   fn match_expr(&mut self, node: &Match) -> CExprKind {
-    let scrutinee = self.expr(&node.scrutinee);
+    let mut subjects: Vec<CExpr> =
+      node.subjects.iter().map(|s| self.expr(s)).collect();
     let arms = self.arms(&node.arms);
 
-    CExprKind::Case { scrutinee: Box::new(scrutinee), arms }
+    if subjects.len() == 1 {
+      return CExprKind::Case { scrutinee: Box::new(subjects.remove(0)), arms };
+    }
+
+    let fields = subjects
+      .into_iter()
+      .enumerate()
+      .map(|(i, e)| (subject_field(i), e))
+      .collect();
+
+    CExprKind::Case {
+      scrutinee: Box::new(CExpr::new(CExprKind::Record { fields }, None)),
+      arms,
+    }
   }
 
   fn try_expr(&mut self, node: &Try) -> CExprKind {
@@ -2026,14 +2071,134 @@ impl Lowerer<'_> {
       .map(|arm| {
         self.scopes.push();
 
-        let pattern = self.pattern(&arm.pattern, &mut Vec::new());
+        let pattern = self.arm_rows(&arm.rows);
+        let guard = arm.guard.as_ref().map(|g| self.expr(g));
         let body = self.expr(&arm.body);
 
         self.scopes.pop();
 
-        CArm { pattern, body, origin: Some(arm.span.clone()) }
+        CArm { pattern, guard, body, origin: Some(arm.span.clone()) }
       })
       .collect()
+  }
+
+  fn arm_rows(&mut self, rows: &[Vec<Pattern>]) -> CPattern {
+    let Some((first, rest)) = rows.split_first() else {
+      return CPattern::Wildcard;
+    };
+    let first = self.row(first, &mut Vec::new());
+
+    if rest.is_empty() {
+      return first;
+    }
+
+    let lowered = self.with_alternatives(&first, |l| {
+      rest
+        .iter()
+        .filter_map(|row| {
+          let span = row.first()?.span().clone();
+
+          Some((l.row(row, &mut Vec::new()), span))
+        })
+        .collect()
+    });
+
+    CPattern::Or(
+      std::iter::once(first)
+        .chain(lowered.into_iter().map(|(p, _)| p))
+        .collect(),
+    )
+  }
+
+  fn with_alternatives(
+    &mut self,
+    first: &CPattern,
+    lower: impl FnOnce(&mut Self) -> Vec<(CPattern, Span)>,
+  ) -> Vec<(CPattern, Span)> {
+    let bound = bound_syms(first);
+    let saved = self.alternative.replace(bound.clone());
+    let lowered = lower(self);
+
+    self.alternative = saved;
+
+    for (pattern, span) in &lowered {
+      let here = bound_syms(pattern);
+
+      for sym in bound.iter().filter(|b| !here.iter().any(|s| s.id == b.id)) {
+        self.error(
+          AlternativeBindings,
+          format!("this alternative doesn't bind `{}`", sym.name),
+          span.clone(),
+          Some(SAME_NAMES.to_string()),
+        );
+      }
+    }
+
+    lowered
+  }
+
+  fn or_pattern(
+    &mut self,
+    or: &crate::syntax::ast::POr,
+    seen: &mut Vec<Name>,
+  ) -> CPattern {
+    let Some((first, rest)) = or.alternatives.split_first() else {
+      return CPattern::Wildcard;
+    };
+    let first = self.pattern(first, seen);
+    let lowered = self.with_alternatives(&first, |l| {
+      rest
+        .iter()
+        .map(|p| (l.pattern(p, &mut Vec::new()), p.span().clone()))
+        .collect()
+    });
+
+    CPattern::Or(
+      std::iter::once(first)
+        .chain(lowered.into_iter().map(|(p, _)| p))
+        .collect(),
+    )
+  }
+
+  fn alternative_var(&mut self, var: &crate::syntax::ast::PVar) -> CPattern {
+    let found = self
+      .alternative
+      .as_ref()
+      .and_then(|syms| syms.iter().find(|s| *s.name == *var.name.text))
+      .cloned();
+
+    if let Some(sym) = found {
+      self.resolutions.insert(&var.name.span, Resolved::Local(sym.clone()));
+      return CPattern::Bind(sym);
+    }
+
+    self.error(
+      AlternativeBindings,
+      format!(
+        "`{}` is bound here but not in the first alternative",
+        var.name.text
+      ),
+      var.name.span.clone(),
+      Some(SAME_NAMES.to_string()),
+    );
+    CPattern::Wildcard
+  }
+
+  fn row(&mut self, row: &[Pattern], seen: &mut Vec<Name>) -> CPattern {
+    let mut patterns: Vec<CPattern> =
+      row.iter().map(|p| self.pattern(p, seen)).collect();
+
+    if patterns.len() == 1 {
+      return patterns.remove(0);
+    }
+
+    CPattern::Record {
+      fields: patterns
+        .into_iter()
+        .enumerate()
+        .map(|(i, p)| (subject_field(i), p))
+        .collect(),
+    }
   }
 
   fn bind_uses_function(&mut self, name: &Name) {
@@ -2052,6 +2217,10 @@ impl Lowerer<'_> {
   fn pattern(&mut self, pattern: &Pattern, seen: &mut Vec<Name>) -> CPattern {
     match pattern {
       Pattern::Wildcard(_) => CPattern::Wildcard,
+      Pattern::Var(var) if self.alternative.is_some() => {
+        self.alternative_var(var)
+      }
+      Pattern::Or(or) => self.or_pattern(or, seen),
       Pattern::Var(var) => {
         if let Some(first) = seen.iter().find(|n| n.text == var.name.text) {
           let first = first.span.clone();
@@ -2348,4 +2517,25 @@ fn is_upper(name: &str) -> bool {
 
 fn placeholder(origin: Option<Span>) -> CExpr {
   CExpr::new(CExprKind::Lit(Lit::Number(0.0)), origin)
+}
+
+const SAME_NAMES: &str =
+  "every alternative of a `|` pattern binds the same names";
+
+fn subject_field(i: usize) -> String {
+  format!("${i}")
+}
+
+fn bound_syms(pattern: &CPattern) -> Vec<Sym> {
+  match pattern {
+    CPattern::Wildcard | CPattern::Lit(_) => Vec::new(),
+    CPattern::Bind(sym) => vec![sym.clone()],
+    CPattern::Ctor { args, .. } => args.iter().flat_map(bound_syms).collect(),
+    CPattern::Record { fields } => {
+      fields.iter().flat_map(|(_, p)| bound_syms(p)).collect()
+    }
+    CPattern::Or(alternatives) => {
+      alternatives.first().map(bound_syms).unwrap_or_default()
+    }
+  }
 }

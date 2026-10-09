@@ -1,0 +1,108 @@
+module Test
+
+uses
+  Std.Json
+  Std.List
+  Std.Option
+
+types
+  Problem = { kind: String, message: String, at: String }
+
+  Outcome = Pass | Fail(Problem) | Error(Problem) | Timeout
+
+  Start = { event: String, name: String, file: String, line: Int } derive(Json)
+
+  End = {
+    event: String,
+    name: String,
+    outcome: String,
+    ms: Float,
+    kind: Option<String>,
+    message: Option<String>,
+    at: Option<String>,
+  } derive(Json)
+
+externs
+  guard(run: function() -> {} / {| e}, timeout_ms: Int) -> Outcome / {Async | e}
+    = "./bindings/Test.js" guard
+  clock() -> Float = "./bindings/Test.js" clock
+  finish() -> {} = "./bindings/Test.js" finish
+
+functions
+  run_all(
+    cases: List<{ file: String, name: String, line: Int, run: function() -> {} / {| e} }>,
+    timeout_ms: Int,
+  ) -> {} / {Async | e} {
+    run_each(cases, timeout_ms)
+    finish()
+  }
+
+  run_each(
+    cases: List<{ file: String, name: String, line: Int, run: function() -> {} / {| e} }>,
+    timeout_ms: Int,
+  ) -> {} / {Async | e} {
+    match cases {
+      [] -> {},
+      [test, ..rest] -> {
+        let start: Start = {
+          event: "start",
+          name: test.name,
+          file: test.file,
+          line: test.line,
+        }
+
+        emit(Json.encode(start))
+
+        let started = clock()
+        let outcome = guard(test.run, timeout_ms)
+        let ms = clock() - started
+
+        emit(Json.encode(ended(test.name, outcome, ms)))
+        run_each(rest, timeout_ms)
+      }
+    }
+  }
+
+  ended(name: String, outcome: Outcome, ms: Float) -> End {
+    match outcome {
+      Pass -> plain(name, "pass", ms),
+      Timeout -> plain(name, "timeout", ms),
+      Fail(problem) -> failed(name, "fail", ms, problem),
+      Error(problem) -> failed(name, "error", ms, problem),
+    }
+  }
+
+  plain(name: String, outcome: String, ms: Float) -> End {
+    {
+      event: "end",
+      name: name,
+      outcome: outcome,
+      ms: ms,
+      kind: None,
+      message: None,
+      at: None,
+    }
+  }
+
+  failed(name: String, outcome: String, ms: Float, problem: Problem) -> End {
+    {
+      event: "end",
+      name: name,
+      outcome: outcome,
+      ms: ms,
+      kind: present(problem.kind),
+      message: Some(problem.message),
+      at: present(problem.at),
+    }
+  }
+
+  present(text: String) -> Option<String> {
+    if text == "" { None } else { Some(text) }
+  }
+
+  emit(line: String) {
+    Log.info("\u{1e}#{line}")
+  }
+
+exports
+  run_all

@@ -29,6 +29,7 @@ functions
   }
 
 exports
+  Failed
   assert
   equal
   not_equal

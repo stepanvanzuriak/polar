@@ -65,6 +65,18 @@ pub(crate) fn keep_if_debug(ctx: &mut Ctx<'_, '_>, prepared: Prepared) {
   }
 }
 
+fn prefer_node(
+  configured: Option<&[String]>,
+  inputs: &[crate::files::Input],
+) -> Result<Option<&'static str>, CliError> {
+  let hosts = match configured {
+    Some(hosts) if !hosts.is_empty() => hosts.to_vec(),
+    _ => super::program_hosts(inputs)?,
+  };
+
+  Ok((hosts.len() > 1 && hosts.iter().any(|h| h == "Node")).then_some("Node"))
+}
+
 pub(crate) fn prepare_file(
   ctx: &mut Ctx<'_, '_>,
   file: &Path,
@@ -78,6 +90,10 @@ pub(crate) fn prepare_file(
     ));
   };
 
+  let host = match host {
+    Some(host) => Some(host),
+    None => prefer_node(configured, &inputs)?,
+  };
   let plan = Plan {
     host: polar_compiler::HostOption::Fixed(Plan::one_host(
       host,

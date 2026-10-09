@@ -53,6 +53,7 @@ pub struct Types {
   pub decls: Vec<(String, Scheme)>,
   pub exprs: HashMap<(usize, usize), Type>,
   pub type_defs: Vec<(String, TypeDef)>,
+  pub exported_types: Vec<String>,
   pub failed: HashSet<String>,
   pub evidence: HashMap<(usize, usize), Vec<Evidence>>,
   pub shows: HashMap<(usize, usize), Evidence>,
@@ -131,6 +132,8 @@ pub fn check_as(
     top_fns: HashMap::new(),
     int_literals: HashMap::new(),
     matches: Vec::new(),
+    returns: Vec::new(),
+    alternatives: 0,
     local_types: Vec::new(),
     field_spans: HashMap::new(),
     shallow: false,
@@ -187,6 +190,8 @@ pub(crate) struct Checker<'a> {
   pub(crate) top_fns: HashMap<u32, &'a FnDecl>,
   pub(crate) int_literals: HashMap<(usize, usize), String>,
   pub(crate) matches: Vec<exhaustive::Site<'a>>,
+  pub(crate) returns: Vec<Type>,
+  pub(crate) alternatives: usize,
   pub(crate) local_types: Vec<(String, TypeDef)>,
   pub(crate) field_spans: HashMap<(String, String), Span>,
   pub(crate) shallow: bool,
@@ -325,9 +330,29 @@ impl Checker<'_> {
   }
 
   pub(crate) fn bind_mono(&mut self, span: &Span, ty: Type) {
-    if let Some(sym) = self.local_sym(span) {
-      self.locals.insert(sym.id, Scheme::new(0, ty));
+    let Some(sym) = self.local_sym(span) else { return };
+
+    if self.alternatives > 0
+      && let Some(first) = self.locals.get(&sym.id).map(|s| s.ty.clone())
+    {
+      self.expect(&first, &ty, span);
+      return;
     }
+
+    self.locals.insert(sym.id, Scheme::new(0, ty));
+  }
+
+  pub(crate) fn with_return<T>(
+    &mut self,
+    ret: Type,
+    f: impl FnOnce(&mut Self) -> T,
+  ) -> T {
+    self.returns.push(ret);
+
+    let out = f(self);
+
+    self.returns.pop();
+    out
   }
 
   pub(crate) fn ctor_scheme(&self, id: CtorId) -> Option<Scheme> {

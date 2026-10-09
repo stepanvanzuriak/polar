@@ -35,6 +35,7 @@ impls
   }
 
 exports
+  Ref
   new
   get
   set

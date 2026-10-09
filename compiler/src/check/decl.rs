@@ -15,7 +15,7 @@ use crate::{
   },
   core::{ir::Sym, lower::Resolved},
   shared::codes::DiagnosticCode::{
-    ArgumentCount, BadRecipe, UnboundTypeVariable,
+    ArgumentCount, BadRecipe, PrivateTypeExposed, UnboundTypeVariable,
   },
   shared::diagnostic::{Diagnostic, Label},
   shared::source::Span,
@@ -127,7 +127,12 @@ impl<'a> Checker<'a> {
     self.check_bind_hosts();
     self.check_leftovers();
     self.exhaustiveness();
-    self.finish(out, failed)
+    self.private_leaks(module, &out);
+
+    let mut types = self.finish(out, failed);
+
+    types.exported_types = module.exported_types();
+    types
   }
 
   fn finish(
@@ -168,6 +173,7 @@ impl<'a> Checker<'a> {
       decls: out,
       exprs,
       type_defs: std::mem::take(&mut self.local_types),
+      exported_types: Vec::new(),
       failed,
       evidence,
       shows,
@@ -408,8 +414,10 @@ impl<'a> Checker<'a> {
         .map(|(p, ty)| (p.name.text.clone(), ty.clone()))
         .collect(),
     };
-    let (body, _) =
-      self.with_row(signature.effects.clone(), owner, |c| c.block(&f.body));
+    let ret = signature.ret.clone();
+    let (body, _) = self.with_row(signature.effects.clone(), owner, |c| {
+      c.with_return(ret, |c| c.block(&f.body))
+    });
     let uses = std::mem::take(&mut self.last_uses);
 
     self.decl_uses.insert(f.name.text.clone(), uses);
@@ -798,7 +806,9 @@ impl<'a> Checker<'a> {
     }
 
     let owner = self.row_owner.clone();
-    let (body, _) = self.with_row(effects.clone(), owner, |c| c.block(&f.body));
+    let (body, _) = self.with_row(effects.clone(), owner, |c| {
+      c.with_return(Type::clone(ret), |c| c.block(&f.body))
+    });
     let blame = last_expr(&f.body.result).span();
 
     self.expect_because(ret, &body, blame, because(trait_span));
@@ -948,5 +958,124 @@ fn recipe_help(case: &FnDecl, result: &Type) -> String {
       param(0, "name"),
       param(1, "args")
     ),
+  }
+}
+
+impl Checker<'_> {
+  fn private_leaks(&mut self, module: &Module, out: &[(String, Scheme)]) {
+    let exported = module.exported_types();
+    let decls: Vec<&Decl> =
+      module.zones.iter().flat_map(|z| &z.decls).collect();
+    let header = module.name.as_ref().map(|n| n.text.clone());
+    let private: Vec<(String, String)> = decls
+      .iter()
+      .filter_map(|d| match d {
+        Decl::Type(t) if !exported.contains(&t.name.text) => {
+          Some((self.qualified(&t.name.text), t.name.text.clone()))
+        }
+        _ => None,
+      })
+      .flat_map(|(q, b)| {
+        let named = header.as_ref().map(|h| (format!("{h}.{b}"), b.clone()));
+
+        std::iter::once((q, b)).chain(named)
+      })
+      .collect();
+
+    if private.is_empty() {
+      return;
+    }
+
+    for decl in &decls {
+      let Decl::Export(export) = decl else { continue };
+
+      if export.methods.is_some() {
+        continue;
+      }
+
+      let name = &export.name.text;
+      let mut types: Vec<Type> = out
+        .iter()
+        .filter(|(n, _)| n == name)
+        .map(|(_, scheme)| scheme.ty.clone())
+        .collect();
+
+      if let Some((_, def)) = self.local_types.iter().find(|(n, _)| n == name) {
+        match def {
+          TypeDef::Variant { ctors, .. } => {
+            types.extend(ctors.iter().map(|(_, s)| s.ty.clone()));
+          }
+          TypeDef::Alias { body, .. } => types.push(body.clone()),
+        }
+      }
+
+      types.extend(
+        self
+          .op_schemes
+          .iter()
+          .filter(|((effect, _), _)| effect == name)
+          .map(|(_, scheme)| scheme.ty.clone()),
+      );
+
+      let mut found: Vec<String> = Vec::new();
+
+      for ty in &types {
+        mentioned(ty, &private, &mut found);
+      }
+
+      found.retain(|bare| bare != name);
+
+      if let Some(bare) = found.first() {
+        self.push(
+          Diagnostic::error(
+            PrivateTypeExposed,
+            format!(
+              "`{name}` is exported, but it uses the private type `{bare}`"
+            ),
+            Label::new(export.name.span.clone())
+              .with_message(format!("other modules can't name `{bare}`")),
+          )
+          .with_help(format!("export `{bare}` too: add it to `exports`")),
+        );
+      }
+    }
+  }
+}
+
+fn mentioned(ty: &Type, private: &[(String, String)], found: &mut Vec<String>) {
+  let mut note = |path: &str| {
+    if let Some((_, bare)) =
+      private.iter().find(|(q, b)| q == path || b == path)
+      && !found.contains(bare)
+    {
+      found.push(bare.clone());
+    }
+  };
+
+  match ty {
+    Type::Con { name, args } => {
+      note(name);
+
+      for arg in args {
+        mentioned(arg, private, found);
+      }
+    }
+    Type::Fn { params, ret, .. } => {
+      for param in params {
+        mentioned(param, private, found);
+      }
+
+      mentioned(ret, private, found);
+    }
+    Type::Record(row) => {
+      if let Some(brand) = row.brand() {
+        note(brand);
+      }
+
+      for (_, field) in &row.fields {
+        mentioned(field, private, found);
+      }
+    }
+    Type::Var(_) | Type::Gen(_) | Type::Rigid { .. } => {}
   }
 }

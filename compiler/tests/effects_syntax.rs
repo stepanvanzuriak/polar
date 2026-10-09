@@ -235,14 +235,15 @@ fn sample_try(offset: usize) -> Try {
   };
   let arm = MatchArm {
     span: sp(offset + 18, offset + 33),
-    pattern: Pattern::Ctor(PCtor {
+    rows: vec![vec![Pattern::Ctor(PCtor {
       span: sp(offset + 18, offset + 28),
       name: name("Missing", offset + 18, offset + 25),
       args: vec![Pattern::Var(PVar {
         span: sp(offset + 26, offset + 27),
         name: name("k", offset + 26, offset + 27),
       })],
-    }),
+    })]],
+    guard: None,
     body: var("k", offset + 32),
   };
 

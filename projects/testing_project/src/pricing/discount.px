@@ -34,6 +34,7 @@ functions
   }
 
 exports
+  Code
   parse
   apply
   shipping

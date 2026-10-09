@@ -511,7 +511,9 @@ fn hoist_in(
     | CExprKind::MatchFail
     | CExprKind::Op { .. }
     | CExprKind::Extern { .. } => {}
-    CExprKind::Throw { value, .. } => hoist_in(value, syms, hoisted),
+    CExprKind::Throw { value, .. } | CExprKind::Return { value } => {
+      hoist_in(value, syms, hoisted);
+    }
     CExprKind::Try { body, handler, .. } => {
       hoist_in(body, syms, hoisted);
       hoist_in(handler, syms, hoisted);
@@ -543,6 +545,9 @@ fn hoist_in(
     CExprKind::Case { scrutinee, arms } => {
       hoist_in(scrutinee, syms, hoisted);
       for arm in arms {
+        if let Some(guard) = &mut arm.guard {
+          hoist_in(guard, syms, hoisted);
+        }
         hoist_in(&mut arm.body, syms, hoisted);
       }
     }
@@ -803,6 +808,8 @@ impl<'a> Emitter<'a> {
         if matches!(dest, Dest::Return) && alternate.len() > 1 {
           out.push(if_(test, consequent, None).at(e.origin.clone()));
           out.extend(alternate);
+        } else if alternate.is_empty() {
+          out.push(if_(test, consequent, None).at(e.origin.clone()));
         } else {
           out.push(if_(test, consequent, Some(alternate)).at(e.origin.clone()));
         }
@@ -815,6 +822,9 @@ impl<'a> Emitter<'a> {
       CExprKind::Try { body, caught, handler, handles } => {
         self.try_stmt((body, caught, handler, handles), dest, e, out);
       }
+      CExprKind::Return { value } => self.stmt(value, &Dest::Return, out),
+      CExprKind::Record { fields }
+        if fields.is_empty() && matches!(dest, Dest::Discard) => {}
       CExprKind::Lit(_)
       | CExprKind::Var(_)
       | CExprKind::Builtin { .. }
@@ -1131,6 +1141,11 @@ impl<'a> Emitter<'a> {
         self.stmt(e, &Dest::Assign(temp.clone()), out);
 
         Expr::Ident(temp)
+      }
+      CExprKind::Return { value } => {
+        self.stmt(value, &Dest::Return, out);
+
+        var("undefined").at(origin)
       }
     }
   }
@@ -1622,13 +1637,66 @@ fn is_self_call(func: &CExpr, args: &[CExpr], sym: u32, arity: usize) -> bool {
 }
 
 fn tail_calls(e: &CExpr, sym: u32, arity: usize) -> bool {
+  in_tail(e, sym, arity) || returned_self_call(e, sym, arity)
+}
+
+fn returned_self_call(e: &CExpr, sym: u32, arity: usize) -> bool {
+  match &e.kind {
+    CExprKind::Lam { .. } => false,
+    CExprKind::Return { value } => in_tail(value, sym, arity),
+    _ => children(e).into_iter().any(|c| returned_self_call(c, sym, arity)),
+  }
+}
+
+fn children(e: &CExpr) -> Vec<&CExpr> {
+  match &e.kind {
+    CExprKind::Lit(_)
+    | CExprKind::Var(_)
+    | CExprKind::Builtin { .. }
+    | CExprKind::Std { .. }
+    | CExprKind::User { .. }
+    | CExprKind::Method { .. }
+    | CExprKind::CtorFn { .. }
+    | CExprKind::MatchFail
+    | CExprKind::Op { .. }
+    | CExprKind::Extern { .. } => Vec::new(),
+    CExprKind::Throw { value: one, .. }
+    | CExprKind::Return { value: one }
+    | CExprKind::Lam { body: one, .. }
+    | CExprKind::Field { target: one, .. }
+    | CExprKind::Test { target: one, .. } => vec![&**one],
+    CExprKind::Try { body: first, handler: second, .. }
+    | CExprKind::Let { value: first, body: second, .. } => {
+      vec![&**first, &**second]
+    }
+    CExprKind::App { func, args } => {
+      std::iter::once(&**func).chain(args.iter()).collect()
+    }
+    CExprKind::Prim { args, .. }
+    | CExprKind::Ctor { args, .. }
+    | CExprKind::Dict { args, .. }
+    | CExprKind::Concat { parts: args } => args.iter().collect(),
+    CExprKind::If { cond, then_branch, else_branch } => {
+      vec![&**cond, &**then_branch, &**else_branch]
+    }
+    CExprKind::Case { scrutinee, arms } => std::iter::once(&**scrutinee)
+      .chain(arms.iter().flat_map(|arm| arm.guard.iter().chain([&arm.body])))
+      .collect(),
+    CExprKind::Record { fields } => fields.iter().map(|(_, v)| v).collect(),
+    CExprKind::Update { base, fields } => {
+      std::iter::once(&**base).chain(fields.iter().map(|(_, v)| v)).collect()
+    }
+  }
+}
+
+fn in_tail(e: &CExpr, sym: u32, arity: usize) -> bool {
   match &e.kind {
     CExprKind::App { func, args } => is_self_call(func, args, sym, arity),
-    CExprKind::Let { body, .. } => tail_calls(body, sym, arity),
+    CExprKind::Let { body, .. } => in_tail(body, sym, arity),
     CExprKind::If { then_branch, else_branch, .. } => {
-      tail_calls(then_branch, sym, arity) || tail_calls(else_branch, sym, arity)
+      in_tail(then_branch, sym, arity) || in_tail(else_branch, sym, arity)
     }
-    CExprKind::Try { handler, .. } => tail_calls(handler, sym, arity),
+    CExprKind::Try { handler, .. } => in_tail(handler, sym, arity),
     _ => false,
   }
 }
@@ -1655,6 +1723,7 @@ fn is_plain(e: &CExpr) -> bool {
     | CExprKind::If { .. }
     | CExprKind::MatchFail
     | CExprKind::Case { .. }
+    | CExprKind::Return { .. }
     | CExprKind::Try { .. } => false,
     CExprKind::Throw { value, .. } => is_plain(value),
     CExprKind::Lit(_)
@@ -1710,6 +1779,7 @@ fn is_pure(e: &CExpr) -> bool {
     | CExprKind::Test { .. }
     | CExprKind::MatchFail
     | CExprKind::Throw { .. }
+    | CExprKind::Return { .. }
     | CExprKind::Try { .. } => false,
   }
 }

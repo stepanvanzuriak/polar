@@ -1,7 +1,7 @@
 use polar_compiler::{
   shared::codes::DiagnosticCode::{
     self, ChainedComparison, EmptyBlock, InterpolationInPattern,
-    LocalFnDeclaration, MissingElse, RecordLiteralInCondition, SpreadNotFirst,
+    LocalFnDeclaration, RecordLiteralInCondition, SpreadNotFirst,
     StatementsOnSameLine, TrailingLet, UnexpectedToken,
   },
   shared::diagnostic::{Diagnostic, DiagnosticBag},
@@ -80,7 +80,7 @@ fn pattern(src: &str) -> (String, Vec<Diagnostic>) {
     panic!("expected a match")
   };
 
-  (shape(m.arms[0].pattern.as_node()), diagnostics)
+  (shape(m.arms[0].first_pattern().as_node()), diagnostics)
 }
 
 fn codes(diagnostics: &[Diagnostic]) -> Vec<DiagnosticCode> {
@@ -510,28 +510,24 @@ mod prefix {
     let Expr::If(outer) = &*first_fn(&module).body.result else {
       panic!("expected an if")
     };
-    let Else::If(inner) = &*outer.else_branch else {
+    let Some(Else::If(inner)) = outer.else_branch.as_deref() else {
       panic!("expected `else if`")
     };
 
-    assert!(matches!(&*inner.else_branch, Else::Block(_)));
+    assert!(matches!(inner.else_branch.as_deref(), Some(Else::Block(_))));
   }
 
   #[test]
-  fn missing_else() {
+  fn missing_else_parses() {
     let (module, diagnostics) = parse_src("functions\n  f() { if a { 1 } }\n");
 
-    assert_eq!(codes(&diagnostics), [MissingElse]);
+    clean(&diagnostics);
 
     let Expr::If(node) = &*first_fn(&module).body.result else {
       panic!("expected an if")
     };
-    let Else::Block(synthetic) = &*node.else_branch else {
-      panic!("expected a synthesised block")
-    };
 
-    assert_eq!(synthetic.span.start, synthetic.span.end);
-    assert!(matches!(&*synthetic.result, Expr::Invalid(_)));
+    assert!(node.else_branch.is_none());
   }
 
   #[test]

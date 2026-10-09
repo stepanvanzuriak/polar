@@ -15,12 +15,13 @@ use crate::{
   },
   shared::diagnostic::{Diagnostic, Label},
   shared::source::Span,
+  shared::text::quoted_list,
   syntax::ast::{BindDecl, Decl, FnDecl, Pattern, Throw, Try},
   types::{
     generalise::{instantiate, instantiate_open},
     print::{Printer, bare},
     ty::{EffTail, Effects, Label as EffectLabel, Pred, Scheme, TVar, Type},
-    unify::{unify, unify_effects},
+    unify::{subsume_effects, unify},
   },
 };
 
@@ -58,16 +59,6 @@ pub fn error_tag(path: &str) -> String {
   match parts.as_slice() {
     [.., module, name] => format!("{module}.{name}"),
     _ => path.to_string(),
-  }
-}
-
-fn join_labels(labels: &[String]) -> String {
-  let quoted: Vec<String> = labels.iter().map(|l| format!("`{l}`")).collect();
-
-  match quoted.as_slice() {
-    [] => String::new(),
-    [one] => one.clone(),
-    [init @ .., last] => format!("{} and {last}", init.join(", ")),
   }
 }
 
@@ -135,7 +126,7 @@ impl<'a> Checker<'a> {
       self.first_use.note(label, at);
     }
 
-    if unify_effects(&mut self.store, &ambient, &opened).is_err() {
+    if subsume_effects(&mut self.store, &ambient, &opened).is_err() {
       let diagnostic = self.effect_not_allowed(&zonked, span);
 
       self.push(diagnostic);
@@ -154,7 +145,7 @@ impl<'a> Checker<'a> {
     let names = if texts.is_empty() {
       "effects".to_string()
     } else {
-      join_labels(&texts)
+      quoted_list(&texts)
     };
     let used = if texts.is_empty() {
       "effects its signature can't promise".to_string()
@@ -637,7 +628,9 @@ impl<'a> Checker<'a> {
     }
 
     let row = Effects::open(self.fresh_var());
-    let (body, row) = self.with_row(row, RowOwner::Free, |c| c.block(&op.body));
+    let (body, row) = self.with_row(row, RowOwner::Free, |c| {
+      c.with_return(Type::clone(&ret), |c| c.block(&op.body))
+    });
     let blame = last_expr(&op.body.result).span();
 
     self.expect(&ret, &body, blame);
@@ -731,6 +724,10 @@ impl<'a> Checker<'a> {
         })
       }
       Pattern::Wildcard(_) | Pattern::Var(_) => ArmType::Loose,
+      Pattern::Or(or) => match or.alternatives.first() {
+        Some(first) => self.arm_type(first),
+        None => ArmType::Unresolved,
+      },
       Pattern::Invalid(_) => ArmType::Unresolved,
       Pattern::Lit(_) | Pattern::Record(_) | Pattern::List(_) => ArmType::Other,
     }
@@ -753,11 +750,11 @@ impl<'a> Checker<'a> {
     let mut bad: Vec<usize> = Vec::new();
 
     for (i, arm) in t.arms.iter().enumerate() {
-      match self.arm_type(&arm.pattern) {
+      match self.arm_type(arm.first_pattern()) {
         ArmType::Loose => loose.push(i),
         ArmType::Unresolved => bad.push(i),
         ArmType::Other => {
-          self.catch_needs_type(arm.pattern.span());
+          self.catch_needs_type(arm.first_pattern().span());
           bad.push(i);
         }
         ArmType::Typed(ty) => {
@@ -778,12 +775,12 @@ impl<'a> Checker<'a> {
                 Diagnostic::error(
                   BadThrowsType,
                   "`Throws` needs a type without parameters",
-                  Label::new(arm.pattern.span().clone()),
+                  Label::new(arm.first_pattern().span().clone()),
                 )
                 .with_help("wrap it: `IntError = IntError(List<Int>)`"),
               );
             } else {
-              self.bad_throws(&printed, arm.pattern.span());
+              self.bad_throws(&printed, arm.first_pattern().span());
             }
 
             bad.push(i);
@@ -796,21 +793,21 @@ impl<'a> Checker<'a> {
       if let [(_, _, arms)] = groups.as_mut_slice() {
         arms.push(i);
       } else {
-        self.catch_needs_type(t.arms[i].pattern.span());
+        self.catch_needs_type(t.arms[i].first_pattern().span());
         bad.push(i);
       }
     }
 
     for (_, ty, arms) in &groups {
       for &i in arms {
-        self.check_pattern(&t.arms[i].pattern, ty);
+        self.check_pattern(t.arms[i].first_pattern(), ty);
       }
     }
 
     for &i in &bad {
       let fresh = self.fresh();
 
-      self.check_pattern(&t.arms[i].pattern, &fresh);
+      self.check_pattern(t.arms[i].first_pattern(), &fresh);
     }
 
     let eps = self.fresh_var();
@@ -834,6 +831,8 @@ impl<'a> Checker<'a> {
     let first = last_expr(&t.body.result).span().clone();
 
     for arm in &t.arms {
+      self.guard(arm);
+
       let body = self.infer(&arm.body);
       let blame = last_expr(&arm.body).span().clone();
       let because = Because::Branch(first.clone(), body_ty.clone());
@@ -885,7 +884,7 @@ impl<'a> Checker<'a> {
     let wanted = if wants.labels.is_empty() {
       "a pure function".to_string()
     } else {
-      format!("a function that uses {}", join_labels(&texts(&wants.labels)))
+      format!("a function that uses {}", quoted_list(&texts(&wants.labels)))
     };
     let extra: Vec<EffectLabel> = has
       .labels
@@ -896,7 +895,7 @@ impl<'a> Checker<'a> {
     let this = if extra.is_empty() {
       "this one may use other effects".to_string()
     } else {
-      format!("this one uses {}", join_labels(&texts(&extra)))
+      format!("this one uses {}", quoted_list(&texts(&extra)))
     };
     let who = callee.map_or_else(
       || "the expected type".to_string(),

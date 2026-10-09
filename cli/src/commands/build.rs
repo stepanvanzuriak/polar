@@ -20,6 +20,15 @@ use std::{
 pub(crate) struct Written {
   pub host: Option<String>,
   pub dir: PathBuf,
+  pub tests: Vec<TestCase>,
+}
+
+pub(crate) struct TestCase {
+  pub file: String,
+  pub output: PathBuf,
+  pub module: Option<String>,
+  pub name: String,
+  pub line: usize,
 }
 
 pub(crate) fn build(
@@ -85,6 +94,7 @@ pub(crate) fn build_into(
       written.push(Written {
         host: variant.clone(),
         dir: normalize(&ctx.io.cwd.join(&out)),
+        tests: Vec::new(),
       });
       built.push((target, variant.filter(|_| several), out, compiled));
     }
@@ -100,7 +110,9 @@ pub(crate) fn build_into(
     return Ok(None);
   }
 
-  for (target, variant, out, compiled) in &built {
+  for ((target, variant, out, compiled), entry) in
+    built.iter().zip(written.iter_mut())
+  {
     let out_dir = normalize(&ctx.io.cwd.join(out));
 
     write_runtime(&out_dir)?;
@@ -114,7 +126,7 @@ pub(crate) fn build_into(
     write_bridges(&out_dir, compiled)?;
 
     if let Some(root) = manifest_root {
-      write_test_manifest(ctx, &out_dir, root, compiled)?;
+      entry.tests = write_test_manifest(ctx, &out_dir, root, compiled)?;
     }
 
     if !announce {
@@ -157,7 +169,7 @@ fn write_test_manifest(
   out_dir: &Path,
   root: &Path,
   compiled: &[Compiled],
-) -> Result<(), CliError> {
+) -> Result<Vec<TestCase>, CliError> {
   let mut files: Vec<(String, &Compiled, &CompileOutput)> = compiled
     .iter()
     .filter_map(|c| {
@@ -201,7 +213,22 @@ fn write_test_manifest(
   let path = out_dir.join("_polar").join("tests.json");
 
   write_atomic(&path, manifest.to_string().as_bytes())
-    .map_err(|e| CliError::write(path.display().to_string(), &e))
+    .map_err(|e| CliError::write(path.display().to_string(), &e))?;
+
+  Ok(
+    files
+      .iter()
+      .flat_map(|(file, c, output)| {
+        output.tests.iter().map(|test| TestCase {
+          file: file.clone(),
+          output: c.input.output.clone(),
+          module: output.module.clone(),
+          name: test.name.clone(),
+          line: test.line,
+        })
+      })
+      .collect(),
+  )
 }
 
 fn write_start(

@@ -209,9 +209,23 @@ fn compile_error_fails_before_node() {
 #[test]
 fn args_go_to_node() {
   let dir = project(CONFIG, &[("src/math_test.px", &two_tests())]);
-  let ran = polar(dir.path(), &["test", "--", "--test-name-pattern=test_a"]);
+  let ran = polar(dir.path(), &["test", "--", "--no-warnings"]);
 
   assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
+  assert!(
+    ran.out.contains("2 passed; 0 failed; 0 filtered out"),
+    "{}",
+    ran.out
+  );
+}
+
+#[test]
+fn filter_runs_matching_tests() {
+  let dir = project(CONFIG, &[("src/math_test.px", &two_tests())]);
+  let ran = polar(dir.path(), &["test", "--filter", "test_a"]);
+
+  assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
+  assert!(ran.out.contains("running 1 test\n"), "{}", ran.out);
   assert!(ran.out.contains("test math_test::test_a ... ok"), "{}", ran.out);
   assert!(!ran.out.contains("test math_test::test_b"), "{}", ran.out);
   assert!(
@@ -219,6 +233,209 @@ fn args_go_to_node() {
     "{}",
     ran.out
   );
+}
+
+#[test]
+fn filter_matches_nothing() {
+  let dir = project(CONFIG, &[("src/math_test.px", &two_tests())]);
+  let ran = polar(dir.path(), &["test", "--filter", "nope"]);
+
+  assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
+  assert!(ran.out.contains("running 0 tests"), "{}", ran.out);
+  assert!(
+    ran.out.contains("0 passed; 0 failed; 2 filtered out"),
+    "{}",
+    ran.out
+  );
+}
+
+#[test]
+fn help_shows_test_flags() {
+  let dir = tempfile::tempdir().unwrap();
+  let ran = polar(dir.path(), &["test", "--help"]);
+
+  assert!(ran.out.contains("--filter <TEXT>"), "{}", ran.out);
+  assert!(ran.out.contains("--timeout <MS>"), "{}", ran.out);
+}
+
+#[test]
+fn runner_all_pass() {
+  let text = test_module(
+    "MathTest",
+    &[
+      ("test_a", "Assert.equal(1, 1)"),
+      ("test_b", "Assert.equal(2, 2)"),
+      ("test_c", "Assert.equal(3, 3)"),
+    ],
+    &["test_a", "test_b", "test_c"],
+  );
+  let dir = project(CONFIG, &[("src/math_test.px", &text)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
+
+  let (head, tail) = ran.out.split_once("finished in").unwrap();
+
+  assert_eq!(
+    head,
+    "\nrunning 3 tests\n\
+     test math_test::test_a ... ok\n\
+     test math_test::test_b ... ok\n\
+     test math_test::test_c ... ok\n\
+     \ntest result: ok. 3 passed; 0 failed; 0 filtered out; "
+  );
+  assert!(tail.ends_with("s\n\n"), "{tail:?}");
+}
+
+#[test]
+fn runner_fail_continues() {
+  let text = test_module(
+    "MathTest",
+    &[("test_a", "Assert.equal(1, 2)"), ("test_b", "Assert.equal(1, 1)")],
+    &["test_a", "test_b"],
+  );
+  let dir = project(CONFIG, &[("src/math_test.px", &text)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(ran.out.contains("test math_test::test_a ... FAILED"), "{}", ran.out);
+  assert!(ran.out.contains("test math_test::test_b ... ok"), "{}", ran.out);
+}
+
+#[test]
+fn runner_uncaught_throws() {
+  let text = "module MathTest\n\nuses\n  Std.Assert\n\ntypes\n  Missing = Missing(String) derive(Show)\n\nfunctions\n  test_missing() -> {} / {Throws<Failed>, Throws<Missing>} {\n    throw Missing(\"k\")\n  }\n\nexports\n  test_missing\n";
+  let dir = project(CONFIG, &[("src/math_test.px", text)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(
+    ran.out.contains("test math_test::test_missing ... ERROR"),
+    "{}",
+    ran.out
+  );
+  assert!(
+    ran.out.contains("failed at src/math_test.px:11:5:\nMissing(\"k\")"),
+    "{}",
+    ran.out
+  );
+}
+
+#[test]
+fn runner_host_exception() {
+  let text = "module ApiTest\n\nexterns\n  boom() -> Int = \"./boom.js\" boom\n\nfunctions\n  test_boom() {\n    let _ = boom()\n\n    {}\n  }\n\nexports\n  test_boom\n";
+  let js =
+    "export function boom() {\n  throw new TypeError(\"x is undefined\");\n}\n";
+  let dir = project(CONFIG, &[("src/api_test.px", text), ("src/boom.js", js)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(
+    ran.out.contains("test api_test::test_boom ... ERROR"),
+    "{}",
+    ran.out
+  );
+  assert!(
+    ran
+      .out
+      .contains("failed at src/api_test.px:8:13:\nTypeError: x is undefined"),
+    "{}",
+    ran.out
+  );
+}
+
+#[test]
+fn runner_timeout() {
+  let text = "module SlowTest\n\nuses\n  Std.Assert\n\nhosts\n  Node\n\neffects\n  Hang {\n    wait() -> {}\n  }\n\nbinds\n  Hang in Node = \"./hang.js\"\n\nfunctions\n  test_wait() -> {} / {Hang} {\n    Hang.wait()\n  }\n\n  test_after() -> {} / {Throws<Failed>} {\n    Assert.equal(1, 1)\n  }\n\nexports\n  test_wait\n  test_after\n";
+  let js = "export function wait() {\n  return new Promise(() => {});\n}\n";
+  let dir = project(CONFIG, &[("src/slow_test.px", text), ("src/hang.js", js)]);
+  let started = std::time::Instant::now();
+  let ran = polar(dir.path(), &["test", "--timeout", "200"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(
+    ran.out.contains("test slow_test::test_wait ... TIMEOUT"),
+    "{}",
+    ran.out
+  );
+  assert!(ran.out.contains("test slow_test::test_after ... ok"), "{}", ran.out);
+  assert!(ran.out.contains("timed out after 200ms"), "{}", ran.out);
+  assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
+}
+
+#[test]
+fn runner_output_on_failure() {
+  let text = test_module(
+    "MathTest",
+    &[
+      ("test_quiet", "Log.info(\"all good\")\n    Assert.equal(1, 1)"),
+      ("test_loud", "Log.info(\"debug me\")\n    Assert.equal(1, 2)"),
+    ],
+    &["test_quiet", "test_loud"],
+  );
+  let dir = project(CONFIG, &[("src/math_test.px", &text)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(ran.out.contains("expected 2, got 1\ndebug me\n"), "{}", ran.out);
+  assert!(!ran.out.contains("all good"), "{}", ran.out);
+}
+
+#[test]
+fn runner_build_error() {
+  let text = test_module(
+    "MathTest",
+    &[("test_bad", "Assert.equal(1, \"a\")")],
+    &["test_bad"],
+  );
+  let dir = project(CONFIG, &[("src/math_test.px", &text)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(ran.err.contains("--> src/math_test.px:"), "{}", ran.err);
+  assert!(!ran.err.contains("_test_main"), "{}", ran.err);
+  assert!(!ran.out.contains("running"), "{}", ran.out);
+}
+
+#[test]
+fn misnamed_test_module_points_at_its_file() {
+  let dir = project(CONFIG, &[("src/old_test.px", &passing())]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+  assert!(
+    ran.err.contains("`src/old_test.px` declares `module MathTest`"),
+    "{}",
+    ran.err
+  );
+  assert!(!ran.err.contains("_test_main"), "{}", ran.err);
+}
+
+#[test]
+fn no_node_test() {
+  let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+
+  for entry in walk(&src) {
+    let text = fs::read_to_string(&entry).unwrap_or_default();
+
+    assert!(!text.contains("node:test"), "{}", entry.display());
+  }
+}
+
+fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
+  let mut files = Vec::new();
+
+  for entry in fs::read_dir(dir).unwrap() {
+    let path = entry.unwrap().path();
+
+    if path.is_dir() {
+      files.extend(walk(&path));
+    } else {
+      files.push(path);
+    }
+  }
+
+  files
 }
 
 #[test]
@@ -271,7 +488,7 @@ fn test_with_other_throws_compiles_and_fails() {
   assert!(!ran.err.contains("error["), "{}", ran.err);
   assert!(ran.out.contains("test math_test::test_found ... ok"), "{}", ran.out);
   assert!(
-    ran.out.contains("test math_test::test_missing ... FAILED"),
+    ran.out.contains("test math_test::test_missing ... ERROR"),
     "{}",
     ran.out
   );
@@ -384,7 +601,17 @@ fn testing_project_passes() {
 fn manifest_kept_in_dot_polar() {
   let dir = project(
     CONFIG,
-    &[("src/math_test.px", &passing()), ("src/old_test.px", &two_tests())],
+    &[
+      ("src/math_test.px", &passing()),
+      (
+        "src/old_test.px",
+        &test_module(
+          "OldTest",
+          &[("test_a", "Assert.equal(1, 1)")],
+          &["test_a"],
+        ),
+      ),
+    ],
   );
   let manifest = dir.path().join(".polar/test/dist/_polar/tests.json");
 

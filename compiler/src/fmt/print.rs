@@ -22,9 +22,9 @@ use crate::{
     ExternDecl, FieldAccess, FieldInit, FieldType, FnDecl, FnType, HostDecl,
     If, ImplDecl, Import, Lambda, LetStmt, ListLit, Match, MatchArm, MethodSig,
     Module, Name, PCtor, PField, PList, PLit, PRecord, Param, PatLit, Pattern,
-    Pipe, PluginId, Recipe, RecordLit, RecordType, Stmt, StringLit, StringPart,
-    Throw, TraitDecl, Try, TypeBody, TypeDecl, TypeExpr, TypeRef, Unary,
-    VariantBody, Zone, ZoneKind,
+    Pipe, PluginId, Recipe, RecordLit, RecordType, Return, Stmt, StringLit,
+    StringPart, Throw, TraitDecl, Try, TypeBody, TypeDecl, TypeExpr, TypeRef,
+    Unary, VariantBody, Zone, ZoneKind,
     fields::{AsNode, NodeRef},
   },
   syntax::lexer::lex,
@@ -966,6 +966,7 @@ impl Printer<'_> {
       Expr::If(i) => self.wrap(i.as_node(), group(self.if_chain(i))),
       Expr::Match(m) => self.match_expr(m),
       Expr::Throw(t) => self.throw_expr(t),
+      Expr::Return(r) => self.return_expr(r),
       Expr::Try(t) => self.try_expr(t),
       Expr::Invalid(i) => {
         ice("the formatter reached an invalid expression", Some(&i.span))
@@ -1182,9 +1183,15 @@ impl Printer<'_> {
     } else {
       self.expr(&i.cond)
     };
-    let else_doc = match &*i.else_branch {
-      Else::Block(b) => self.block(b, BlockStyle::Inline),
-      Else::If(inner) => self.wrap(inner.as_node(), self.if_chain(inner)),
+    let else_doc = match i.else_branch.as_deref() {
+      Some(Else::Block(b)) => {
+        concat([text(" else "), self.block(b, BlockStyle::Inline)])
+      }
+      Some(Else::If(inner)) => concat([
+        text(" else "),
+        self.wrap(inner.as_node(), self.if_chain(inner)),
+      ]),
+      None => nil(),
     };
 
     concat([
@@ -1192,20 +1199,21 @@ impl Printer<'_> {
       cond,
       text(" "),
       self.block(&i.then_branch, BlockStyle::Inline),
-      text(" else "),
       else_doc,
     ])
   }
 
   fn match_expr(&self, m: &Match) -> Doc {
-    let scrutinee = if exposes_record(&m.scrutinee) {
-      self.parenthesized(&m.scrutinee)
-    } else {
-      self.expr(&m.scrutinee)
-    };
+    let subjects = m.subjects.iter().map(|subject| {
+      if exposes_record(subject) {
+        self.parenthesized(subject)
+      } else {
+        self.expr(subject)
+      }
+    });
     let head = concat([
       text("match "),
-      scrutinee,
+      join(subjects, &text(", ")),
       text(" "),
       self.open(m.as_node(), "{"),
     ]);
@@ -1226,7 +1234,10 @@ impl Printer<'_> {
       .map(|(i, arm)| {
         let block_body = matches!(arm.body, Expr::Block(_));
         let next_negative = arms.get(i + 1).is_some_and(|next| {
-          matches!(&next.pattern, Pattern::Lit(PLit { negative: true, .. }))
+          matches!(
+            next.rows.first().and_then(|row| row.first()),
+            Some(Pattern::Lit(PLit { negative: true, .. }))
+          )
         });
         let comma =
           if block_body && !next_negative { nil() } else { text(",") };
@@ -1241,6 +1252,17 @@ impl Printer<'_> {
       hardline(),
       if arms.is_empty() { closer(0, text("}")) } else { closing("}") },
     ])
+  }
+
+  fn return_expr(&self, r: &Return) -> Doc {
+    let bare = matches!(&*r.value, Expr::Record(lit) if lit.fields.is_empty() && lit.spread.is_none() && lit.span == r.span);
+    let doc = if bare {
+      text("return")
+    } else {
+      concat([text("return "), self.expr(&r.value)])
+    };
+
+    self.wrap(r.as_node(), doc)
   }
 
   fn throw_expr(&self, t: &Throw) -> Doc {
@@ -1260,9 +1282,23 @@ impl Printer<'_> {
   }
 
   fn match_arm(&self, arm: &MatchArm) -> Doc {
+    let rows = arm
+      .rows
+      .iter()
+      .map(|row| join(row.iter().map(|p| self.pattern(p)), &text(", ")));
+    let guard = arm
+      .guard
+      .as_ref()
+      .map_or_else(nil, |guard| concat([text(" if "), self.expr(guard)]));
+
     self.wrap(
       arm.as_node(),
-      concat([self.pattern(&arm.pattern), text(" -> "), self.expr(&arm.body)]),
+      concat([
+        join(rows, &text(" | ")),
+        guard,
+        text(" -> "),
+        self.expr(&arm.body),
+      ]),
     )
   }
 
@@ -1274,6 +1310,10 @@ impl Printer<'_> {
       Pattern::Ctor(c) => self.pattern_ctor(c),
       Pattern::Record(r) => self.pattern_record(r),
       Pattern::List(l) => self.pattern_list(l),
+      Pattern::Or(o) => self.wrap(
+        o.as_node(),
+        join(o.alternatives.iter().map(|p| self.pattern(p)), &text(" | ")),
+      ),
       Pattern::Invalid(i) => {
         ice("the formatter reached an invalid pattern", Some(&i.span))
       }

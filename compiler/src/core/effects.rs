@@ -844,7 +844,7 @@ impl Lowerer<'_> {
         name: e.name.text.clone(),
         module: string_text(&e.module),
         export: e.export.text.clone(),
-        label: e.name.text.clone(),
+        label: crate::syntax::externs::source_name(&e.name.text).to_string(),
         params: Vec::new(),
         ret: Boundary::Plain,
         origin: Some(e.name.span.clone()),

@@ -410,6 +410,7 @@ pub enum Expr {
   Block(Block),
   If(If),
   Match(Match),
+  Return(Return),
   Throw(Throw),
   Try(Try),
   Invalid(InvalidExpr),
@@ -655,7 +656,7 @@ pub struct If {
   pub span: Span,
   pub cond: Box<Expr>,
   pub then_branch: Box<Block>,
-  pub else_branch: Box<Else>,
+  pub else_branch: Option<Box<Else>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -667,15 +668,48 @@ pub enum Else {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Match {
   pub span: Span,
-  pub scrutinee: Box<Expr>,
+  pub subjects: Vec<Expr>,
   pub arms: Vec<MatchArm>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchArm {
   pub span: Span,
-  pub pattern: Pattern,
+  pub rows: Vec<Vec<Pattern>>,
+  pub guard: Option<Box<Expr>>,
   pub body: Expr,
+}
+
+impl Module {
+  #[must_use]
+  pub fn exported_types(&self) -> Vec<String> {
+    let decls: Vec<&Decl> = self.zones.iter().flat_map(|z| &z.decls).collect();
+
+    decls
+      .iter()
+      .filter_map(|d| match d {
+        Decl::Export(e) if e.methods.is_none() => Some(e.name.text.as_str()),
+        _ => None,
+      })
+      .filter(|name| {
+        decls.iter().any(|d| matches!(d, Decl::Type(t) if t.name.text == *name))
+      })
+      .map(str::to_string)
+      .collect()
+  }
+}
+
+impl MatchArm {
+  #[must_use]
+  pub fn first_pattern(&self) -> &Pattern {
+    &self.rows[0][0]
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Return {
+  pub span: Span,
+  pub value: Box<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -691,7 +725,14 @@ pub enum Pattern {
   Ctor(PCtor),
   Record(PRecord),
   List(PList),
+  Or(POr),
   Invalid(InvalidPattern),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct POr {
+  pub span: Span,
+  pub alternatives: Vec<Pattern>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -802,8 +843,9 @@ ast! {
     LetStmt      { span, pattern, ty, value }
     ExprStmt     { span, expr }
     If           { span, cond, then_branch, else_branch }
-    Match        { span, scrutinee, arms }
-    MatchArm     { span, pattern, body }
+    Match        { span, subjects, arms }
+    MatchArm     { span, rows, guard, body }
+    Return       { span, value }
     Throw        { span, value }
     Try          { span, body, catch_span, arms }
     InvalidExpr  { span }
@@ -813,6 +855,7 @@ ast! {
     PCtor          { span, name, args }
     PRecord        { span, fields, open }
     PList          { span, items, tail }
+    POr            { span, alternatives }
     PField         { span, name, pattern }
     InvalidPattern { span }
     PluginEntry    { span, text }
@@ -823,12 +866,12 @@ ast! {
     TypeBody   { Alias, Variants }
     TypeExpr   { Ref, Var, Fn, Record, Invalid }
     Expr       { Int, Float, Bool, String, Var, Field, Call, Pipe, Binary,
-                 Unary, Record, List, Lambda, Block, If, Match, Throw, Try,
-                 Invalid }
+                 Unary, Record, List, Lambda, Block, If, Match, Return, Throw,
+                 Try, Invalid }
     StringPart { Text, Interp }
     Stmt       { Let, Expr }
     Else       { Block, If }
-    Pattern    { Wildcard, Var, Lit, Ctor, Record, List, Invalid }
+    Pattern    { Wildcard, Var, Lit, Ctor, Record, List, Or, Invalid }
     PatLit     { Int, Float, Bool, String }
   }
 }

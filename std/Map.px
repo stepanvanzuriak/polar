@@ -65,6 +65,14 @@ functions
     }
   }
 
+  from_list(entries: List<{ key: k, value: v }>) -> Map<k, v> where Eq<k> {
+    List.fold(
+      entries,
+      Empty,
+      function(map, entry) { insert(map, entry.key, entry.value) },
+    )
+  }
+
   to_list(map: Map<k, v>) -> List<{ key: k, value: v }> {
     match map {
       Empty -> [],
@@ -73,7 +81,9 @@ functions
   }
 
 exports
+  Map
   empty
+  from_list
   get
   has
   insert

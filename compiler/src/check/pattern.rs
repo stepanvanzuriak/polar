@@ -15,6 +15,18 @@ impl<'a> Checker<'a> {
   ) {
     match pattern {
       Pattern::Wildcard(_) | Pattern::Invalid(_) => {}
+      Pattern::Or(or) => {
+        if let Some((first, rest)) = or.alternatives.split_first() {
+          self.check_pattern(first, expected);
+          self.alternatives += 1;
+
+          for alternative in rest {
+            self.check_pattern(alternative, expected);
+          }
+
+          self.alternatives -= 1;
+        }
+      }
       Pattern::Var(var) => self.bind_mono(&var.name.span, expected.clone()),
       Pattern::Lit(lit) => {
         let found = match &lit.lit {

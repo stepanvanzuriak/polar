@@ -3,7 +3,7 @@ use polar_compiler::{
   check::exhaustive::{Pat, show},
   dump_stage, dump_stage_with,
   shared::diagnostic::{Diagnostic, Severity},
-  shared::modules::ModuleSource,
+  shared::modules::{ModuleSource, pascal_case},
   shared::source::SourceFile,
 };
 use std::{fs, path::Path, sync::Arc};
@@ -229,19 +229,6 @@ fn src_root(path: &Path) -> Option<&Path> {
     .ancestors()
     .skip(1)
     .find(|dir| dir.parent().is_some_and(|p| p.join("polar.toml").exists()))
-}
-
-fn pascal_case(segment: &str) -> String {
-  segment
-    .split('_')
-    .map(|part| {
-      let mut chars = part.chars();
-
-      chars
-        .next()
-        .map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect())
-    })
-    .collect()
 }
 
 fn package_module(path: &Path) -> Option<String> {
