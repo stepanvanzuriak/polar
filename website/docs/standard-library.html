@@ -331,6 +331,18 @@
                 <tr>
                   <td>
                     <code class="sig"
+                      >from_list(entries: List&lt;{ key: k, value: v }&gt;) ->
+                      Map&lt;k, v&gt; where Eq&lt;k&gt;</code
+                    >
+                  </td>
+                  <td>
+                    A map built from the entries; a later entry replaces an
+                    earlier one with the same key
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
                       >is_empty(map: Map&lt;k, v&gt;) -> Bool</code
                     >
                   </td>
@@ -1149,16 +1161,17 @@ effects
           <p>
             Hashing, signing and random tokens over <code>node:crypto</code>.
             <code>Crypto</code> works on <code>Node</code> only, so a
-            <code>Browser</code> build can't use <code>Random</code> or
-            <code>Password</code>. Randomness is the <code>Random</code> effect,
-            so a function that makes a token says so in its type, and a program
-            can bind <code>Random</code> to a fixed value in a test. There is no
+            <code>Browser</code> build can't use <code>Random</code> or the
+            password functions. Randomness is the <code>Random</code> effect, so
+            a function that makes a token says so in its type, and a program can
+            bind <code>Random</code> to a fixed value in a test. There is no
             <code>Bytes</code> type: random bytes are a hex string.
           </p>
           <p>
-            Password hashing is the <code>Password</code> effect: scrypt runs on
-            Node's thread pool, so it is asynchronous and doesn't block the
-            event loop. A digest is a self-describing string,
+            Password hashing uses scrypt, which runs on Node's thread pool, so
+            it is asynchronous and doesn't block the event loop. That shows in
+            the type as the built-in <code>Async</code> effect, which needs no
+            declaration or binding. A digest is a self-describing string,
             <code>$scrypt$ln=15,r=8,p=1$&lt;salt&gt;$&lt;hash&gt;</code>, so
             <code>verify_password</code> needs only the stored value and an old
             digest still verifies after the defaults change.
@@ -1166,11 +1179,6 @@ effects
           <pre class="code" data-lang="polar"><code>effects
   Random {
     bytes(count: Int) -&gt; String
-  }
-
-  Password {
-    scrypt_hash(plain: String, salt: String) -&gt; String
-    scrypt_verify(plain: String, stored: String) -&gt; Bool
   }</code></pre>
           <div class="table-wrap">
             <table>
@@ -1233,7 +1241,7 @@ effects
                   <td>
                     <code class="sig"
                       >hash_password(plain: String) -&gt; String / {Random,
-                      Password}</code
+                      Async}</code
                     >
                   </td>
                   <td>
@@ -1246,7 +1254,7 @@ effects
                   <td>
                     <code class="sig"
                       >verify_password(plain: String, stored: String) -&gt; Bool
-                      / {Password}</code
+                      / {Async}</code
                     >
                   </td>
                   <td>
@@ -1354,6 +1362,56 @@ effects
               </tbody>
             </table>
           </div>
+
+          <h2 id="test">Test</h2>
+          <p>
+            The runner behind <a href="cli.html#test"><code>polar test</code></a
+            >. You don't import it to write tests: <code>polar test</code>
+            generates a small entry module that lists every
+            <code>test_*</code> function it found and calls
+            <code>Test.run_all</code> on them. It is a library module, so it
+            works like any other Polar code, with three externs for what the
+            language can't do itself: catching every kind of error, a timer for
+            the deadline, and a precise clock.
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>Outcome = Pass | Fail(Problem) | Error(Problem) | Timeout
+Problem = { kind: String, message: String, at: String }</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >run_all(cases: List&lt;Case&gt;, timeout_ms: Int) -&gt;
+                      {} / {Async | e}</code
+                    >
+                  </td>
+                  <td>
+                    Runs each case once, in order, with a deadline of
+                    <code>timeout_ms</code>. It prints one marked line per test
+                    start and end for <code>polar test</code> to turn into the
+                    report, then exits the process
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            A <code>Case</code> is <code>{ file, name, line, run }</code>, where
+            <code>run</code> is the test function. A test that throws
+            <a href="#assert"><code>Failed</code></a> is a <code>Fail</code>,
+            anything else it throws is an <code>Error</code>, and one still
+            running at the deadline is a <code>Timeout</code>.
+          </p>
 
           <h2 id="math">Math</h2>
           <div class="table-wrap">

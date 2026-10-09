@@ -83,6 +83,20 @@ Commands:
                   <td><code>--host &lt;HOST&gt;</code></td>
                   <td>Picks which host to run for, when there are several</td>
                 </tr>
+                <tr>
+                  <td><code>--watch</code></td>
+                  <td>
+                    Rebuilds and restarts the program whenever a source file,
+                    <code>polar.toml</code> or a path dependency changes
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>--debounce &lt;MS&gt;</code></td>
+                  <td>
+                    With <code>--watch</code>, how long to wait after a change
+                    before rebuilding (default 100)
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -92,6 +106,11 @@ Commands:
             <code>[run]</code>, <code>polar run</code> without
             <code>--host</code> builds every host and hands the build to the
             launcher instead.
+          </p>
+          <p>
+            With <code>--watch</code>, a build error is printed and the running
+            program keeps running until the next good build. The restarted
+            program gets the same arguments and environment.
           </p>
 
           <h2 id="check">polar check</h2>
@@ -245,31 +264,78 @@ Commands:
           <h2 id="test">polar test</h2>
           <pre
             class="code"
-          ><code>polar test [PATH] [-- &lt;NODE_ARGS&gt;...]</code></pre>
+          ><code>polar test [OPTIONS] [PATH] [-- &lt;NODE_ARGS&gt;...]</code></pre>
           <p>
-            Builds the project to a temporary folder and runs its tests on Node
-            with <code>node:test</code>. A test file is any
-            <code>*_test.px</code> under the project's <code>src</code>, such as
-            <code>money_test.px</code> next to <code>money.px</code>. A test is
-            an exported function whose name starts with <code>test_</code> and
-            that takes no parameters. It passes if it returns and fails if it
-            throws. Other exports are ignored.
+            Builds the project to a temporary folder and runs its tests on Node.
+            A test file is any <code>*_test.px</code> under the project's
+            <code>src</code>, such as <code>money_test.px</code> next to
+            <code>money.px</code>. A test is an exported function whose name
+            starts with <code>test_</code> and that takes no parameters. The
+            compiler checks both: a test with parameters is an error, and an
+            exported function in a test file without the prefix is a warning, so
+            a misspelt <code>tset_x</code> doesn't silently go unrun.
           </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>--filter &lt;TEXT&gt;</code></td>
+                  <td>
+                    Runs only the tests whose name contains the text, such as
+                    <code>cart_test::test_add</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>--timeout &lt;MS&gt;</code></td>
+                  <td>How long one test may run (default 5000)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p>
-            Arguments after <code>--</code> go to Node, so
-            <code>polar test -- --test-name-pattern=format</code> runs only
-            matching tests. The exit code is Node's: 0 if everything passed, 1
-            if anything failed. A project with no test files prints
-            <code>no tests found</code> and exits 0. Failed
+            The tests run one after another, in order, and a failing test never
+            stops the run. Each one ends as <code>ok</code>,
+            <code>FAILED</code> (an
             <a href="standard-library.html#assert"><code>Std.Assert</code></a>
-            checks are reported as assertion errors, with the stack pointing
-            into the <code>.px</code> file.
+            check failed), <code>ERROR</code> (anything else was thrown, such as
+            an uncaught typed error or an exception from JavaScript) or
+            <code>TIMEOUT</code>. A failure points at the line in the
+            <code>.px</code> file, and what the test printed is shown only when
+            it didn't pass.
+          </p>
+          <pre class="code out"><code>running 3 tests
+test cart_test::test_add ... ok
+test cart_test::test_empty ... FAILED
+test slow_test::test_wait ... TIMEOUT
+
+failures:
+
+---- cart_test::test_empty ----
+failed at src/cart_test.px:15:5:
+expected 0, got 1
+
+failures:
+    cart_test::test_empty
+    slow_test::test_wait
+
+test result: FAILED. 1 passed; 2 failed; 0 filtered out; finished in 5.01s</code></pre>
+          <p>
+            The exit code is 0 if every test passed and 1 otherwise, or if the
+            project doesn't build. A project with no test files prints
+            <code>no tests found</code> and exits 0. Arguments after
+            <code>--</code> go to Node. See
+            <a href="standard-library.html#test"><code>Std.Test</code></a> for
+            the runner itself.
           </p>
 
           <h2 id="repl">polar repl</h2>
-          <pre
-            class="code"
-          ><code>polar repl [OPTIONS] [PATH]</code></pre>
+          <pre class="code"><code>polar repl [OPTIONS] [PATH]</code></pre>
           <p>
             Loads a project and evaluates one expression or binding at a time on
             Node. Every project module is in scope, along with the modules your
@@ -278,9 +344,7 @@ Commands:
             <code>Json</code>, <code>Ref</code>, <code>Table</code>,
             <code>Math</code>).
           </p>
-          <pre
-            class="code out"
-          ><code>$ polar repl
+          <pre class="code out"><code>$ polar repl
 polar&gt; let post = Greet.post()
 post: { id: Int, title: String } as Post = { id: 1, title: "Hi" }
 polar&gt; post.title
@@ -342,11 +406,10 @@ function(String) -> String</code></pre>
           </div>
           <p>
             Piped input works the same as typing:
-            <code>echo '1+1' | polar repl</code> prints
-            <code>Int = 2</code>. When input is piped or given with
-            <code>-e</code>, the exit code is 1 if any line errored. There is no
-            line editing or multi-line input; wrap the command in
-            <code>rlwrap</code> for history.
+            <code>echo '1+1' | polar repl</code> prints <code>Int = 2</code>.
+            When input is piped or given with <code>-e</code>, the exit code is
+            1 if any line errored. There is no line editing or multi-line input;
+            wrap the command in <code>rlwrap</code> for history.
           </p>
 
           <h2 id="start">polar start</h2>
@@ -420,8 +483,9 @@ polar update [NAME]</code></pre>
             Manage git dependencies. They edit
             <code>polar.toml</code> and <code>polar.lock</code> in the current
             folder. See
-            <a href="modules-and-packages.html#git-dependencies">Git
-            dependencies</a>.
+            <a href="modules-and-packages.html#git-dependencies"
+              >Git dependencies</a
+            >.
           </p>
           <div class="table-wrap">
             <table>
@@ -449,8 +513,8 @@ polar update [NAME]</code></pre>
                   <td><code>fetch</code></td>
                   <td>
                     Resolves every dependency, downloads it and writes
-                    <code>polar.lock</code>. <code>--verify</code> re-checks
-                    the cached files against their checksums
+                    <code>polar.lock</code>. <code>--verify</code> re-checks the
+                    cached files against their checksums
                   </td>
                 </tr>
                 <tr>
@@ -524,7 +588,7 @@ options = { port = 3000 }
 [package]
 name = "simple_framework"
 module = "Framework"
-polar = "0.2.0"
+polar = "0.3.0"
 
 [launcher]
 script = "launcher/serve.mjs"
