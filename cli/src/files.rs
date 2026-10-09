@@ -65,6 +65,24 @@ fn is_pruned(entry: &DirEntry, out: Option<&Path>) -> bool {
     || out.is_some_and(|out| normalize(entry.path()) == out)
 }
 
+#[must_use]
+pub fn without_tests(
+  inputs: Vec<Input>,
+  args: &[PathBuf],
+  cwd: &Path,
+) -> Vec<Input> {
+  let named: Vec<PathBuf> =
+    args.iter().map(|arg| normalize(&cwd.join(arg))).collect();
+
+  inputs
+    .into_iter()
+    .filter(|input| {
+      !input.path.to_string_lossy().ends_with("_test.px")
+        || named.contains(&normalize(&cwd.join(&input.path)))
+    })
+    .collect()
+}
+
 /// Expands file and directory arguments into the `.px` inputs to compile.
 ///
 /// # Errors

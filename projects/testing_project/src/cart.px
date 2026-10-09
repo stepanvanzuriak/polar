@@ -1,0 +1,48 @@
+module Cart
+
+uses
+  Std.List
+  Std.Option
+
+types
+  Item = { name: String, price: Int, quantity: Int }
+
+functions
+  empty() -> List<Item> {
+    []
+  }
+
+  add(items: List<Item>, name: String, price: Int) -> List<Item> {
+    match List.find(items, function(i) { i.name == name }) {
+      Some(_) -> List.map(
+        items,
+        function(i) {
+          if i.name == name {
+            { name: i.name, price: i.price, quantity: i.quantity + 1 }
+          } else {
+            i
+          }
+        },
+      ),
+      None -> List.append(items, [{ name: name, price: price, quantity: 1 }]),
+    }
+  }
+
+  remove(items: List<Item>, name: String) -> List<Item> {
+    List.filter(items, function(i) { i.name != name })
+  }
+
+  count(items: List<Item>) -> Int {
+    List.fold(items, 0, function(n, i) { n + i.quantity })
+  }
+
+  subtotal(items: List<Item>) -> Int {
+    List.fold(items, 0, function(sum, i) { sum + i.price * i.quantity })
+  }
+
+exports
+  empty
+  add
+  remove
+  count
+  subtotal

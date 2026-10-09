@@ -16,6 +16,7 @@ use crate::{
 };
 
 pub(crate) struct Analysed {
+  pub module: Module,
   pub core: CModule,
   pub types: Types,
   pub effects: EffectTable,
@@ -42,7 +43,7 @@ pub(crate) fn front_end(
   let types = types?;
   let core = elaborate(lowered.core, &types, modules, &expansion);
 
-  Some(Analysed { core, types, effects: lowered.effects })
+  Some(Analysed { module, core, types, effects: lowered.effects })
 }
 
 pub(crate) fn parse(

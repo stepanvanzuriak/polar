@@ -1,0 +1,50 @@
+module DiscountTest
+
+uses
+  Pricing.Discount
+  Std.Assert
+  Std.Option
+  Std.Result
+
+functions
+  code(text: String) -> Code / {Throws<Failed>} {
+    match Discount.parse(text) {
+      Ok(c) -> c,
+      Err(message) -> Assert.fail(message),
+    }
+  }
+
+  test_parse_known_codes() -> {} / {Throws<Failed>} {
+    Assert.equal(code("SAVE10"), Percent(10))
+    Assert.equal(code("SHIPFREE"), FreeShipping)
+  }
+
+  test_parse_unknown_code() -> {} / {Throws<Failed>} {
+    match Discount.parse("BOGUS") {
+      Ok(c) -> Assert.fail("expected an error, got #{c}"),
+      Err(message) -> Assert.equal(message, "unknown code BOGUS"),
+    }
+  }
+
+  test_percent() -> {} / {Throws<Failed>} {
+    Assert.equal(Discount.apply(2000, Percent(10)), 1800)
+    Assert.equal(Discount.apply(2000, Percent(50)), 1000)
+  }
+
+  test_flat_never_goes_negative() -> {} / {Throws<Failed>} {
+    Assert.equal(Discount.apply(2000, Flat(500)), 1500)
+    Assert.equal(Discount.apply(300, Flat(500)), 0)
+  }
+
+  test_shipping() -> {} / {Throws<Failed>} {
+    Assert.equal(Discount.shipping(1000, None), 499)
+    Assert.equal(Discount.shipping(5000, None), 0)
+    Assert.equal(Discount.shipping(1000, Some(FreeShipping)), 0)
+  }
+
+exports
+  test_parse_known_codes
+  test_parse_unknown_code
+  test_percent
+  test_flat_never_goes_negative
+  test_shipping

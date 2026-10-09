@@ -1,0 +1,39 @@
+module Discount
+
+uses
+  Std.Option
+  Std.Result
+
+types
+  Code = Percent(Int) | Flat(Int) | FreeShipping derive(Eq, Show)
+
+functions
+  parse(code: String) -> Result<String, Code> {
+    match code {
+      "SAVE10" -> Ok(Percent(10)),
+      "HALF" -> Ok(Percent(50)),
+      "MINUS5" -> Ok(Flat(500)),
+      "SHIPFREE" -> Ok(FreeShipping),
+      _ -> Err("unknown code #{code}"),
+    }
+  }
+
+  apply(subtotal: Int, code: Code) -> Int {
+    match code {
+      Percent(p) -> subtotal - subtotal * p / 100,
+      Flat(cents) -> if cents > subtotal { 0 } else { subtotal - cents },
+      FreeShipping -> subtotal,
+    }
+  }
+
+  shipping(subtotal: Int, code: Option<Code>) -> Int {
+    match code {
+      Some(FreeShipping) -> 0,
+      _ -> if subtotal >= 5000 { 0 } else { 499 },
+    }
+  }
+
+exports
+  parse
+  apply
+  shipping

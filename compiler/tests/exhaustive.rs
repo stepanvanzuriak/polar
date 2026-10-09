@@ -224,6 +224,26 @@ fn header(src: &str) -> Option<String> {
     .map(|n| n.trim().to_string())
 }
 
+fn src_root(path: &Path) -> Option<&Path> {
+  path
+    .ancestors()
+    .skip(1)
+    .find(|dir| dir.parent().is_some_and(|p| p.join("polar.toml").exists()))
+}
+
+fn pascal_case(segment: &str) -> String {
+  segment
+    .split('_')
+    .map(|part| {
+      let mut chars = part.chars();
+
+      chars
+        .next()
+        .map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect())
+    })
+    .collect()
+}
+
 fn package_module(path: &Path) -> Option<String> {
   let manifest =
     fs::read_to_string(path.parent()?.parent()?.join("polar.toml")).ok()?;
@@ -262,10 +282,25 @@ fn all_code_still_compiles() {
       }
 
       let package = package_module(path);
+      let base = src_root(path).or(path.parent());
       let modules = sources
         .iter()
-        .filter(|(other, _)| other.parent() == path.parent() && other != path)
-        .filter_map(|(_, text)| header(text).map(|name| (name, text)))
+        .filter(|(other, _)| other != path)
+        .filter_map(|(other, text)| {
+          let dirs = other.parent()?.strip_prefix(base?).ok()?;
+
+          if src_root(path).is_none() && !dirs.as_os_str().is_empty() {
+            return None;
+          }
+
+          let name = header(text)?;
+          let mut segments: Vec<String> =
+            dirs.iter().map(|d| pascal_case(&d.to_string_lossy())).collect();
+
+          segments.push(name);
+
+          Some((segments.join("."), text))
+        })
         .flat_map(|(name, text)| {
           let qualified = package.as_ref().map(|p| format!("{p}.{name}"));
 

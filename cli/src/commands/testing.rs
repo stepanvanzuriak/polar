@@ -2,9 +2,9 @@ use super::build_into;
 use crate::{
   CliError, Ctx,
   project::{self, Target},
-  runtime::TEST_RUNNER_JS,
+  runtime::{TEST_REPORTER_JS, TEST_RUNNER_JS},
 };
-use std::{fs, path::Path, process::Command};
+use std::{fs, io::ErrorKind, path::Path, process::Command};
 
 pub(crate) fn test(
   ctx: &mut Ctx<'_, '_>,
@@ -25,35 +25,48 @@ pub(crate) fn test(
   }
 
   let node = super::run::needs_node(ctx)?;
-  let dir = tempfile::Builder::new()
-    .prefix("polar-test-")
-    .tempdir()
-    .map_err(|e| CliError::write("a temporary directory", &e))?;
+  let root = crate::files::normalize(&cwd.join(&project.dir));
+  let dir = root.join(crate::plugin::DIR).join("test");
+  let out = dir.join("dist");
+
+  match fs::remove_dir_all(&out) {
+    Err(e) if e.kind() != ErrorKind::NotFound => {
+      return Err(CliError::write(out.display().to_string(), &e));
+    }
+    _ => {}
+  }
+
   let target = Target {
     paths: vec![project.src.clone()],
-    out: dir.path().join("dist"),
+    out,
     project: Some(project.name.clone()),
     hosts: project.hosts.clone(),
     library: false,
     start: None,
   };
   let host = (!project.hosts.is_empty()).then_some("Node");
-  let Some(written) = build_into(ctx, &[target], host, false)? else {
+  let Some(written) = build_into(ctx, &[target], host, false, Some(&root))?
+  else {
     return Ok(1);
   };
   let Some(built) = written.first() else {
     return Ok(1);
   };
-  let runner = dir.path().join("test_runner.mjs");
+  let runner = dir.join("test_runner.mjs");
 
-  fs::write(&runner, TEST_RUNNER_JS)
-    .map_err(|e| CliError::write(runner.display().to_string(), &e))?;
+  let reporter = dir.join("test_reporter.mjs");
+
+  for (path, text) in [(&runner, TEST_RUNNER_JS), (&reporter, TEST_REPORTER_JS)]
+  {
+    fs::write(path, text)
+      .map_err(|e| CliError::write(path.display().to_string(), &e))?;
+  }
 
   crate::watch::on_ctrl_c(|| {});
 
   let status = Command::new(&node)
     .arg("--enable-source-maps")
-    .arg("--test-reporter=spec")
+    .arg(format!("--test-reporter={}", reporter.display()))
     .args(args)
     .arg(&runner)
     .arg(&built.dir)

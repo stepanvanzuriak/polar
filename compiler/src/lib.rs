@@ -33,6 +33,7 @@ mod pipeline;
 pub mod shared;
 pub mod stdlib;
 pub mod syntax;
+mod testing;
 #[doc(hidden)]
 pub mod types;
 
@@ -91,6 +92,14 @@ pub struct CompileOutput {
   pub host_error: Option<String>,
   pub extern_files: Vec<(String, String)>,
   pub bridges: Vec<String>,
+  pub module: Option<String>,
+  pub tests: Vec<TestFn>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestFn {
+  pub name: String,
+  pub line: usize,
 }
 
 pub use codegen::hosts::choose_host;
@@ -120,6 +129,9 @@ fn compile_within(
   else {
     return failed(bag);
   };
+
+  let tests = testing::check(&analysed.module, &file, &mut bag);
+  let module = analysed.module.name.as_ref().map(|n| n.text.clone());
 
   let host = match pipeline::host(options, &analysed.effects) {
     Ok(host) => host,
@@ -175,6 +187,8 @@ fn compile_within(
     host,
     extern_files,
     bridges,
+    module,
+    tests,
     ..CompileOutput::default()
   }
 }
