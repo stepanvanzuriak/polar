@@ -66,6 +66,10 @@ pub(crate) fn test(
     start: None,
   };
   let host = (!project.hosts.is_empty()).then_some("Node");
+  let browser = (project.hosts.iter().any(|h| h == "Browser")
+    && project.hosts.iter().any(|h| h == "Node")
+    && mentions_browser(&normalize(&cwd.join(&project.src))))
+  .then(|| root.join(crate::plugin::DIR).join("test").join("browser"));
   let Some(written) = build_into(ctx, &[target], host, false, Some(&root))?
   else {
     return Ok(1);
@@ -73,6 +77,28 @@ pub(crate) fn test(
   let Some(built) = written.first() else {
     return Ok(1);
   };
+
+  if let Some(dir) = &browser {
+    match fs::remove_dir_all(dir) {
+      Err(e) if e.kind() != ErrorKind::NotFound => {
+        return Err(CliError::write(dir.display().to_string(), &e));
+      }
+      _ => {}
+    }
+
+    let target = Target {
+      paths: vec![project.src.clone()],
+      out: dir.clone(),
+      project: Some(project.name.clone()),
+      hosts: project.hosts.clone(),
+      library: false,
+      start: None,
+    };
+
+    if build_into(ctx, &[target], Some("Browser"), false, None)?.is_none() {
+      return Ok(1);
+    }
+  }
 
   if built.tests.is_empty() {
     let _ =
@@ -108,10 +134,45 @@ pub(crate) fn test(
 
     Report::running(ctx, cases.len());
     report.start = Instant::now();
-    run(ctx, &node, &main, options.args, &cases, &mut report)?;
+    let entry = project
+      .start()
+      .map_or_else(|| PathBuf::from("main.js"), |start| start.main);
+
+    run(
+      ctx,
+      &node,
+      &main,
+      options.args,
+      &cases,
+      &Env { browser: browser.as_deref(), main: &entry },
+      &mut report,
+    )?;
   }
 
   Ok(report.finish(ctx, cases.len()))
+}
+
+fn mentions_browser(dir: &Path) -> bool {
+  let Ok(entries) = fs::read_dir(dir) else { return false };
+
+  entries.flatten().any(|entry| {
+    let path = entry.path();
+
+    if path.is_dir() {
+      return mentions_browser(&path);
+    }
+
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+
+    name.ends_with(".px")
+      && !name.ends_with("_test.px")
+      && fs::read_to_string(&path).is_ok_and(|text| text.contains("Browser"))
+  })
+}
+
+struct Env<'a> {
+  browser: Option<&'a Path>,
+  main: &'a Path,
 }
 
 struct Case {
@@ -292,13 +353,22 @@ fn run(
   main: &Path,
   args: &[String],
   cases: &[Case],
+  env: &Env<'_>,
   report: &mut Report,
 ) -> Result<(), CliError> {
   let dir = main.parent().unwrap_or(Path::new("."));
 
   crate::watch::on_ctrl_c(|| {});
 
-  let mut child = Command::new(node)
+  let mut command = Command::new(node);
+
+  command.env("POLAR_TEST_MAIN", env.main);
+
+  if let Some(browser) = env.browser {
+    command.env("POLAR_TEST_BROWSER_DIST", browser);
+  }
+
+  let mut child = command
     .arg("--enable-source-maps")
     .args(args)
     .arg(launcher(dir))

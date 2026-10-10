@@ -12,5 +12,3 @@ POST /posts -> 201 {"id":3,"title":"<script>alert(\"hi\")</script> & co","author
 GET / -> 200 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Posts</title></head><body><h1>Posts</h1><div id="app"><section><p>2 posts &amp; counting</p><article class="post" data-id="2"><h2>Second</h2><p>Post #2 by author 2 — don't miss it!</p></article><article class="post" data-id="3"><h2>&lt;script&gt;alert(&quot;hi&quot;)&lt;/script&gt; &amp; co</h2><p>Post #3 by author 1 — don't miss it!</p></article></section></div><script type="module">import { start } from "/_client/main.js"; start();</script></body></html>
 GET /_client/main.js -> 200 text/javascript; charset=utf-8 with start
 GET /_client/..%2fNode%2fmain.js -> 404 application/json
-the browser sees 2 posts
-<section><p>2 posts &amp; counting</p><article class="post" data-id="2"><h2>Second</h2><p>Post #2 by author 2 — don't miss it!</p></article><article class="post" data-id="3"><h2>&lt;script&gt;alert(&quot;hi&quot;)&lt;/script&gt; &amp; co</h2><p>Post #3 by author 1 — don't miss it!</p></article></section>

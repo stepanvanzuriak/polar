@@ -631,3 +631,181 @@ fn manifest_kept_in_dot_polar() {
   assert!(!text.contains("old_test"), "{text}");
   assert!(!dir.path().join(".polar/test/dist/old_test.js").exists());
 }
+
+const APP: &str = r##"module Main
+
+uses
+  Std.Http
+  Std.List
+  Std.Option
+  Std.Process
+
+functions
+  router(request: Request) -> Option<Response> / {Process} {
+    match request.path {
+      "/login" -> Some({
+        status: 302,
+        headers: [
+          { name: "location", value: "/home" },
+          { name: "set-cookie", value: "sid=abc; Path=/" },
+          { name: "set-cookie", value: "flash=hi; Path=/" },
+        ],
+        body: "",
+      }),
+      "/home" -> Some({
+        status: 200,
+        headers: [],
+        body: "cookie=#{Http.header(request.headers, "cookie")}",
+      }),
+      "/logout" -> Some({
+        status: 200,
+        headers: [{ name: "set-cookie", value: "sid=; Max-Age=0" }],
+        body: "bye",
+      }),
+      "/env" -> Some({
+        status: 200,
+        headers: [],
+        body: Option.with_default(Process.env("APP_MODE"), "none"),
+      }),
+      _ -> None,
+    }
+  }
+
+exports
+  router
+"##;
+
+const E2E: &str = r##"module FlowTest
+
+uses
+  Std.Assert
+  Std.Fs
+  Std.List
+  Std.Option
+  Std.Process
+  Std.Regex
+  Std.Result
+  Std.Test
+
+hosts
+  Node
+
+functions
+  test_flow() -> {} / {Async, Net, Fs, Process, Mut, Throws<Failed>, Throws<ClientError>} {
+    Test.with_app_env(
+      [{ name: "APP_MODE", value: "test" }],
+      function(app) {
+        let first = Test.visit(Test.browser(app.url), "GET", "/login", None)
+        let home = Test.follow(first)
+        let env = Test.visit(home.browser, "GET", "/env", None)
+        let out = Test.visit(env.browser, "GET", "/logout", None)
+        let after = Test.visit(out.browser, "GET", "/home", None)
+
+        Assert.equal(first.response.status, 302)
+        Assert.equal(
+          List.length(List.filter(first.response.headers, function(h) { h.name == "set-cookie" })),
+          2,
+        )
+        Assert.equal(home.response.body, "cookie=sid=abc; flash=hi")
+        Assert.equal(env.response.body, "test")
+        Assert.equal(after.response.body, "cookie=flash=hi")
+        Assert.equal(List.length(Test.log(app)), 5)
+        Test.assert_snapshot("flow", "#{first.response.status}\n#{after.response.body}")
+      },
+    )
+  }
+
+  test_session() -> {} / {Async, Net, Fs, Process, Mut, Throws<Failed>, Throws<ClientError>} {
+    Test.with_app(
+      function(app) {
+        let session = Test.session(app.url)
+        let first = Test.go(session, "GET", "/login", None)
+        let home = Test.go(session, "GET", "/home", None)
+
+        Assert.equal(first.status, 302)
+        Assert.equal(home.body, "cookie=sid=abc; flash=hi")
+        match Regex.compile("sid=([a-z]+); flash=(\\w+)") {
+          Ok(re) -> Assert.equal(Regex.captures(re, home.body), Some(["abc", "hi"])),
+          Err(message) -> Assert.fail(message),
+        }
+      },
+    )
+  }
+
+  test_temp_dir() -> {} / {Async, Fs, Throws<Failed>} {
+    Fs.with_temp_dir("polar-", function(dir) { Assert.assert(Fs.is_dir(dir)) })
+  }
+
+exports
+  test_flow
+  test_session
+  test_temp_dir
+"##;
+
+#[test]
+fn http_flow_with_cookies_and_snapshot() {
+  let dir =
+    project(CONFIG, &[("src/main.px", APP), ("src/flow_test.px", E2E)]);
+
+  let missing = polar(dir.path(), &["test"]);
+
+  assert_eq!(missing.code, Some(1), "{}{}", missing.out, missing.err);
+  assert!(missing.out.contains("no snapshot at snapshots/flow.txt"));
+
+  let created = Command::new(POLAR)
+    .arg("test")
+    .current_dir(dir.path())
+    .env("POLAR_UPDATE", "1")
+    .output()
+    .unwrap();
+
+  assert_eq!(created.status.code(), Some(0));
+
+  let snapshot = dir.path().join("snapshots/flow.txt");
+
+  assert_eq!(fs::read_to_string(&snapshot).unwrap(), "302\ncookie=flash=hi");
+  assert_eq!(polar(dir.path(), &["test"]).code, Some(0));
+
+  fs::write(&snapshot, "302\nother").unwrap();
+
+  let differ = polar(dir.path(), &["test"]);
+
+  assert_eq!(differ.code, Some(1));
+  assert!(differ.out.contains("- other"), "{}", differ.out);
+  assert!(differ.out.contains("+ cookie=flash=hi"), "{}", differ.out);
+}
+
+#[test]
+fn spawn_waits_for_a_line_and_stops_the_group() {
+  let source = "module SpawnTest
+
+uses
+  Std.Assert
+  Std.List
+  Std.Option
+  Std.Process
+
+hosts
+  Node
+
+functions
+  test_spawn() -> {} / {Async, Throws<Failed>} {
+    let child = Process.spawn(
+      \"sh\",
+      [\"-c\", \"echo ready on 41234; sleep 30\"],
+      Process.inherit(),
+    )
+    let line = Process.wait_for_line(child, \"ready on [0-9]+\", 3000)
+
+    Assert.equal(Option.with_default(line, \"none\"), \"ready on 41234\")
+    Assert.equal(Process.stop(child), 130)
+  }
+
+exports
+  test_spawn
+";
+  let dir = project(CONFIG, &[("src/spawn_test.px", source)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+}

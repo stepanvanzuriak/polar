@@ -1,0 +1,94 @@
+module ApiTest
+
+uses
+  Std.Assert
+  Std.Fs
+  Std.Http
+  Std.List
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  row(method: String, path: String, response: Response) -> String {
+    String.trim("#{method} #{path} -> #{response.status} #{response.body}")
+  }
+
+  asset(path: String, response: Response) -> String {
+    let start = if String.contains(response.body, "export async function start(") {
+      " with start"
+    } else {
+      ""
+    }
+
+    "GET #{path} -> #{response.status} #{Http.header(response.headers, "content-type")}#{start}"
+  }
+
+  test_api_transcript() -> {} / {
+    Async,
+    Net,
+    Fs,
+    Process,
+    Throws<Failed>,
+    Throws<ClientError>,
+  } {
+    Test.with_app(
+      function(app) {
+        let list = Test.send(app, "GET", "/posts", "")
+        let first = Test.send(
+          app,
+          "POST",
+          "/posts",
+          "{\"title\":\"First\",\"author_id\":1}",
+        )
+        let second = Test.send(
+          app,
+          "POST",
+          "/posts",
+          "{\"title\":\"Second\",\"author_id\":2}",
+        )
+        let one = Test.send(app, "GET", "/posts/1", "")
+        let gone = Test.send(app, "GET", "/posts/99", "")
+        let junk = Test.send(app, "GET", "/posts/abc", "")
+        let wrong = Test.send(app, "POST", "/posts", "{\"title\":3,\"author_id\":1}")
+        let removed = Test.send(app, "DELETE", "/posts/1", "")
+        let again = Test.send(app, "DELETE", "/posts/1", "")
+        let rest = Test.send(app, "GET", "/posts", "")
+        let escaped = Test.send(
+          app,
+          "POST",
+          "/posts",
+          "{\"title\":\"<script>alert(\\\"hi\\\")</script> & co\",\"author_id\":1}",
+        )
+        let home = Test.send(app, "GET", "/", "")
+        let client = Test.send(app, "GET", "/_client/main.js", "")
+        let escape = Test.send(app, "GET", "/_client/..%2fNode%2fmain.js", "")
+        let rows = [
+          row("GET", "/posts", list),
+          row("POST", "/posts", first),
+          row("POST", "/posts", second),
+          row("GET", "/posts/1", one),
+          row("GET", "/posts/99", gone),
+          row("GET", "/posts/abc", junk),
+          row("POST", "/posts", wrong),
+          row("DELETE", "/posts/1", removed),
+          row("DELETE", "/posts/1", again),
+          row("GET", "/posts", rest),
+          row("POST", "/posts", escaped),
+          row("GET", "/", home),
+          asset("/_client/main.js", client),
+          asset("/_client/..%2fNode%2fmain.js", escape),
+        ]
+
+        let writes = Test.run_browser(app, "start")
+
+        Test.assert_snapshot("api", "#{List.join(rows, "\n")}\n")
+        Test.assert_snapshot("browser", "#{List.join(writes, "\n")}\n")
+      },
+    )
+  }
+
+exports
+  test_api_transcript

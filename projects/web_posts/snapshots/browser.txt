@@ -1,0 +1,2 @@
+p: the browser sees 2 posts
+html: <section><p>2 posts &amp; counting</p><article class="post" data-id="2"><h2>Second</h2><p>Post #2 by author 2 — don't miss it!</p></article><article class="post" data-id="3"><h2>&lt;script&gt;alert(&quot;hi&quot;)&lt;/script&gt; &amp; co</h2><p>Post #3 by author 1 — don't miss it!</p></article></section>
