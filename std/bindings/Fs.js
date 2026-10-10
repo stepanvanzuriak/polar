@@ -1,4 +1,7 @@
+import { ASYNC } from "../../runtime.js";
 import * as fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export function read(path) {
   return attempt(path, () => fs.readFile(path, "utf8"));
@@ -55,6 +58,20 @@ export function remove(path) {
 
 export function remove_all(path) {
   return attempt(path, () => fs.rm(path, { recursive: true, force: true }));
+}
+
+export function mkdtemp(prefix) {
+  return attempt(prefix, () => fs.mkdtemp(join(tmpdir(), prefix)));
+}
+
+export async function with_temp_dir(prefix, body) {
+  const dir = await fs.mkdtemp(join(tmpdir(), prefix));
+
+  try {
+    return await body(dir, ASYNC);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 }
 
 async function files(root, prefix) {

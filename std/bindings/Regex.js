@@ -60,6 +60,18 @@ export function all_matches(pattern, text) {
   return out;
 }
 
+export function capture_groups(pattern, text) {
+  const re = compiled(pattern);
+
+  if (re === null) {
+    return null;
+  }
+
+  const m = re.exec(text);
+
+  return m === null ? null : m.slice(1).map((group) => group ?? "");
+}
+
 export function replace_all(pattern, text, replacement) {
   const re = compiled(pattern);
 

@@ -1,0 +1,30 @@
+module BridgeTest
+
+uses
+  Std.Assert
+  Std.Fs
+  Std.List
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  test_browser_calls_the_server_through_the_bridge() -> {} / {
+    Async,
+    Fs,
+    Process,
+    Throws<Failed>,
+  } {
+    Test.with_app(
+      function(app) {
+        let writes = Test.run_browser(app, "start")
+
+        Test.assert_snapshot("browser", "#{List.join(writes, "\n")}\n")
+      },
+    )
+  }
+
+exports
+  test_browser_calls_the_server_through_the_bridge

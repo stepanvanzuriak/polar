@@ -827,7 +827,14 @@ function nodeListener(handle, { limit = 1_000_000 } = {}) {
       return;
     }
 
-    res.writeHead(response.status, Object.fromEntries(response.headers));
+    const headers = Object.fromEntries(response.headers);
+    const cookies = response.headers.getSetCookie();
+
+    if (cookies.length > 0) {
+      headers["set-cookie"] = cookies;
+    }
+
+    res.writeHead(response.status, headers);
     res.end(Buffer.from(await response.arrayBuffer()));
   };
 }

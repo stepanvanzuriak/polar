@@ -14,6 +14,8 @@ types
 
   Output = { code: Int, stdout: String, stderr: String }
 
+  Child = { pid: Int, id: Int }
+
 effects
   Process in Node {
     args() -> List<String>
@@ -23,6 +25,17 @@ effects
     run(command: String, args: List<String>, options: RunOptions) -> Int
     output(command: String, args: List<String>, options: RunOptions) -> Output
   }
+
+externs
+  scoped_env(vars: List<EnvVar>, body: function() -> a / {| e}) -> a / {Async | e}
+    = "./bindings/Process.js" scoped_env
+  spawn(command: String, args: List<String>, options: RunOptions) -> Child / {Async}
+    = "./bindings/Process.js" spawn_child
+  wait_for_line(child: Child, pattern: String, timeout_ms: Int) -> Option<String> / {
+    Async,
+  }
+    = "./bindings/Process.js" wait_for_line
+  stop(child: Child) -> Int / {Async} = "./bindings/Process.js" stop
 
 binds
   Process in Node = "./bindings/Process.js"
@@ -44,8 +57,13 @@ exports
   EnvVar
   RunOptions
   Output
+  Child
   Node
   Process
   inherit
   in_dir
   with_env
+  scoped_env
+  spawn
+  wait_for_line
+  stop

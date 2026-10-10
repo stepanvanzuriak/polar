@@ -22,7 +22,12 @@ effects
     walk(path: String) -> Result<FsError, List<String>>
     remove(path: String) -> Result<FsError, {}>
     remove_all(path: String) -> Result<FsError, {}>
+    mkdtemp(prefix: String) -> Result<FsError, String>
   }
+
+externs
+  with_temp_dir(prefix: String, body: function(String) -> a / {| e}) -> a / {Async | e}
+    = "./bindings/Fs.js" with_temp_dir
 
 binds
   Fs in Node = "./bindings/Fs.js"
@@ -31,3 +36,4 @@ exports
   FsError
   Node
   Fs
+  with_temp_dir

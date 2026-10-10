@@ -1,9 +1,19 @@
 module Test
 
 uses
+  Std.Assert
+  Std.Fs
+  Std.Http
   Std.Json
   Std.List
+  Std.Map
   Std.Option
+  Std.Process
+  Std.Ref
+  Std.Result
+
+hosts
+  Node
 
 types
   Problem = { kind: String, message: String, at: String }
@@ -22,13 +32,261 @@ types
     at: Option<String>,
   } derive(Json)
 
+  RequestOptions = {
+    method: String,
+    url: String,
+    headers: List<Header>,
+    body: String,
+    follow: Bool,
+    timeout_ms: Int,
+  }
+
+  ClientError = Network(String) | TimedOut(String) derive(Show)
+
+  Browser = { base: String, cookies: Map<String, String> }
+
+  Visit = { browser: Browser, response: Response }
+
+  App = { url: String, id: Int }
+
+  Verdict = Match | Created | Missing(String) | Differ(String)
+
+effects
+  Net in Node {
+    request(options: RequestOptions) -> Result<ClientError, Response>
+  }
+
 externs
   guard(run: function() -> {} / {| e}, timeout_ms: Int) -> Outcome / {Async | e}
     = "./bindings/Test.js" guard
+  compare_snapshot(name: String, text: String, dir: String, update: Bool) -> Verdict / {
+    Fs,
+  }
+    = "./bindings/Test.js" compare_snapshot
   clock() -> Float = "./bindings/Test.js" clock
   finish() -> {} = "./bindings/Test.js" finish
+  serve_app(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {Async | e}
+    = "./bindings/Test.js" with_app
+  run_browser(app: App, export_name: String) -> List<String> / {Async}
+    = "./bindings/Test.js" run_browser
+  log(app: App) -> List<String> / {Mut} = "./bindings/Test.js" log
+
+binds
+  Net in Node = "./bindings/Test.js"
 
 functions
+  assert_snapshot(name: String, text: String) -> {} / {Fs, Process, Throws<Failed>} {
+    assert_snapshot_with(name, text, function(s) { s })
+  }
+
+  assert_snapshot_with(
+    name: String,
+    text: String,
+    normalise: function(String) -> String,
+  ) -> {} / {Fs, Process, Throws<Failed>} {
+    let update = match Process.env("POLAR_UPDATE") {
+      Some(value) -> value != "" && value != "0",
+      None -> false,
+    }
+
+    match compare_snapshot(name, normalise(text), "snapshots", update) {
+      Match -> {},
+      Created -> {},
+      Missing(path) -> throw Failed(
+        "no snapshot at #{path}\n  = help: run `POLAR_UPDATE=1 polar test` to create it",
+      ),
+      Differ(diff) -> throw Failed(diff),
+    }
+  }
+
+  request_options(method: String, url: String) -> RequestOptions {
+    { method: method, url: url, headers: [], body: "", follow: false, timeout_ms: 5000 }
+  }
+
+  request(options: RequestOptions) -> Result<ClientError, Response> / {Net} {
+    Net.request(options)
+  }
+
+  get(url: String) -> Result<ClientError, Response> / {Net} {
+    Net.request(request_options("GET", url))
+  }
+
+  with_app(body: function(App) -> a / {| e}) -> a / {Async | e} {
+    serve_app([], body)
+  }
+
+  with_app_env(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {Async | e} {
+    serve_app(env, body)
+  }
+
+  send(app: App, method: String, path: String, body: String) -> Response / {
+    Net,
+    Throws<ClientError>,
+  } {
+    match Net.request({ ..request_options(method, "#{app.url}#{path}"), body: body }) {
+      Ok(response) -> response,
+      Err(error) -> throw error,
+    }
+  }
+
+  session(base: String) -> Ref<Browser> {
+    Ref.new(browser(base))
+  }
+
+  go(
+    session: Ref<Browser>,
+    method: String,
+    path: String,
+    body: Option<String>,
+  ) -> Response / {Net, Mut, Throws<ClientError>} {
+    let reply = visit(Ref.get(session), method, path, body)
+
+    Ref.set(session, reply.browser)
+    reply.response
+  }
+
+  go_follow(
+    session: Ref<Browser>,
+    method: String,
+    path: String,
+    body: Option<String>,
+  ) -> Response / {Net, Mut, Throws<ClientError>} {
+    let reply = follow(visit(Ref.get(session), method, path, body))
+
+    Ref.set(session, reply.browser)
+    reply.response
+  }
+
+  browser(base: String) -> Browser {
+    { base: trim_slash(base), cookies: Map.empty() }
+  }
+
+  visit(browser: Browser, method: String, path: String, body: Option<String>) -> Visit / {
+    Net,
+    Throws<ClientError>,
+  } {
+    match body {
+      None -> visit_with(browser, method, path, [], ""),
+      Some(text) -> visit_with(
+        browser,
+        method,
+        path,
+        [{ name: "content-type", value: "application/x-www-form-urlencoded" }],
+        text,
+      ),
+    }
+  }
+
+  visit_with(
+    browser: Browser,
+    method: String,
+    path: String,
+    headers: List<Header>,
+    body: String,
+  ) -> Visit / {Net, Throws<ClientError>} {
+    let cookie = cookie_header(browser.cookies)
+    let sent = if cookie == "" {
+      headers
+    } else {
+      List.append(headers, [{ name: "cookie", value: cookie }])
+    }
+    let reply = Net.request(
+      { ..request_options(method, "#{browser.base}#{path}"), headers: sent, body: body },
+    )
+
+    match reply {
+      Ok(response) -> { browser: remember(browser, response), response: response },
+      Err(error) -> throw error,
+    }
+  }
+
+  follow(reply: Visit) -> Visit / {Net, Throws<ClientError>} {
+    let location = Http.header(reply.response.headers, "location")
+    let base = reply.browser.base
+
+    if location == "" {
+      reply
+    } else if String.starts_with(location, "/") {
+      visit(reply.browser, "GET", location, None)
+    } else if String.starts_with(location, base) {
+      visit(
+        reply.browser,
+        "GET",
+        String.slice(location, String.length(base), String.length(location)),
+        None,
+      )
+    } else {
+      reply
+    }
+  }
+
+  remember(browser: Browser, response: Response) -> Browser {
+    let jar = List.fold(
+      response.headers,
+      browser.cookies,
+      function(cookies, header) {
+        if String.lowercase(header.name) == "set-cookie" {
+          apply_cookie(cookies, header.value)
+        } else {
+          cookies
+        }
+      },
+    )
+
+    { ..browser, cookies: jar }
+  }
+
+  apply_cookie(cookies: Map<String, String>, line: String) -> Map<String, String> {
+    match String.split(line, ";") {
+      [] -> cookies,
+      [pair, ..attributes] -> match String.split_once(pair, "=") {
+        None -> cookies,
+        Some(parts) -> {
+          let name = String.trim(parts.before)
+
+          if name == "" {
+            cookies
+          } else if expired(attributes) {
+            Map.remove(cookies, name)
+          } else {
+            Map.insert(cookies, name, String.trim(parts.after))
+          }
+        }
+      },
+    }
+  }
+
+  expired(attributes: List<String>) -> Bool {
+    List.any(
+      attributes,
+      function(attribute) {
+        let text = String.lowercase(String.trim(attribute))
+
+        text == "max-age=0"
+          || String.starts_with(text, "max-age=-")
+          || String.starts_with(text, "expires=") && String.contains(text, "1970")
+      },
+    )
+  }
+
+  cookie_header(cookies: Map<String, String>) -> String {
+    List.join(
+      List.map(
+        List.reverse(Map.to_list(cookies)),
+        function(entry) { "#{entry.key}=#{entry.value}" },
+      ),
+      "; ",
+    )
+  }
+
+  trim_slash(base: String) -> String {
+    if String.ends_with(base, "/") {
+      trim_slash(String.slice(base, 0, String.length(base) - 1))
+    } else {
+      base
+    }
+  }
+
   run_all(
     cases: List<{ file: String, name: String, line: Int, run: function() -> {} / {| e} }>,
     timeout_ms: Int,
@@ -105,4 +363,31 @@ functions
   }
 
 exports
+  Verdict
+  assert_snapshot
+  assert_snapshot_with
+  RequestOptions
+  ClientError
+  Browser
+  Visit
+  App
+  Node
+  Net
   run_all
+  request_options
+  request
+  get
+  browser
+  send
+  session
+  go
+  go_follow
+  visit
+  visit_with
+  follow
+  remember
+  cookie_header
+  with_app
+  with_app_env
+  run_browser
+  log

@@ -1,0 +1,5 @@
+p: 2 posts on the server
+p: 1: Hello from the server
+p: 2: Bridges forward effects
+p: no post 42
+p: the same post twice is equal: true

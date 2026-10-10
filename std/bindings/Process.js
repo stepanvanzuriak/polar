@@ -1,3 +1,4 @@
+import { ASYNC } from "../../runtime.js";
 import { spawn } from "node:child_process";
 import { constants } from "node:os";
 
@@ -84,4 +85,156 @@ function reason(error) {
     default:
       return error.message;
   }
+}
+
+export async function scoped_env(vars, body) {
+  const saved = vars.map(({ name }) => [
+    name,
+    Object.hasOwn(process.env, name) ? process.env[name] : undefined,
+  ]);
+
+  for (const { name, value } of vars) {
+    process.env[name] = value;
+  }
+
+  try {
+    return await body(ASYNC);
+  } finally {
+    for (const [name, value] of saved) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+}
+
+const children = new Map();
+let nextChild = 1;
+
+export function spawn_child(command, args, options) {
+  const lines = [];
+  const waiting = [];
+  const child = spawn(command, args, {
+    cwd: options.cwd ?? undefined,
+    env: {
+      ...process.env,
+      ...Object.fromEntries(options.env.map(({ name, value }) => [name, value])),
+    },
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const entry = { child, lines, waiting, closed: false, code: null };
+  const settle = () => {
+    for (const waiter of [...waiting]) {
+      waiter();
+    }
+  };
+
+  for (const stream of [child.stdout, child.stderr]) {
+    let rest = "";
+
+    stream.setEncoding("utf8");
+    stream.on("data", (chunk) => {
+      const parts = (rest + chunk).split("\n");
+
+      rest = parts.pop();
+      lines.push(...parts);
+      settle();
+    });
+    stream.on("end", () => {
+      if (rest !== "") {
+        lines.push(rest);
+        rest = "";
+      }
+
+      settle();
+    });
+  }
+
+  child.on("error", () => {
+    entry.closed = true;
+    entry.code = 127;
+    settle();
+  });
+  child.on("close", (code, signal) => {
+    entry.closed = true;
+    entry.code = code ?? 128 + (constants.signals[signal] ?? 0);
+    settle();
+  });
+
+  const id = nextChild++;
+
+  children.set(id, entry);
+
+  return { pid: child.pid ?? 0, id };
+}
+
+export async function wait_for_line(handle, pattern, timeoutMs) {
+  const entry = children.get(handle.id);
+
+  if (entry === undefined) {
+    return null;
+  }
+
+  const re = new RegExp(pattern, "u");
+  let seen = 0;
+
+  return new Promise((resolve) => {
+    let timer;
+    const check = () => {
+      for (; seen < entry.lines.length; seen++) {
+        if (re.test(entry.lines[seen])) {
+          return done(entry.lines[seen++]);
+        }
+      }
+
+      if (entry.closed) {
+        done(null);
+      }
+    };
+    const done = (line) => {
+      clearTimeout(timer);
+      entry.waiting.splice(entry.waiting.indexOf(check), 1);
+      resolve(line);
+    };
+
+    timer = setTimeout(() => done(null), timeoutMs);
+    entry.waiting.push(check);
+    check();
+  });
+}
+
+export async function stop(handle) {
+  const entry = children.get(handle.id);
+
+  if (entry === undefined) {
+    return 0;
+  }
+
+  if (!entry.closed) {
+    const exited = new Promise((resolve) => {
+      const check = () => {
+        if (entry.closed) {
+          entry.waiting.splice(entry.waiting.indexOf(check), 1);
+          resolve();
+        }
+      };
+
+      entry.waiting.push(check);
+    });
+
+    try {
+      process.kill(-entry.child.pid, "SIGINT");
+    } catch {
+      entry.child.kill("SIGINT");
+    }
+
+    await exited;
+  }
+
+  children.delete(handle.id);
+
+  return entry.code;
 }

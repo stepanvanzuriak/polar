@@ -18,6 +18,8 @@ externs
     = "./bindings/Regex.js" first_match
   all_matches(pattern: String, text: String) -> List<String>
     = "./bindings/Regex.js" all_matches
+  capture_groups(pattern: String, text: String) -> Option<List<String>>
+    = "./bindings/Regex.js" capture_groups
   replace_all(pattern: String, text: String, with: String) -> String
     = "./bindings/Regex.js" replace_all
   syntax_error(pattern: String) -> Option<String> = "./bindings/Regex.js" syntax_error
@@ -48,6 +50,10 @@ functions
     all_matches(pattern(regex), text)
   }
 
+  captures(regex: Regex, text: String) -> Option<List<String>> {
+    capture_groups(pattern(regex), text)
+  }
+
   replace(regex: Regex, text: String, with: String) -> String {
     replace_all(pattern(regex), text, with)
   }
@@ -74,5 +80,6 @@ exports
   is_match
   find
   find_all
+  captures
   replace
   matches

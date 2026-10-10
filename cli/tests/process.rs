@@ -425,7 +425,7 @@ fn projects_run() {
     let manifest =
       fs::read_to_string(dir.join("polar.toml")).unwrap_or_default();
 
-    if !manifest.contains("[project]") || dir.join("e2e.mjs").is_file() {
+    if !manifest.contains("[project]") || dir.join("snapshots").is_dir() {
       continue;
     }
 
@@ -598,45 +598,6 @@ fn web_posts_bundles_hold_only_their_host() {
 
   assert!(server.contains("function router("), "{server}");
   assert!(node.join("_deps/simple_framework/response.js").is_file());
-}
-
-#[test]
-fn projects_run_end_to_end() {
-  let root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));
-  let node = std::env::var("POLAR_NODE").unwrap_or_else(|_| "node".to_string());
-  let mut checked = 0;
-
-  for entry in fs::read_dir(root.join("projects")).unwrap() {
-    let source = entry.unwrap().path();
-
-    if !source.join("e2e.mjs").is_file() {
-      continue;
-    }
-
-    let (_work, dist) = build_out_of_tree(&source);
-    let name = source.display().to_string();
-    let ran = Command::new(&node)
-      .arg("e2e.mjs")
-      .arg(&dist)
-      .current_dir(&source)
-      .output()
-      .unwrap();
-
-    assert_eq!(
-      ran.status.code(),
-      Some(0),
-      "{name}: {}",
-      String::from_utf8_lossy(&ran.stderr)
-    );
-    assert_eq!(
-      String::from_utf8_lossy(&ran.stdout),
-      fs::read_to_string(source.join("e2e.expected.txt")).unwrap(),
-      "{name}"
-    );
-    checked += 1;
-  }
-
-  assert!(checked >= 1);
 }
 
 #[test]
@@ -1484,4 +1445,38 @@ mod watch {
 
     assert_eq!(status.code(), Some(0));
   }
+}
+
+#[test]
+fn projects_pass_polar_test() {
+  let work = tempfile::tempdir().unwrap();
+  let root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../projects"));
+
+  copy_tree(root, work.path());
+
+  let mut checked = 0;
+
+  for entry in fs::read_dir(work.path()).unwrap() {
+    let dir = entry.unwrap().path();
+
+    if !dir.join("snapshots").is_dir() {
+      continue;
+    }
+
+    let tmp = tempfile::tempdir().unwrap();
+    let ran = polar(&dir, tmp.path(), &["test"], &[]);
+    let out = String::from_utf8_lossy(&ran.stdout);
+
+    assert_eq!(
+      ran.status.code(),
+      Some(0),
+      "{}: {out}{}",
+      dir.display(),
+      String::from_utf8_lossy(&ran.stderr)
+    );
+    assert!(out.contains("0 failed"), "{out}");
+    checked += 1;
+  }
+
+  assert!(checked >= 2);
 }
