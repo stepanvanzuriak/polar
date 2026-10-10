@@ -744,8 +744,7 @@ exports
 
 #[test]
 fn http_flow_with_cookies_and_snapshot() {
-  let dir =
-    project(CONFIG, &[("src/main.px", APP), ("src/flow_test.px", E2E)]);
+  let dir = project(CONFIG, &[("src/main.px", APP), ("src/flow_test.px", E2E)]);
 
   let missing = polar(dir.path(), &["test"]);
 
