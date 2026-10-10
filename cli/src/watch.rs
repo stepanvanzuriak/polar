@@ -106,12 +106,30 @@ impl Watch {
       })?;
     }
 
+    let settle = options.debounce / 2;
     let mut cycler = Cycler::new(options, deps);
 
     cycler.cycle(None);
 
     let thread = std::thread::spawn(move || {
-      while let Ok(Msg::Changed(paths)) = rx.recv() {
+      while let Ok(Msg::Changed(mut paths)) = rx.recv() {
+        let mut stopped = false;
+
+        loop {
+          match rx.recv_timeout(settle) {
+            Ok(Msg::Changed(more)) => paths.extend(more),
+            Ok(Msg::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => {
+              stopped = true;
+              break;
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => break,
+          }
+        }
+
+        if stopped {
+          break;
+        }
+
         let relevant = cycler.relevant(&paths);
         let in_deps =
           relevant.iter().any(|p| cycler.deps.iter().any(|d| p.starts_with(d)));
