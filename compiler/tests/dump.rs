@@ -430,6 +430,7 @@ exports
       kind: ZoneKind::USES,
       decls: vec![Decl::Import(Import {
         methods: None,
+        group: None,
         span: src.cover(("net", 0), ("web", 0)),
         path: vec![src.name("net", 0), src.name("http", 0)],
         alias: Some(src.name("web", 0)),

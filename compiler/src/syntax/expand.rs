@@ -361,11 +361,15 @@ fn summarize(module: &Module) -> api::Module {
 
   for decl in decls {
     match decl {
-      Decl::Import(import) => out.imports.push(api::Import {
-        path: import.path.iter().map(|n| n.text.clone()).collect(),
-        alias: import.alias.as_ref().map(|a| a.text.clone()),
-        span: span(&import.span),
-      }),
+      Decl::Import(import) => {
+        for member in import.members() {
+          out.imports.push(api::Import {
+            path: member.path.iter().map(|n| n.text.clone()).collect(),
+            alias: member.alias.as_ref().map(|a| a.text.clone()),
+            span: span(&member.span),
+          });
+        }
+      }
       Decl::Fn(f) => out.functions.push(api::Function {
         name: f.name.text.clone(),
         span: span(&f.name.span),

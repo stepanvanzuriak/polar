@@ -500,6 +500,18 @@ impl Parser<'_> {
     let mut path = vec![self.upper_name("to start an import path")];
 
     while self.eat(Dot).is_some() {
+      if self.at(LBrace) {
+        let group = self.module_group();
+
+        return Import {
+          span: self.span_from(&start),
+          path,
+          alias: None,
+          methods: None,
+          group: Some(group),
+        };
+      }
+
       path.push(self.upper_name("after `.` in an import path"));
     }
 
@@ -510,7 +522,39 @@ impl Parser<'_> {
     };
     let methods = self.method_list();
 
-    Import { span: self.span_from(&start), path, alias, methods }
+    Import { span: self.span_from(&start), path, alias, methods, group: None }
+  }
+
+  fn module_group(&mut self) -> Vec<Name> {
+    let open = self.bump().span.clone();
+    let mut names = Vec::new();
+
+    while !self.at(RBrace) && !self.at(Eof) {
+      let before = self.pos;
+
+      names.push(self.upper_name("as a module name in the group"));
+
+      if self.eat(Comma).is_none() {
+        break;
+      }
+
+      self.progress(before);
+    }
+
+    self.expect(RBrace, "to close the module group");
+
+    if names.is_empty() {
+      self.diagnostics.push(
+        Diagnostic::error(
+          UnexpectedToken,
+          "a module group names at least one module",
+          Label::new(open),
+        )
+        .with_help("write the module, like `Ticket.{Conn}`"),
+      );
+    }
+
+    names
   }
 
   fn method_list(&mut self) -> Option<Vec<Name>> {

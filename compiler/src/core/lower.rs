@@ -382,8 +382,13 @@ impl Lowerer<'_> {
     let Some(interface) = stdlib::interface("Prelude") else { return };
     let span = Span::empty(Arc::from("<prelude>"), 0);
     let name = Name { text: "Prelude".to_string(), span: span.clone() };
-    let import =
-      Import { span, path: vec![name.clone()], alias: None, methods: None };
+    let import = Import {
+      span,
+      path: vec![name.clone()],
+      alias: None,
+      methods: None,
+      group: None,
+    };
 
     self.bind_import(&import, &name, Origin::Std("Prelude".into()), interface);
   }
@@ -807,6 +812,12 @@ impl Lowerer<'_> {
   }
 
   fn import(&mut self, import: &Import) {
+    for member in import.members() {
+      self.import_module(&member);
+    }
+  }
+
+  fn import_module(&mut self, import: &Import) {
     if import.path.first().is_some_and(|first| first.text != "Std") {
       return self.user_import(import);
     }
@@ -2500,10 +2511,13 @@ fn type_text(ty: &TypeExpr, param: &str, target: &str) -> String {
 
 fn imports_prelude(decls: &[&Decl]) -> bool {
   decls.iter().any(|decl| {
-    matches!(decl, Decl::Import(import)
-      if import.path.len() == 2
-        && import.path[0].text == "Std"
-        && import.path[1].text == "Prelude")
+    let Decl::Import(import) = decl else { return false };
+
+    import.members().iter().any(|m| {
+      m.path.len() == 2
+        && m.path[0].text == "Std"
+        && m.path[1].text == "Prelude"
+    })
   })
 }
 

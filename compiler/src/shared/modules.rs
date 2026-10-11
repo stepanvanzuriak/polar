@@ -71,16 +71,18 @@ pub fn imports(source: &str, filename: &str, sets: &[String]) -> Vec<String> {
   for decl in module.zones.iter().flat_map(|zone| &zone.decls) {
     let Decl::Import(import) = decl else { continue };
 
-    if import.path.first().is_none_or(|first| first.text == "Std") {
-      continue;
-    }
+    for member in import.members() {
+      if member.path.first().is_none_or(|first| first.text == "Std") {
+        continue;
+      }
 
-    let path: Vec<&str> =
-      import.path.iter().map(|name| name.text.as_str()).collect();
-    let path = path.join(".");
+      let path: Vec<&str> =
+        member.path.iter().map(|name| name.text.as_str()).collect();
+      let path = path.join(".");
 
-    if !paths.contains(&path) {
-      paths.push(path);
+      if !paths.contains(&path) {
+        paths.push(path);
+      }
     }
   }
 

@@ -149,3 +149,57 @@ fn imported_twice() {
     [DuplicateDefinition]
   );
 }
+
+#[test]
+fn group_imports_each_module() {
+  let out = compile_with(
+    &using(
+      "Geometry.{Shapes, Other}",
+      "Shapes.area(Circle(1.0)) + Other.one()",
+    ),
+    vec![
+      shapes("Geometry.Shapes"),
+      ModuleSource {
+        path: "Geometry.Other".to_string(),
+        source: "module Other\n\nfunctions\n  one() -> Float {\n    1.0\n  }\n\nexports\n  one\n"
+          .to_string(),
+        specifier: "./other.js".to_string(),
+        plugins: Vec::new(),
+      },
+    ],
+  );
+
+  assert!(out.diagnostics.is_empty(), "{:#?}", out.diagnostics);
+  assert!(out.js.contains("$m$Geometry$Shapes"), "{}", out.js);
+}
+
+#[test]
+fn group_names_the_missing_member() {
+  let out = compile_with(
+    &using("Geometry.{Shapes, Nope}", "Shapes.area(Circle(1.0))"),
+    vec![shapes("Geometry.Shapes")],
+  );
+
+  assert_eq!(
+    out.diagnostics.iter().map(|d| d.code).collect::<Vec<_>>(),
+    [UnknownModule]
+  );
+  assert!(out.diagnostics[0].message.contains("Geometry.Nope"));
+}
+
+#[test]
+fn group_paths_are_found() {
+  let src = "uses\n  Std.{List, Map}\n  Geometry.{Shapes, Other}\n  Web.Json\n";
+
+  assert_eq!(
+    imports(src, "main.px", &[]),
+    ["Geometry.Shapes", "Geometry.Other", "Web.Json"]
+  );
+}
+
+#[test]
+fn empty_group_is_an_error() {
+  let out = compile_with(&using("Geometry.{}", "1"), Vec::new());
+
+  assert!(out.diagnostics.iter().any(|d| d.message.contains("module group")));
+}

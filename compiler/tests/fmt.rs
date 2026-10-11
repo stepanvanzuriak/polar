@@ -784,3 +784,16 @@ mod corpus {
     );
   }
 }
+
+#[test]
+fn module_groups_keep_their_braces() {
+  assert_formatted("uses\n  Std.{List, Map}\n  Geometry.Shapes\n");
+  assert_formats("uses\n  Std.{ List,Map }\n", "uses\n  Std.{List, Map}\n");
+}
+
+#[test]
+fn module_groups_keep_comments() {
+  assert_formatted(
+    "uses\n  // runtime\n  Std.{List, Map}\n  // app\n  Geometry.Shapes\n",
+  );
+}

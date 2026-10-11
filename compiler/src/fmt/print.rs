@@ -623,6 +623,18 @@ impl Printer<'_> {
     let path: Vec<&str> = import.path.iter().map(|n| n.text.as_str()).collect();
     let mut out = path.join(".");
 
+    if let Some(members) = &import.group {
+      let names = members.iter().map(name).collect();
+
+      return self.wrap(
+        import.as_node(),
+        group(concat([
+          text(format!("{out}.")),
+          Self::list(text("{"), names, "}", false),
+        ])),
+      );
+    }
+
     if let Some(alias) = &import.alias {
       out.push_str(" as ");
       out.push_str(&alias.text);
