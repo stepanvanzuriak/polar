@@ -7,6 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_TERM_PROGRESS_WHEN: never
 
 jobs:
   check:
@@ -21,5 +22,5 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
-      - run: cargo clippy --workspace --all-targets
-      - run: cargo test --workspace
+      - run: cargo clippy --workspace --all-targets --quiet
+      - run: cargo test --workspace --quiet

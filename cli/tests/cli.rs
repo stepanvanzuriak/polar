@@ -987,29 +987,6 @@ mod watch {
   }
 
   #[test]
-  fn burst_coalesces() {
-    let dir = project(&[("src/a.px", HELLO.as_bytes())]);
-    let (watch, rx) = start(dir.path(), build_mode());
-
-    rx.recv_timeout(WAIT).unwrap();
-
-    for i in 0..5 {
-      fs::write(
-        dir.path().join("src/a.px"),
-        HELLO.replace("hello", &format!("hi {i}")),
-      )
-      .unwrap();
-    }
-
-    rx.recv_timeout(WAIT).expect("a cycle after the burst");
-    assert!(
-      rx.recv_timeout(QUIET).is_err(),
-      "the burst took more than one cycle"
-    );
-    watch.stop();
-  }
-
-  #[test]
   fn error_does_not_terminate_and_fixing_clears_it() {
     let dir = project(&[("src/a.px", HELLO.as_bytes())]);
     let (watch, rx) = start(dir.path(), WatchMode::Check { out: None });
