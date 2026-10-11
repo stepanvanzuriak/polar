@@ -240,6 +240,11 @@ impl Cycler {
     match discover(&self.options.paths, &self.options.cwd, self.out.as_deref())
     {
       Ok(inputs) => {
+        let inputs = crate::expect::without_expected_errors(
+          inputs,
+          &self.options.paths,
+          &self.options.cwd,
+        );
         let inputs = match self.options.mode {
           WatchMode::Build { .. } => {
             without_tests(inputs, &self.options.paths, &self.options.cwd)

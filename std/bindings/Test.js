@@ -7,7 +7,39 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const TIMEOUT = Symbol("timeout");
 
+export async function capture(run) {
+  const lines = [];
+  const { log, error } = console;
+  const take = (...parts) => {
+    lines.push(parts.map(String).join(" ") + "\n");
+  };
+
+  console.log = take;
+  console.error = take;
+
+  try {
+    const value = await run(ASYNC);
+
+    return { output: lines.join(""), value };
+  } finally {
+    console.log = log;
+    console.error = error;
+  }
+}
+
 export async function guard(run, timeoutMs) {
+  const write = process.stderr.write;
+
+  process.stderr.write = (...args) => process.stdout.write(...args);
+
+  try {
+    return await guarded(run, timeoutMs);
+  } finally {
+    process.stderr.write = write;
+  }
+}
+
+async function guarded(run, timeoutMs) {
   let timer;
   const deadline = new Promise((resolve) => {
     timer = setTimeout(() => resolve(TIMEOUT), timeoutMs);
@@ -235,41 +267,7 @@ export async function compare_snapshot(name, text, dir, update) {
     return variant("Missing", shown);
   }
 
-  return variant("Differ", diff(shown, expected, text));
-}
-
-function diff(shown, expected, actual) {
-  const a = expected.split("\n");
-  const b = actual.split("\n");
-  const out = [`snapshot ${shown} differs (- expected, + actual)`];
-  const table = Array.from({ length: a.length + 1 }, () =>
-    new Array(b.length + 1).fill(0),
-  );
-
-  for (let i = a.length - 1; i >= 0; i--) {
-    for (let j = b.length - 1; j >= 0; j--) {
-      table[i][j] =
-        a[i] === b[j]
-          ? table[i + 1][j + 1] + 1
-          : Math.max(table[i + 1][j], table[i][j + 1]);
-    }
-  }
-
-  let i = 0;
-  let j = 0;
-
-  while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && a[i] === b[j]) {
-      i++;
-      j++;
-    } else if (j >= b.length || (i < a.length && table[i + 1][j] >= table[i][j + 1])) {
-      out.push(`- ${a[i++]}`);
-    } else {
-      out.push(`+ ${b[j++]}`);
-    }
-  }
-
-  return out.join("\n");
+  return variant("Differ", { path: shown, expected });
 }
 
 export async function run_browser(app, name) {

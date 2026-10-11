@@ -9,7 +9,13 @@ pub(crate) fn check(
   let plan = Plan::checking();
 
   for target in targets {
-    for input in discover(&target.paths, &ctx.io.cwd, Some(&target.out))? {
+    let inputs = crate::expect::without_expected_errors(
+      discover(&target.paths, &ctx.io.cwd, Some(&target.out))?,
+      &target.paths,
+      &ctx.io.cwd,
+    );
+
+    for input in inputs {
       compiled.push(compile_one(
         ctx,
         &input,

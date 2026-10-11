@@ -632,7 +632,7 @@ fn manifest_kept_in_dot_polar() {
   assert!(!dir.path().join(".polar/test/dist/old_test.js").exists());
 }
 
-const APP: &str = r##"module Main
+const APP: &str = r#"module Main
 
 uses
   Std.Http
@@ -673,7 +673,7 @@ functions
 
 exports
   router
-"##;
+"#;
 
 const E2E: &str = r##"module FlowTest
 

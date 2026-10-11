@@ -125,6 +125,7 @@ diagnostic_codes! {
   BridgeChain                 = 820,
   TestHasParams               = 821,
   NotRunAsTest                = 822,
+  AroundEachParams            = 823,
   PluginError                 = 901,
   PluginFailed                = 902,
 }

@@ -66,6 +66,20 @@ functions
     }
   }
 
+  take(xs: List<a>, count: Int) -> List<a> {
+    match xs {
+      [x, ..rest] if count > 0 -> [x, ..take(rest, count - 1)],
+      _ -> [],
+    }
+  }
+
+  drop(xs: List<a>, count: Int) -> List<a> {
+    match xs {
+      [_, ..rest] if count > 0 -> drop(rest, count - 1),
+      _ -> xs,
+    }
+  }
+
   find(xs: List<a>, test: function(a) -> Bool / {| e}) -> Option<a> / {| e} {
     match xs {
       [] -> None,
@@ -119,6 +133,7 @@ exports
   any
   append
   concat_map
+  drop
   filter
   find
   fold
@@ -130,3 +145,4 @@ exports
   nth
   range
   reverse
+  take

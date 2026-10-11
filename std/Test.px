@@ -1,6 +1,7 @@
 module Test
 
 uses
+  Std.Algo
   Std.Assert
   Std.Fs
   Std.Http
@@ -16,6 +17,8 @@ hosts
   Node
 
 types
+  Captured<a> = { output: String, value: a }
+
   Problem = { kind: String, message: String, at: String }
 
   Outcome = Pass | Fail(Problem) | Error(Problem) | Timeout
@@ -49,7 +52,9 @@ types
 
   App = { url: String, id: Int }
 
-  Verdict = Match | Created | Missing(String) | Differ(String)
+  Mismatch = { path: String, expected: String }
+
+  Verdict = Match | Created | Missing(String) | Differ(Mismatch)
 
 effects
   Net in Node {
@@ -63,6 +68,8 @@ externs
     Fs,
   }
     = "./bindings/Test.js" compare_snapshot
+  capture_raw(run: function() -> a / {| e}) -> Captured<a> / {Async | e}
+    = "./bindings/Test.js" capture
   clock() -> Float = "./bindings/Test.js" clock
   finish() -> {} = "./bindings/Test.js" finish
   serve_app(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {Async | e}
@@ -89,14 +96,31 @@ functions
       None -> false,
     }
 
-    match compare_snapshot(name, normalise(text), "snapshots", update) {
+    let actual = normalise(text)
+
+    match compare_snapshot(name, actual, "snapshots", update) {
       Match -> {},
       Created -> {},
       Missing(path) -> throw Failed(
         "no snapshot at #{path}\n  = help: run `POLAR_UPDATE=1 polar test` to create it",
       ),
-      Differ(diff) -> throw Failed(diff),
+      Differ(found) -> throw Failed(snapshot_diff(found, actual)),
     }
+  }
+
+  snapshot_diff(found: Mismatch, actual: String) -> String {
+    let changes = List.concat_map(
+      Algo.diff(String.split(found.expected, "\n"), String.split(actual, "\n")),
+      function(edit) {
+        match edit {
+          Keep(_) -> [],
+          Remove(line) -> ["- #{line.value}"],
+          Insert(line) -> ["+ #{line.value}"],
+        }
+      },
+    )
+
+    List.join(["snapshot #{found.path} differs (- expected, + actual)", ..changes], "\n")
   }
 
   request_options(method: String, url: String) -> RequestOptions {
@@ -109,6 +133,10 @@ functions
 
   get(url: String) -> Result<ClientError, Response> / {Net} {
     Net.request(request_options("GET", url))
+  }
+
+  capture(run: function() -> a / {| e}) -> Captured<a> / {Async | e} {
+    capture_raw(run)
   }
 
   with_app(body: function(App) -> a / {| e}) -> a / {Async | e} {
@@ -364,6 +392,9 @@ functions
 
 exports
   Verdict
+  Mismatch
+  Captured
+  capture
   assert_snapshot
   assert_snapshot_with
   RequestOptions

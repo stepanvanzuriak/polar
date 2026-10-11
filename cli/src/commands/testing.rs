@@ -4,11 +4,15 @@ use super::{
 };
 use crate::{
   CliError, Ctx,
-  files::{Input, Source, normalize, runtime_specifier, write_atomic},
+  files::{
+    Input, Source, discover, normalize, runtime_specifier, write_atomic,
+  },
   project::{self, Contexts, Target},
   runtime::LAUNCHER_JS,
 };
-use polar_compiler::shared::{modules::module_path, text::string_literal};
+use polar_compiler::shared::{
+  diagnostic::Severity, modules::module_path, text::string_literal,
+};
 use serde::Deserialize;
 use std::{
   fmt::Write as _,
@@ -22,6 +26,10 @@ use std::{
 pub(crate) struct Options<'a> {
   pub filter: Option<&'a str>,
   pub timeout: u64,
+  pub json: bool,
+  pub bless: bool,
+  pub projects: &'a [String],
+  pub jobs: usize,
   pub args: &'a [String],
 }
 
@@ -29,6 +37,30 @@ const MARK: char = '\u{1e}';
 const MAIN: &str = "_test_main";
 
 pub(crate) fn test(
+  ctx: &mut Ctx<'_, '_>,
+  path: Option<&Path>,
+  options: &Options<'_>,
+) -> Result<u8, CliError> {
+  let cwd = ctx.io.cwd.clone();
+
+  if let Some(members) =
+    project::workspace_members(path.unwrap_or(Path::new("")), &cwd)?
+  {
+    return super::workspace::test(ctx, &members, options);
+  }
+
+  if !options.projects.is_empty() {
+    return Err(CliError::Message(
+      "`--project` picks a member of a workspace; this folder is not one"
+        .to_string(),
+    ));
+  }
+
+  one(ctx, path, options)
+}
+
+#[allow(clippy::too_many_lines)]
+fn one(
   ctx: &mut Ctx<'_, '_>,
   path: Option<&Path>,
   options: &Options<'_>,
@@ -64,6 +96,7 @@ pub(crate) fn test(
     hosts: project.hosts.clone(),
     library: false,
     start: None,
+    fmt_exclude: Vec::new(),
   };
   let host = (!project.hosts.is_empty()).then_some("Node");
   let browser = (project.hosts.iter().any(|h| h == "Browser")
@@ -93,6 +126,7 @@ pub(crate) fn test(
       hosts: project.hosts.clone(),
       library: false,
       start: None,
+      fmt_exclude: Vec::new(),
     };
 
     if build_into(ctx, &[target], Some("Browser"), false, None)?.is_none() {
@@ -100,7 +134,13 @@ pub(crate) fn test(
     }
   }
 
-  if built.tests.is_empty() {
+  let failing = failing_files(ctx, &project)?;
+  let wanted =
+    |name: &str| options.filter.is_none_or(|text| name.contains(text));
+  let chosen: Vec<&Failing> =
+    failing.iter().filter(|f| wanted(&f.name)).collect();
+
+  if built.tests.is_empty() && failing.is_empty() && !options.json {
     let _ =
       writeln!(ctx.io.out, "no tests found (looked for *_test.px under src)");
   }
@@ -114,7 +154,13 @@ pub(crate) fn test(
   let mut report = Report {
     color: ctx.color && ctx.io.stdout_is_tty,
     timeout: options.timeout,
-    filtered: built.tests.len() - cases.len(),
+    filtered: built.tests.len() - cases.len() + failing.len() - chosen.len(),
+    json: options.json,
+    places: cases
+      .iter()
+      .map(|case| (case.name.clone(), (case.file.clone(), case.line)))
+      .chain(chosen.iter().map(|f| (f.name.clone(), (f.display.clone(), 1))))
+      .collect(),
     ran: Vec::new(),
     start: Instant::now(),
   };
@@ -123,17 +169,28 @@ pub(crate) fn test(
     return Ok(1);
   }
 
-  if cases.is_empty() {
-    Report::running(ctx, 0);
+  let total = cases.len() + chosen.len();
+  let main = if cases.is_empty() {
+    None
   } else {
     let src = normalize(&cwd.join(&project.src));
-    let Some(main) = compile_main(ctx, &src, built, &cases, options.timeout)?
-    else {
-      return Ok(1);
-    };
 
-    Report::running(ctx, cases.len());
-    report.start = Instant::now();
+    match compile_main(ctx, &src, built, &cases, options.timeout)? {
+      Some(main) => Some(main),
+      None => return Ok(1),
+    }
+  };
+
+  Report::running(ctx, options.json, total);
+  report.start = Instant::now();
+
+  for failing in &chosen {
+    let ran = expect_failure(ctx, failing, options.bless)?;
+
+    report.ended(ctx, ran);
+  }
+
+  if let Some(main) = main {
     let entry = project
       .start()
       .map_or_else(|| PathBuf::from("main.js"), |start| start.main);
@@ -149,7 +206,141 @@ pub(crate) fn test(
     )?;
   }
 
-  Ok(report.finish(ctx, cases.len()))
+  Ok(report.finish(ctx, total))
+}
+
+fn diagnostic_text(
+  d: &polar_compiler::shared::diagnostic::Diagnostic,
+) -> String {
+  let mut text = d.message.clone();
+
+  for label in std::iter::once(&d.primary).chain(&d.secondary) {
+    if let Some(message) = &label.message {
+      text.push('\n');
+      text.push_str(message);
+    }
+  }
+
+  text
+}
+
+struct Failing {
+  name: String,
+  display: String,
+  input: Input,
+}
+
+fn failing_files(
+  ctx: &Ctx<'_, '_>,
+  project: &project::Project,
+) -> Result<Vec<Failing>, CliError> {
+  let inputs = discover(
+    std::slice::from_ref(&project.src),
+    &ctx.io.cwd,
+    Some(&project.out),
+  )?;
+  let mut out = Vec::new();
+
+  for input in inputs {
+    let text = fs::read_to_string(&input.path)
+      .map_err(|e| CliError::read(&input.display, &e))?;
+
+    if !crate::expect::is_expected_failure(&text) {
+      continue;
+    }
+
+    let parts: Vec<String> = input
+      .output
+      .components()
+      .map(|c| c.as_os_str().to_string_lossy().into_owned())
+      .collect();
+
+    out.push(Failing {
+      name: parts.join("::"),
+      display: input.display.clone(),
+      input,
+    });
+  }
+
+  Ok(out)
+}
+
+fn expect_failure(
+  ctx: &mut Ctx<'_, '_>,
+  failing: &Failing,
+  bless: bool,
+) -> Result<Ran, CliError> {
+  let text = fs::read_to_string(&failing.input.path)
+    .map_err(|e| CliError::read(&failing.display, &e))?;
+  let verdict = |outcome, message: Option<String>| Ran {
+    name: failing.name.clone(),
+    outcome,
+    ms: None,
+    message,
+    at: Some(failing.display.clone()),
+    output: String::new(),
+  };
+  let expected = match crate::expect::parse(&text) {
+    Ok(expected) => expected,
+    Err((line, message)) => {
+      let mut ran = verdict(Outcome::Error, Some(message));
+
+      ran.at = Some(format!("{}:{line}", failing.display));
+      return Ok(ran);
+    }
+  };
+  let started = Instant::now();
+  let compiled = super::compile_one(
+    ctx,
+    &failing.input,
+    "./_polar/runtime.js".to_string(),
+    &Plan::checking(),
+  )?;
+  let found: Vec<(String, usize, String)> = compiled
+    .diagnostics
+    .iter()
+    .filter(|d| d.severity == Severity::Error)
+    .map(|d| {
+      (
+        d.code.to_string(),
+        compiled.file.position_at(d.primary.span.start).line + 1,
+        diagnostic_text(d),
+      )
+    })
+    .collect();
+
+  if bless {
+    if found.is_empty() {
+      let mut ran = verdict(
+        Outcome::Fail,
+        Some(
+          "the file compiled without errors, so there is nothing to bless"
+            .to_string(),
+        ),
+      );
+
+      ran.ms = Some(started.elapsed().as_secs_f64() * 1000.0);
+      return Ok(ran);
+    }
+
+    crate::expect::bless(&failing.input.path, &text, &found)
+      .map_err(|e| CliError::write(&failing.display, &e))?;
+  } else {
+    let problems = crate::expect::mismatches(&expected, &found);
+
+    if !problems.is_empty() {
+      let mut ran = verdict(Outcome::Fail, Some(problems.join("\n")));
+
+      ran.ms = Some(started.elapsed().as_secs_f64() * 1000.0);
+      return Ok(ran);
+    }
+  }
+
+  let mut ran = verdict(Outcome::Pass, None);
+
+  ran.ms = Some(started.elapsed().as_secs_f64() * 1000.0);
+  ran.at = None;
+  Ok(ran)
 }
 
 fn mentions_browser(dir: &Path) -> bool {
@@ -164,7 +355,7 @@ fn mentions_browser(dir: &Path) -> bool {
 
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
 
-    name.ends_with(".px")
+    Path::new(name).extension().is_some_and(|ext| ext == "px")
       && !name.ends_with("_test.px")
       && fs::read_to_string(&path).is_ok_and(|text| text.contains("Browser"))
   })
@@ -182,6 +373,7 @@ struct Case {
   module: String,
   declared: Option<String>,
   function: String,
+  each: bool,
 }
 
 impl From<&TestCase> for Case {
@@ -199,6 +391,7 @@ impl From<&TestCase> for Case {
       module: module_path(parts.iter().map(String::as_str)),
       declared: test.module.clone(),
       function: test.name.clone(),
+      each: test.each,
     }
   }
 }
@@ -248,13 +441,21 @@ fn generate(cases: &[Case], host: Option<&str>, timeout: u64) -> String {
 
   for case in cases {
     let suite = modules.iter().position(|m| *m == case.module).unwrap_or(0);
+    let run = if case.each {
+      format!(
+        "function() {{ Suite{suite}.around_each(Suite{suite}.{}) }}",
+        case.function
+      )
+    } else {
+      format!("Suite{suite}.{}", case.function)
+    };
+
     let _ = writeln!(
       text,
-      "        {{ file: {}, name: {}, line: {}, run: Suite{suite}.{} }},",
+      "        {{ file: {}, name: {}, line: {}, run: {run} }},",
       string_literal(&case.file),
       string_literal(&case.name),
       case.line,
-      case.function,
     );
   }
 
@@ -325,6 +526,7 @@ enum Event {
   End {
     name: String,
     outcome: Outcome,
+    ms: Option<f64>,
     message: Option<String>,
     at: Option<String>,
   },
@@ -342,6 +544,7 @@ enum Outcome {
 struct Ran {
   name: String,
   outcome: Outcome,
+  ms: Option<f64>,
   message: Option<String>,
   at: Option<String>,
   output: String,
@@ -401,14 +604,14 @@ fn run(
 
         current = Some((name, String::new()));
       }
-      Some(Event::End { name, outcome, message, at }) => {
+      Some(Event::End { name, outcome, ms, message, at }) => {
         let output = current
           .take()
           .filter(|(started, _)| *started == name)
           .map(|(_, output)| output)
           .unwrap_or_default();
 
-        report.ended(ctx, Ran { name, outcome, message, at, output });
+        report.ended(ctx, Ran { name, outcome, ms, message, at, output });
       }
       None => match &mut current {
         Some((_, output)) => {
@@ -453,6 +656,7 @@ fn unfinished(name: String, output: String, status: Option<ExitStatus>) -> Ran {
   Ran {
     name,
     outcome: Outcome::Error,
+    ms: None,
     message: Some(message),
     at: None,
     output,
@@ -463,6 +667,8 @@ struct Report {
   color: bool,
   timeout: u64,
   filtered: usize,
+  json: bool,
+  places: std::collections::HashMap<String, (String, usize)>,
   ran: Vec<Ran>,
   start: Instant,
 }
@@ -476,12 +682,42 @@ impl Report {
     }
   }
 
-  fn running(ctx: &mut Ctx<'_, '_>, count: usize) {
+  fn running(ctx: &mut Ctx<'_, '_>, json: bool, count: usize) {
+    if json {
+      return;
+    }
+
     let tests = if count == 1 { "test" } else { "tests" };
     let _ = write!(ctx.io.out, "\nrunning {count} {tests}\n");
   }
 
   fn ended(&mut self, ctx: &mut Ctx<'_, '_>, ran: Ran) {
+    if self.json {
+      let (file, line) = self.places.get(&ran.name).cloned().unzip();
+      let outcome = match ran.outcome {
+        Outcome::Pass => "pass",
+        Outcome::Fail => "fail",
+        Outcome::Error => "error",
+        Outcome::Timeout => "timeout",
+      };
+      let object = serde_json::json!({
+        "event": "test",
+        "name": ran.name,
+        "file": file,
+        "line": line,
+        "outcome": outcome,
+        "ms": ran.ms,
+        "message": ran.message,
+        "at": ran.at,
+        "output": ran.output,
+      });
+      let _ = writeln!(ctx.io.out, "{object}");
+      let _ = ctx.io.out.flush();
+
+      self.ran.push(ran);
+      return;
+    }
+
     let label = match ran.outcome {
       Outcome::Pass => self.paint(32, "ok"),
       Outcome::Fail => self.paint(31, "FAILED"),
@@ -533,6 +769,21 @@ impl Report {
     }
 
     let ok = failures.is_empty() && self.ran.len() == count;
+
+    if self.json {
+      let object = serde_json::json!({
+        "event": "result",
+        "ok": ok,
+        "passed": passed,
+        "failed": failures.len(),
+        "filtered": self.filtered,
+        "seconds": self.start.elapsed().as_secs_f64(),
+      });
+      let _ = writeln!(ctx.io.out, "{object}");
+
+      return u8::from(!ok);
+    }
+
     let status =
       if ok { self.paint(32, "ok") } else { self.paint(31, "FAILED") };
     let _ = write!(

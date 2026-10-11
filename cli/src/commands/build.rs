@@ -29,6 +29,7 @@ pub(crate) struct TestCase {
   pub module: Option<String>,
   pub name: String,
   pub line: usize,
+  pub each: bool,
 }
 
 pub(crate) fn build(
@@ -39,6 +40,7 @@ pub(crate) fn build(
   Ok(u8::from(build_into(ctx, targets, host, true, None)?.is_none()))
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn build_into(
   ctx: &mut Ctx<'_, '_>,
   targets: &[Target],
@@ -57,7 +59,11 @@ pub(crate) fn build_into(
       ));
     }
 
-    let inputs = discover(&target.paths, &ctx.io.cwd, Some(&target.out))?;
+    let inputs = crate::expect::without_expected_errors(
+      discover(&target.paths, &ctx.io.cwd, Some(&target.out))?,
+      &target.paths,
+      &ctx.io.cwd,
+    );
     let inputs = if manifest_root.is_some() {
       inputs
     } else {
@@ -225,6 +231,7 @@ fn write_test_manifest(
           module: output.module.clone(),
           name: test.name.clone(),
           line: test.line,
+          each: output.each,
         })
       })
       .collect(),

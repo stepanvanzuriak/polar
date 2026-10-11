@@ -318,7 +318,10 @@ mod imports {
     let (_, _, diagnostics) = lower_src(&using("Std.Math", "Math.tau"));
 
     assert_eq!(diagnostics[0].code, UnknownBuiltinMember);
-    assert_eq!(diagnostics[0].help.as_deref(), Some("available: `pi`"));
+    assert_eq!(
+      diagnostics[0].help.as_deref(),
+      Some("available: `abs`, `max`, `min`, `pi`")
+    );
   }
 
   #[test]

@@ -225,6 +225,7 @@ pub(crate) fn prepare_launch(
     hosts: project.hosts.clone(),
     library: false,
     start: None,
+    fmt_exclude: Vec::new(),
   };
   let Some(written) = build_into(ctx, &[target], None, false, None)? else {
     return Ok(None);
