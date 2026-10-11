@@ -1,4 +1,5 @@
 mod commands;
+pub mod expect;
 pub mod files;
 mod node;
 pub mod pkg;
@@ -148,6 +149,10 @@ pub(crate) enum Command {
     paths: Vec<PathBuf>,
     #[arg(long)]
     check: bool,
+    #[arg(long, requires = "check")]
+    idempotent: bool,
+    #[arg(long, value_name = "FILE", conflicts_with = "check")]
+    expect: Option<PathBuf>,
   },
   Start {
     path: Option<PathBuf>,
@@ -162,6 +167,14 @@ pub(crate) enum Command {
     filter: Option<String>,
     #[arg(long, value_name = "MS", default_value_t = 5000)]
     timeout: u64,
+    #[arg(long)]
+    bless: bool,
+    #[arg(long, value_enum, default_value_t = TestFormat::Text)]
+    format: TestFormat,
+    #[arg(short = 'p', long, value_name = "NAME")]
+    project: Vec<String>,
+    #[arg(short = 'j', long, value_name = "N", default_value_t = 1)]
+    jobs: usize,
     #[arg(last = true)]
     args: Vec<String>,
   },
@@ -192,6 +205,12 @@ pub(crate) enum Command {
     #[arg(long = "zone")]
     zones: Vec<String>,
   },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum TestFormat {
+  Text,
+  Json,
 }
 
 #[derive(Clone, Copy, ValueEnum)]

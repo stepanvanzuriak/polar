@@ -1,0 +1,140 @@
+module Algo
+
+uses
+  Std.List
+  Std.Math
+  Std.Option
+
+types
+  /// A line of a sequence together with its 1-based position in it.
+  Line<a> = { index: Int, value: a }
+
+  /// One step of an edit script: an element both sequences share (`Keep`),
+  /// one only the first has (`Remove`), or one only the second has (`Insert`).
+  /// `Remove` indexes into the first sequence, `Insert` into the second.
+  Edit<a> = Keep(a) | Remove(Line<a>) | Insert(Line<a>)
+
+functions
+  /// Compares two sequences and returns the edit script that turns `expected`
+  /// into `actual`, in order, keeping the elements they share.
+  ///
+  /// The shared elements are a longest common subsequence (LCS), found with
+  /// the dynamic-programming table of Wagner and Fischer / Hunt and McIlroy.
+  /// That is the same idea behind `diff`. It takes O(n * m) time and
+  /// O(n * m) space for sequences of n and m elements.
+  ///
+  /// - https://en.wikipedia.org/wiki/Longest_common_subsequence
+  /// - https://en.wikipedia.org/wiki/Diff#Algorithm
+  /// - https://en.wikipedia.org/wiki/Wagner%E2%80%93Fischer_algorithm
+  diff(expected: List<a>, actual: List<a>) -> List<Edit<a>> where Eq<a> {
+    let rows = lcs_rows(List.reverse(expected), List.reverse(actual))
+
+    List.reverse(walk(expected, actual, rows, 0, 0, []))
+  }
+
+  /// Builds the LCS length table, one row per element of the first sequence
+  /// (plus one all-zero row), working from the end of both sequences. Row `i`,
+  /// column `j` holds the LCS length of `expected[i..]` and `actual[j..]`.
+  ///
+  /// - https://en.wikipedia.org/wiki/Longest_common_subsequence#Computing_the_length_of_the_LCS
+  lcs_rows(rev_expected: List<a>, rev_actual: List<a>) -> List<List<Int>> where Eq<a> {
+    let zeros = [0, ..List.map(rev_actual, function(_) { 0 })]
+
+    List.fold(
+      rev_expected,
+      [zeros],
+      function(rows, line) {
+        match rows {
+          [] -> rows,
+          [previous, .._] -> [
+            lcs_row(rev_actual, List.reverse(previous), line, 0, [0]),
+            ..rows,
+          ],
+        }
+      },
+    )
+  }
+
+  /// One row of the table from the row below it: equal elements extend the
+  /// diagonal, otherwise take the larger of the cell below and the cell to the
+  /// right (`carry`).
+  lcs_row(
+    rev_actual: List<a>,
+    rev_previous: List<Int>,
+    line: a,
+    carry: Int,
+    done: List<Int>,
+  ) -> List<Int> where Eq<a> {
+    match rev_actual, rev_previous {
+      [other, ..rest_actual], [diagonal, below, ..more] -> {
+        let value = if line == other { diagonal + 1 } else { Math.max(below, carry) }
+
+        lcs_row(rest_actual, [below, ..more], line, value, [value, ..done])
+      }
+      _, _ -> done,
+    }
+  }
+
+  cell(rows: List<List<Int>>, index: Int) -> Int {
+    rows
+      |> List.head
+      |> Option.and_then(function(row) { List.nth(row, index) })
+      |> Option.with_default(0)
+  }
+
+  /// Reads the edit script out of the table from the front: keep equal
+  /// elements, otherwise follow the larger neighbour. Builds the script in
+  /// reverse.
+  ///
+  /// - https://en.wikipedia.org/wiki/Longest_common_subsequence#Reading_out_an_LCS
+  walk(
+    expected: List<a>,
+    actual: List<a>,
+    rows: List<List<Int>>,
+    i: Int,
+    j: Int,
+    out: List<Edit<a>>,
+  ) -> List<Edit<a>> where Eq<a> {
+    let below = List.drop(rows, 1)
+
+    match expected, actual {
+      [], [] -> out,
+      [kept, ..rest_expected], [other, ..rest_actual] if kept == other -> walk(
+        rest_expected,
+        rest_actual,
+        below,
+        i + 1,
+        j + 1,
+        [Keep(kept), ..out],
+      ),
+      [removed, ..rest_expected], _ if cell(below, j) >= cell(rows, j + 1) -> walk(
+        rest_expected,
+        actual,
+        below,
+        i + 1,
+        j,
+        [Remove({ index: i + 1, value: removed }), ..out],
+      ),
+      _, [added, ..rest_actual] -> walk(
+        expected,
+        rest_actual,
+        rows,
+        i,
+        j + 1,
+        [Insert({ index: j + 1, value: added }), ..out],
+      ),
+      [removed, ..rest_expected], [] -> walk(
+        rest_expected,
+        [],
+        below,
+        i + 1,
+        j,
+        [Remove({ index: i + 1, value: removed }), ..out],
+      ),
+    }
+  }
+
+exports
+  Line
+  Edit
+  diff

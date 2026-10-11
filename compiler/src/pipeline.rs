@@ -51,7 +51,9 @@ pub(crate) fn parse(
   bag: &mut DiagnosticBag,
 ) -> Option<Module> {
   let lexed = lexer::lex(file, bag);
-  let module = parser::parse(file, &lexed, bag);
+  let mut module = parser::parse(file, &lexed, bag);
+
+  crate::testing::auto_export(&mut module, file.name());
 
   (!bag.has_errors()).then_some(module)
 }

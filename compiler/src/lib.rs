@@ -94,6 +94,7 @@ pub struct CompileOutput {
   pub bridges: Vec<String>,
   pub module: Option<String>,
   pub tests: Vec<TestFn>,
+  pub each: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,7 +131,8 @@ fn compile_within(
     return failed(bag);
   };
 
-  let tests = testing::check(&analysed.module, &file, &mut bag);
+  let testing::Checked { tests, each } =
+    testing::check(&analysed.module, &file, &mut bag);
   let module = analysed.module.name.as_ref().map(|n| n.text.clone());
 
   let host = match pipeline::host(options, &analysed.effects) {
@@ -189,6 +191,7 @@ fn compile_within(
     bridges,
     module,
     tests,
+    each,
     ..CompileOutput::default()
   }
 }

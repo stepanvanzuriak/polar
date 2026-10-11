@@ -26,6 +26,11 @@ pub struct StdModule {
 
 pub const MODULES: &[StdModule] = &[
   StdModule {
+    name: "Algo",
+    source: include_str!("../../std/Algo.px"),
+    files: &[],
+  },
+  StdModule {
     name: "Assert",
     source: include_str!("../../std/Assert.px"),
     files: &[],
@@ -268,7 +273,10 @@ pub fn interface_of(
 ) -> (Option<String>, Interface) {
   let file = SourceFile::new(filename, source);
   let mut bag = DiagnosticBag::default();
-  let module = parse(&file, &lex(&file, &mut bag), &mut bag);
+  let mut module = parse(&file, &lex(&file, &mut bag), &mut bag);
+
+  crate::testing::auto_export(&mut module, filename);
+
   let path =
     module.name.as_ref().map_or("Module", |n| n.text.as_str()).to_string();
 
@@ -281,7 +289,9 @@ pub fn interface_of(
 pub fn shape_of(filename: &str, source: &str) -> (Option<String>, Interface) {
   let file = SourceFile::new(filename, source);
   let mut bag = DiagnosticBag::default();
-  let module = parse(&file, &lex(&file, &mut bag), &mut bag);
+  let mut module = parse(&file, &lex(&file, &mut bag), &mut bag);
+
+  crate::testing::auto_export(&mut module, filename);
 
   (module.name.as_ref().map(|n| n.text.clone()), shape(&module))
 }
@@ -369,6 +379,9 @@ fn build_within(
   let file = SourceFile::new(filename, source);
   let mut bag = DiagnosticBag::default();
   let mut module = parse(&file, &lex(&file, &mut bag), &mut bag);
+
+  crate::testing::auto_export(&mut module, filename);
+
   let header = module.name.as_ref().map(|n| n.text.clone());
 
   if bag.has_errors() {

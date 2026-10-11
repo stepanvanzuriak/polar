@@ -1,5 +1,9 @@
 module Assert
 
+uses
+  Std.Algo
+  Std.List
+
 types
   Failed = Failed(String)
 
@@ -24,6 +28,35 @@ functions
     }
   }
 
+  equal_text(actual: String, expected: String) -> {} / {Throws<Failed>} {
+    if actual == expected {
+      {}
+    } else {
+      throw Failed(
+        List.join(
+          [
+            "texts differ (- expected, + actual)",
+            ..changed_lines(String.split(expected, "\n"), String.split(actual, "\n")),
+          ],
+          "\n",
+        ),
+      )
+    }
+  }
+
+  changed_lines(expected: List<String>, actual: List<String>) -> List<String> {
+    List.concat_map(
+      Algo.diff(expected, actual),
+      function(edit) {
+        match edit {
+          Keep(_) -> [],
+          Remove(line) -> ["- #{line.index}: #{line.value}"],
+          Insert(line) -> ["+ #{line.index}: #{line.value}"],
+        }
+      },
+    )
+  }
+
   fail(message: String) -> a / {Throws<Failed>} {
     throw Failed(message)
   }
@@ -33,4 +66,5 @@ exports
   assert
   equal
   not_equal
+  equal_text
   fail

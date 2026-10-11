@@ -17,8 +17,25 @@ struct ConfigFile {
   plugin: Option<PluginSection>,
   launcher: Option<LauncherSection>,
   run: Option<RunSection>,
+  workspace: Option<WorkspaceSection>,
+  fmt: Option<FmtSection>,
   #[serde(default)]
   dependencies: BTreeMap<String, toml::Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FmtSection {
+  #[serde(default)]
+  exclude: Vec<PathBuf>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkspaceSection {
+  members: Vec<String>,
+  #[serde(default)]
+  exclude: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -142,6 +159,7 @@ pub struct Project {
   pub package: Arc<Package>,
   pub library: bool,
   pub launch: Option<Launch>,
+  pub fmt_exclude: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -176,6 +194,16 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
     lock: pkg::Lock::load(&root)?,
     settings: pkg::Settings::current(),
   };
+
+  if parsed.workspace.is_some() {
+    if parsed.project.is_some() || parsed.package.is_some() {
+      return Err(workspace_only(&shown));
+    }
+
+    return Ok(None);
+  }
+
+  let fmt_exclude = fmt_exclude(parsed.fmt.as_ref(), dir, &shown)?;
 
   match (parsed.project, parsed.package) {
     (Some(_), Some(_)) => Err(invalid(
@@ -238,6 +266,7 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
         package,
         library: false,
         launch,
+        fmt_exclude,
       }))
     }
     (None, Some(section)) => {
@@ -269,9 +298,212 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
         package: Arc::new(package),
         library: true,
         launch: None,
+        fmt_exclude,
       }))
     }
   }
+}
+
+/// The member directories of the workspace whose manifest sits in `dir`, or
+/// `None` if that manifest has no `[workspace]` section.
+///
+/// # Errors
+///
+/// Fails if the manifest cannot be parsed, a member pattern is not a path or
+/// `path/*`, or a member has no `polar.toml`.
+pub fn workspace_members(
+  dir: &Path,
+  cwd: &Path,
+) -> Result<Option<Vec<PathBuf>>, CliError> {
+  let root = normalize(&cwd.join(dir));
+  let config = root.join(CONFIG);
+
+  if !config.is_file() {
+    return Ok(None);
+  }
+
+  let shown = dir.join(CONFIG).display().to_string();
+  let text =
+    std::fs::read_to_string(&config).map_err(|e| CliError::read(&shown, &e))?;
+  let parsed = parse(&text, &shown)?;
+  let Some(section) = parsed.workspace else {
+    return Ok(None);
+  };
+
+  if parsed.project.is_some() || parsed.package.is_some() {
+    return Err(workspace_only(&shown));
+  }
+
+  let mut excluded: Vec<PathBuf> = Vec::new();
+
+  for pattern in &section.exclude {
+    for found in expand(pattern, &root, false, &shown)? {
+      excluded.push(normalize(&root.join(found)));
+    }
+  }
+
+  let mut members: Vec<PathBuf> = Vec::new();
+  let mut seen: Vec<PathBuf> = Vec::new();
+
+  for pattern in &section.members {
+    for found in expand(pattern, &root, true, &shown)? {
+      let absolute = normalize(&root.join(&found));
+
+      if excluded.contains(&absolute) || seen.contains(&absolute) {
+        continue;
+      }
+
+      seen.push(absolute);
+      members.push(normalize(&dir.join(found)));
+    }
+  }
+
+  Ok(Some(members))
+}
+
+fn expand(
+  pattern: &str,
+  root: &Path,
+  must_exist: bool,
+  shown: &str,
+) -> Result<Vec<PathBuf>, CliError> {
+  let path = Path::new(pattern);
+
+  if pattern.is_empty() || path.is_absolute() {
+    return Err(invalid(
+      shown,
+      &format!("the workspace path `{pattern}` must be relative"),
+    ));
+  }
+
+  let (base, glob) = match pattern.strip_suffix("/*") {
+    Some(base) => (base, true),
+    None => (pattern, false),
+  };
+
+  if base.contains('*') {
+    return Err(invalid(
+      shown,
+      &format!(
+        "the workspace path `{pattern}` can use `*` only as its last \
+         component, like `tests/*`"
+      ),
+    ));
+  }
+
+  if !glob {
+    if must_exist && !root.join(base).join(CONFIG).is_file() {
+      return Err(invalid(
+        shown,
+        &format!("the workspace member `{pattern}` has no {CONFIG}"),
+      ));
+    }
+
+    return Ok(vec![PathBuf::from(base)]);
+  }
+
+  let mut found: Vec<PathBuf> = std::fs::read_dir(root.join(base))
+    .map(|entries| {
+      entries
+        .flatten()
+        .filter(|entry| entry.path().join(CONFIG).is_file())
+        .map(|entry| Path::new(base).join(entry.file_name()))
+        .collect()
+    })
+    .unwrap_or_default();
+
+  found.sort();
+  Ok(found)
+}
+
+pub(crate) struct Member {
+  pub name: String,
+  pub src: PathBuf,
+  pub library: bool,
+}
+
+/// The name and source directory of the project or package in `dir`, read
+/// without loading its dependencies.
+///
+/// # Errors
+///
+/// Fails if the manifest cannot be read or has neither section.
+pub(crate) fn member(dir: &Path, cwd: &Path) -> Result<Member, CliError> {
+  let shown = dir.join(CONFIG).display().to_string();
+  let text = std::fs::read_to_string(cwd.join(dir).join(CONFIG))
+    .map_err(|e| CliError::read(&shown, &e))?;
+  let parsed = parse(&text, &shown)?;
+
+  match (parsed.project, parsed.package) {
+    (Some(section), None) => Ok(Member {
+      name: section.name,
+      src: dir.join(section.src),
+      library: false,
+    }),
+    (None, Some(section)) => Ok(Member {
+      name: section.name,
+      src: dir.join(section.src),
+      library: true,
+    }),
+    _ => Err(invalid(
+      &shown,
+      "a workspace member has a `[project]` or a `[package]` section",
+    )),
+  }
+}
+
+fn projects(dir: &Path, cwd: &Path) -> Result<Vec<Project>, CliError> {
+  match workspace_members(dir, cwd)? {
+    Some(members) => {
+      let mut out = Vec::new();
+
+      for member in members {
+        match load(&member, cwd)? {
+          Some(project) => out.push(project),
+          None => {
+            return Err(CliError::Message(format!(
+              "the workspace member {} is not a project or a package",
+              member.display()
+            )));
+          }
+        }
+      }
+
+      Ok(out)
+    }
+    None => Ok(load(dir, cwd)?.into_iter().collect()),
+  }
+}
+
+fn fmt_exclude(
+  section: Option<&FmtSection>,
+  dir: &Path,
+  shown: &str,
+) -> Result<Vec<PathBuf>, CliError> {
+  let Some(section) = section else { return Ok(Vec::new()) };
+
+  section
+    .exclude
+    .iter()
+    .map(|pattern| {
+      if pattern.is_absolute() {
+        Err(invalid(
+          shown,
+          "`[fmt] exclude` paths must be relative to the project directory",
+        ))
+      } else {
+        Ok(normalize(&dir.join(pattern)))
+      }
+    })
+    .collect()
+}
+
+fn workspace_only(shown: &str) -> CliError {
+  invalid(
+    shown,
+    "a `[workspace]` manifest only lists its members; it has no `[project]` \
+     or `[package]` section",
+  )
 }
 
 fn parse(text: &str, shown: &str) -> Result<ConfigFile, CliError> {
@@ -789,6 +1021,7 @@ pub struct Target {
   pub hosts: Vec<String>,
   pub library: bool,
   pub start: Option<Start>,
+  pub fmt_exclude: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -835,30 +1068,33 @@ pub fn targets(
   out: Option<&Path>,
 ) -> Result<Vec<Target>, CliError> {
   if paths.is_empty() {
-    return match load(Path::new(""), cwd)? {
-      Some(project) => Ok(vec![project_target(project, out)]),
-      None => Err(no_paths()),
-    };
+    let found = projects(Path::new(""), cwd)?;
+
+    if found.is_empty() {
+      return Err(no_paths());
+    }
+
+    return one_out(
+      found.into_iter().map(|p| project_target(p, out)).collect(),
+      out,
+    );
   }
 
   let mut targets = Vec::new();
   let mut plain = Vec::new();
 
   for path in paths {
-    let project = if cwd.join(path).is_dir() { load(path, cwd)? } else { None };
+    let found =
+      if cwd.join(path).is_dir() { projects(path, cwd)? } else { Vec::new() };
 
-    match project {
-      Some(project) => targets.push(project_target(project, out)),
-      None => plain.push(path.clone()),
+    if found.is_empty() {
+      plain.push(path.clone());
     }
+
+    targets.extend(found.into_iter().map(|p| project_target(p, out)));
   }
 
-  if out.is_some() && targets.len() > 1 {
-    return Err(CliError::Message(
-      "`--out` applies to one project at a time; each project writes to its own `out`"
-        .to_string(),
-    ));
-  }
+  let mut targets = one_out(targets, out)?;
 
   if !plain.is_empty() {
     let out = out.map_or_else(default_out, Path::to_path_buf);
@@ -870,7 +1106,22 @@ pub fn targets(
       hosts: Vec::new(),
       library: false,
       start: None,
+      fmt_exclude: Vec::new(),
     });
+  }
+
+  Ok(targets)
+}
+
+fn one_out(
+  targets: Vec<Target>,
+  out: Option<&Path>,
+) -> Result<Vec<Target>, CliError> {
+  if out.is_some() && targets.len() > 1 {
+    return Err(CliError::Message(
+      "`--out` applies to one project at a time; each project writes to its own `out`"
+        .to_string(),
+    ));
   }
 
   Ok(targets)
@@ -886,6 +1137,7 @@ fn project_target(project: Project, out: Option<&Path>) -> Target {
     hosts: project.hosts,
     library: project.library,
     start,
+    fmt_exclude: project.fmt_exclude,
   }
 }
 

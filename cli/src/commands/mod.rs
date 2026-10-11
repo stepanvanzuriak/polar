@@ -8,6 +8,7 @@ mod run;
 mod run_watch;
 mod start;
 mod testing;
+mod workspace;
 
 pub(crate) use build::{
   TestCase, build_into, write_externs, write_output, write_runtime, write_std,
@@ -92,16 +93,35 @@ pub(crate) fn dispatch(
         }
       }
     }
-    Command::Fmt { paths, check } => {
-      fmt::fmt(ctx, &targets(&paths, &cwd, None)?, check)
-    }
+    Command::Fmt { paths, check, idempotent, expect } => fmt::fmt(
+      ctx,
+      &targets(&paths, &cwd, None)?,
+      &fmt::Options { check, idempotent, expect: expect.as_deref() },
+    ),
     Command::Start { path, host, args } => {
       start::start(ctx, path.as_deref(), host.as_deref(), &args)
     }
-    Command::Test { path, filter, timeout, args } => testing::test(
+    Command::Test {
+      path,
+      filter,
+      timeout,
+      bless,
+      format,
+      project,
+      jobs,
+      args,
+    } => testing::test(
       ctx,
       path.as_deref(),
-      &testing::Options { filter: filter.as_deref(), timeout, args: &args },
+      &testing::Options {
+        filter: filter.as_deref(),
+        timeout,
+        json: format == crate::TestFormat::Json,
+        bless: bless || update_requested(ctx),
+        projects: &project,
+        jobs,
+        args: &args,
+      },
     ),
     Command::Repl { path, setup, expr } => {
       repl::repl(ctx, path.as_deref(), setup.as_deref(), expr.as_deref())
@@ -114,6 +134,10 @@ pub(crate) fn dispatch(
       init::init(ctx, dir.as_deref(), name.as_deref(), &zones)
     }
   }
+}
+
+fn update_requested(ctx: &Ctx<'_, '_>) -> bool {
+  (ctx.io.env)("POLAR_UPDATE").is_some_and(|v| !v.is_empty() && v != "0")
 }
 
 fn single(mut targets: Vec<Target>) -> Result<Target, CliError> {

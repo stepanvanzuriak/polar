@@ -1234,6 +1234,7 @@ mod projects {
           project: Some("p".into()),
           hosts: vec![],
           library: false,
+          fmt_exclude: vec![],
           start: Some(project::Start {
             dir: "p".into(),
             main: "main.js".into(),
@@ -1247,6 +1248,7 @@ mod projects {
           project: None,
           hosts: vec![],
           library: false,
+          fmt_exclude: vec![],
           start: None,
         },
       ]

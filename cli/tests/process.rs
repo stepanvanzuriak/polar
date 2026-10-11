@@ -296,6 +296,38 @@ exports
 }
 
 #[test]
+fn std_list_take_and_drop_run() {
+  let src = r##"uses
+  Std.List
+
+functions
+  show(xs) -> String {
+    "[#{List.join(List.map(xs, Int.to_string), ",")}]"
+  }
+
+  main() {
+    let xs = List.range(1, 6)
+
+    Log.info("#{show(List.take(xs, 2))} #{show(List.drop(xs, 2))}")
+    Log.info("#{show(List.take(xs, 0))} #{show(List.drop(xs, 0))}")
+    Log.info("#{show(List.take(xs, 9))} #{show(List.drop(xs, 9))}")
+    Log.info("#{show(List.take(xs, -1))} #{show(List.drop(xs, -1))}")
+    Log.info("#{show(List.take(Nil, 2))} #{show(List.drop(Nil, 2))}")
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(
+    ran.out,
+    "[1,2] [3,4,5]\n[] [1,2,3,4,5]\n[1,2,3,4,5] []\n[] [1,2,3,4,5]\n[] []\n"
+  );
+}
+
+#[test]
 fn std_option_and_result_run() {
   let src = r##"uses
   Std.List
@@ -358,7 +390,7 @@ exports
 }
 
 #[test]
-fn std_math_constants_run() {
+fn std_math_constants_and_functions_run() {
   let src = r##"uses
   Std.Math
 
@@ -368,6 +400,8 @@ constants
 functions
   main() {
     Log.info("#{Math.pi} #{tau}")
+    Log.info("#{Math.max(3, 7)} #{Math.max(-2, -5)} #{Math.min(3, 7)} #{Math.min(-2, -5)}")
+    Log.info("#{Math.abs(-4)} #{Math.abs(4)} #{Math.abs(0)}")
   }
 
 exports
@@ -376,7 +410,10 @@ exports
   let ran = run(&[("a.px", src)], "a.px", &[]);
 
   assert_eq!(ran.code, Some(0), "{}", ran.err);
-  assert_eq!(ran.out, "3.141592653589793 6.283185307179586\n");
+  assert_eq!(
+    ran.out,
+    "3.141592653589793 6.283185307179586\n7 -2 3 -5\n4 4 0\n"
+  );
 }
 
 #[test]
