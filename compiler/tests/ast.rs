@@ -50,6 +50,7 @@ fn fixture() -> Module {
     kind: ZoneKind::USES,
     decls: vec![Decl::Import(Import {
       methods: None,
+      group: None,
       span: cover(("net", 0), ("web", 0)),
       path: vec![name("net", 0), name("http", 0)],
       alias: Some(name("web", 0)),

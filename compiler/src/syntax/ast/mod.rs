@@ -157,6 +157,31 @@ pub struct Import {
   pub path: Vec<Name>,
   pub alias: Option<Name>,
   pub methods: Option<Vec<Name>>,
+  pub group: Option<Vec<Name>>,
+}
+
+impl Import {
+  #[must_use]
+  pub fn members(&self) -> Vec<Import> {
+    let Some(group) = &self.group else { return vec![self.clone()] };
+
+    group
+      .iter()
+      .map(|name| {
+        let mut path = self.path.clone();
+
+        path.push(name.clone());
+
+        Import {
+          span: self.span.clone(),
+          path,
+          alias: None,
+          methods: None,
+          group: None,
+        }
+      })
+      .collect()
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -798,7 +823,7 @@ ast! {
   structs {
     Module      { span, name, zones }
     Zone        { span, kind, decls }
-    Import      { span, path, alias, methods }
+    Import      { span, path, alias, methods, group }
     ExportDecl  { span, name, methods }
     HostDecl    { span, docs, name }
     EffectDecl  { span, docs, native, name, host, ops }

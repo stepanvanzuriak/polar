@@ -98,8 +98,12 @@ impl Imports {
     let mut prelude = "Prelude".to_string();
     let mut traits = Vec::new();
 
-    for decl in decls(module) {
-      let Decl::Import(import) = decl else { continue };
+    let imports = decls(module).filter_map(|decl| match decl {
+      Decl::Import(import) => Some(import.members()),
+      _ => None,
+    });
+
+    for import in imports.flatten() {
       let path: Vec<&str> =
         import.path.iter().map(|n| n.text.as_str()).collect();
       let local = import

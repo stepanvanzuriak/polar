@@ -496,11 +496,18 @@ fn method_list() -> impl Strategy<Value = Option<Vec<Name>>> + Clone {
 }
 
 fn import() -> impl Strategy<Value = Decl> {
-  (vec(upper(), 1..4), option::of(upper()), method_list()).prop_map(
-    |(path, alias, methods)| {
-      Decl::Import(Import { span: sp(), path, alias, methods })
-    },
+  (
+    vec(upper(), 1..4),
+    option::of(upper()),
+    method_list(),
+    option::of(vec(upper(), 1..3)),
   )
+    .prop_map(|(path, alias, methods, group)| {
+      let (alias, methods) =
+        if group.is_some() { (None, None) } else { (alias, methods) };
+
+      Decl::Import(Import { span: sp(), path, alias, methods, group })
+    })
 }
 
 fn bound() -> impl Strategy<Value = Bound> + Clone {
