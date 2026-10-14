@@ -48,7 +48,7 @@ functions
     match value {
       JNull -> "null",
       JBool(b) -> Bool.to_string(b),
-      JNumber(n) -> Float.to_string(n),
+      JNumber(n) -> JsonRaw.print(JNumber(n)),
       JString(_) -> "a string",
       JArray(_) -> "an array",
       JObject(_) -> "an object",

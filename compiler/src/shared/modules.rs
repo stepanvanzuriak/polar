@@ -12,6 +12,13 @@ pub struct ModuleSource {
   pub plugins: Vec<String>,
 }
 
+impl ModuleSource {
+  #[must_use]
+  pub fn filename(&self) -> String {
+    format!("{}.px", self.path.replace('.', "/"))
+  }
+}
+
 fn parse_with(source: &str, filename: &str, sets: &[String]) -> Module {
   plugins::within(sets, || {
     let file = SourceFile::new(filename, source);

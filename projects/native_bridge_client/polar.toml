@@ -1,0 +1,6 @@
+[project]
+name = "native_bridge_client"
+src = "src"
+out = "dist"
+main = "src/main.px"
+hosts = ["Node"]

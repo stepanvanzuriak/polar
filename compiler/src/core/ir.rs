@@ -2,15 +2,16 @@ use crate::{
   shared::source::Span,
   types::ty::{Effects, Type},
 };
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Sym {
   pub id: u32,
   pub name: Arc<str>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SymGen {
   next: u32,
 }
@@ -30,7 +31,7 @@ impl SymGen {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrimOp {
   Add,
   Sub,
@@ -51,6 +52,11 @@ pub enum PrimOp {
   BitOr,
   BitXor,
   BitNot,
+  IntAdd,
+  IntSub,
+  IntMul,
+  IntDiv,
+  IntMod,
 }
 
 impl PrimOp {
@@ -76,6 +82,11 @@ impl PrimOp {
       Self::BitOr => "BitOr",
       Self::BitXor => "BitXor",
       Self::BitNot => "BitNot",
+      Self::IntAdd => "IntAdd",
+      Self::IntSub => "IntSub",
+      Self::IntMul => "IntMul",
+      Self::IntDiv => "IntDiv",
+      Self::IntMod => "IntMod",
     }
   }
 
@@ -87,6 +98,11 @@ impl PrimOp {
       | Self::Sub
       | Self::Mul
       | Self::Div
+      | Self::IntAdd
+      | Self::IntSub
+      | Self::IntMul
+      | Self::IntDiv
+      | Self::IntMod
       | Self::Mod
       | Self::BitAnd
       | Self::BitOr
@@ -103,14 +119,14 @@ impl PrimOp {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Lit {
   Number(f64),
   String(String),
   Bool(bool),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CtorId(pub u32);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -136,28 +152,97 @@ impl EffectSlot {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CExpr {
   pub kind: CExprKind,
   pub origin: Option<Span>,
+  #[serde(skip)]
   pub ty: Option<TypeSlot>,
+  #[serde(skip)]
   pub effects: Option<EffectSlot>,
 }
 
 impl CExpr {
+  pub fn for_each_child_mut(&mut self, f: &mut impl FnMut(&mut CExpr)) {
+    match &mut self.kind {
+      CExprKind::Lit(_)
+      | CExprKind::Var(_)
+      | CExprKind::Builtin { .. }
+      | CExprKind::Std { .. }
+      | CExprKind::User { .. }
+      | CExprKind::Method { .. }
+      | CExprKind::CtorFn { .. }
+      | CExprKind::MatchFail
+      | CExprKind::Op { .. }
+      | CExprKind::Extern { .. } => {}
+      CExprKind::Throw { value: one, .. }
+      | CExprKind::Return { value: one }
+      | CExprKind::Lam { body: one, .. }
+      | CExprKind::Field { target: one, .. }
+      | CExprKind::Test { target: one, .. } => f(one),
+      CExprKind::Try { body: first, handler: second, .. }
+      | CExprKind::Let { value: first, body: second, .. } => {
+        f(first);
+        f(second);
+      }
+      CExprKind::App { func, args } => {
+        f(func);
+        for arg in args {
+          f(arg);
+        }
+      }
+      CExprKind::Prim { args, .. }
+      | CExprKind::Ctor { args, .. }
+      | CExprKind::Dict { args, .. }
+      | CExprKind::Concat { parts: args } => {
+        for arg in args {
+          f(arg);
+        }
+      }
+      CExprKind::If { cond, then_branch, else_branch } => {
+        f(cond);
+        f(then_branch);
+        f(else_branch);
+      }
+      CExprKind::Case { scrutinee, arms } => {
+        f(scrutinee);
+
+        for arm in arms {
+          if let Some(guard) = &mut arm.guard {
+            f(guard);
+          }
+
+          f(&mut arm.body);
+        }
+      }
+      CExprKind::Record { fields } => {
+        for (_, v) in fields {
+          f(v);
+        }
+      }
+      CExprKind::Update { base, fields } => {
+        f(base);
+
+        for (_, v) in fields {
+          f(v);
+        }
+      }
+    }
+  }
+
   #[must_use]
   pub fn new(kind: CExprKind, origin: Option<Span>) -> Self {
     Self { kind, origin, ty: None, effects: None }
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CExprKind {
   Lit(Lit),
   Var(Sym),
   Builtin {
-    module: &'static str,
-    member: &'static str,
+    module: String,
+    member: String,
   },
   Std {
     module: String,
@@ -251,7 +336,7 @@ pub enum CExprKind {
   },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CArm {
   pub pattern: CPattern,
   pub guard: Option<CExpr>,
@@ -259,7 +344,7 @@ pub struct CArm {
   pub origin: Option<Span>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CPattern {
   Wildcard,
   Bind(Sym),
@@ -269,26 +354,26 @@ pub enum CPattern {
   Or(Vec<CPattern>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternTest {
   Tag(CtorId),
   Lit(Lit),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CtorInfo {
   pub name: String,
   pub arity: usize,
   pub owner: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DeclKind {
   Function,
   Constant,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CDecl {
   pub sym: Sym,
   pub kind: DeclKind,
@@ -296,10 +381,11 @@ pub struct CDecl {
   pub params: Vec<Sym>,
   pub body: CExpr,
   pub origin: Option<Span>,
+  #[serde(skip)]
   pub effects: Option<EffectSlot>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CImpl {
   pub trait_path: String,
   pub target: String,
@@ -308,7 +394,7 @@ pub struct CImpl {
   pub origin: Option<Span>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CBind {
   pub effect: String,
   pub host: String,
@@ -317,18 +403,19 @@ pub struct CBind {
   pub origin: Option<Span>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CExtern {
   pub name: String,
   pub module: String,
   pub export: String,
+  pub rs: Option<String>,
   pub label: String,
   pub params: Vec<Boundary>,
   pub ret: Boundary,
   pub origin: Option<Span>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Boundary {
   #[default]
   Plain,
@@ -339,7 +426,7 @@ pub enum Boundary {
   Record(Vec<(String, Boundary)>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CBridgeOp {
   pub op: String,
   pub params: Vec<Option<CExpr>>,
@@ -347,7 +434,7 @@ pub struct CBridgeOp {
   pub throws: Vec<(String, CExpr)>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CBridge {
   pub effect: String,
   pub host: String,
@@ -355,7 +442,7 @@ pub struct CBridge {
   pub ops: Vec<CBridgeOp>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct CModule {
   pub decls: Vec<CDecl>,
   pub impls: Vec<CImpl>,
@@ -367,6 +454,7 @@ pub struct CModule {
   pub ctors: Vec<CtorInfo>,
   pub std_imports: Vec<String>,
   pub user_imports: Vec<(String, String)>,
+  pub source: Option<(String, String)>,
 }
 
 impl CModule {

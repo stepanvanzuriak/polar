@@ -161,6 +161,7 @@ proptest! {
 
     match run_main(&out.js) {
       Ok(_) => {}
+      Err(stderr) if stderr.contains("PolarArithmeticError: ") => {}
       Err(stderr) => prop_assert!(false, "{src}\n{}\n{stderr}", out.js),
     }
   }

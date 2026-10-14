@@ -1008,6 +1008,9 @@ impl<'a> Emitter<'a> {
         match (name.as_str(), prelude_primitive(target, name)) {
           ("eq", _) => binary(BinaryOp::StrictEq, next(), next()).at(origin),
           (_, Some("String")) => next(),
+          (_, Some("Float")) => {
+            call(builtin("Float", "to_string"), vec![next()], origin)
+          }
           _ => template(vec![String::new(), String::new()], vec![next()]),
         }
       }
@@ -1297,16 +1300,30 @@ impl<'a> Emitter<'a> {
       })
     };
 
+    let checked = match (op, kind == Prim::Int) {
+      (PrimOp::Add, true) | (PrimOp::IntAdd, _) => Some(("intAdd", false)),
+      (PrimOp::Sub, true) | (PrimOp::IntSub, _) => Some(("intSub", false)),
+      (PrimOp::Mul, true) | (PrimOp::IntMul, _) => Some(("intMul", false)),
+      (PrimOp::Div, true) | (PrimOp::IntDiv, _) => Some(("intDiv", true)),
+      (PrimOp::Mod, true) | (PrimOp::IntMod, _) => Some(("intMod", true)),
+      _ => None,
+    };
+
+    if let Some((function, located)) = checked {
+      let at = if located { e.origin.as_ref() } else { None };
+
+      return self.int_op(function, vec![next(), next()], at, origin);
+    }
+
     match op {
+      PrimOp::IntAdd
+      | PrimOp::IntSub
+      | PrimOp::IntMul
+      | PrimOp::IntDiv
+      | PrimOp::IntMod => ice("checked Int arithmetic left unlowered", None),
       PrimOp::Add => binary(BinaryOp::Add, next(), next()).at(origin),
       PrimOp::Sub => binary(BinaryOp::Sub, next(), next()).at(origin),
       PrimOp::Mul => binary(BinaryOp::Mul, next(), next()).at(origin),
-      PrimOp::Div if kind == Prim::Int => call(
-        member(var("Math"), "trunc"),
-        vec![binary(BinaryOp::Div, next(), next())],
-        None,
-      )
-      .at(origin),
       PrimOp::Div => binary(BinaryOp::Div, next(), next()).at(origin),
       PrimOp::Mod => binary(BinaryOp::Mod, next(), next()).at(origin),
       PrimOp::Lt => binary(BinaryOp::Lt, next(), next()).at(origin),
@@ -1527,6 +1544,26 @@ impl<'a> Emitter<'a> {
     );
 
     object(props)
+  }
+
+  fn int_op(
+    &self,
+    function: &str,
+    mut args: Vec<Expr>,
+    at: Option<&Span>,
+    origin: Option<Span>,
+  ) -> Expr {
+    if let Some(span) = at {
+      let position = self.file.position_at(span.start);
+
+      args.extend([
+        string(self.file.name()),
+        count(position.line + 1),
+        count(self.file.code_point_column(position)),
+      ]);
+    }
+
+    call(builtin_path(function), args, origin)
   }
 
   fn match_failure(&self, e: &CExpr) -> Expr {

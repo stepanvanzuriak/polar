@@ -359,6 +359,7 @@ impl Lowerer<'_> {
       ctors: std::mem::take(&mut self.ctors),
       std_imports: std::mem::take(&mut self.std_used),
       user_imports: std::mem::take(&mut self.user_used),
+      source: None,
     }
   }
 
@@ -1772,7 +1773,10 @@ impl Lowerer<'_> {
       );
 
       return CExpr::new(
-        CExprKind::Builtin { module: builtin.module, member: builtin.member },
+        CExprKind::Builtin {
+          module: builtin.module.to_string(),
+          member: builtin.member.to_string(),
+        },
         origin,
       );
     }

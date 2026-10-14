@@ -79,6 +79,7 @@ fn ctor_id_indexes_the_module() {
     ctors: shapes(),
     std_imports: vec![],
     user_imports: vec![],
+    source: None,
     impls: vec![],
     binds: vec![],
     bridges: vec![],
@@ -97,7 +98,10 @@ fn discarded_statement_has_no_sym() {
   let expr = e(CExprKind::Let {
     sym: None,
     value: Box::new(e(CExprKind::App {
-      func: Box::new(e(CExprKind::Builtin { module: "Log", member: "info" })),
+      func: Box::new(e(CExprKind::Builtin {
+        module: "Log".into(),
+        member: "info".into(),
+      })),
       args: vec![e(CExprKind::Lit(Lit::String("hi".into())))],
     })),
     body: Box::new(num(0.0)),
@@ -239,6 +243,7 @@ fn module() -> CModule {
     ctors: shapes(),
     std_imports: vec![],
     user_imports: vec![],
+    source: None,
     impls: vec![],
     binds: vec![],
     bridges: vec![],

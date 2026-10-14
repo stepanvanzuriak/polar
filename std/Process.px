@@ -28,7 +28,8 @@ effects
 
 externs
   scoped_env(vars: List<EnvVar>, body: function() -> a / {| e}) -> a / {Async | e}
-    = "./bindings/Process.js" scoped_env
+    = js "./bindings/Process.js" scoped_env,
+      rs "process::scoped_env"
   spawn(command: String, args: List<String>, options: RunOptions) -> Child / {Async}
     = "./bindings/Process.js" spawn_child
   wait_for_line(child: Child, pattern: String, timeout_ms: Int) -> Option<String> / {
@@ -39,6 +40,8 @@ externs
 
 binds
   Process in Node = "./bindings/Process.js"
+
+  Process in Native = rs "process"
 
 functions
   inherit() -> RunOptions {

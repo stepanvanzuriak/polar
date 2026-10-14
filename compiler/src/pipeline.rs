@@ -115,7 +115,16 @@ pub(crate) fn host(
 ) -> Result<Option<String>, String> {
   let declared = effects.host_names();
 
+  let native_default = (options.target == crate::Target::Native)
+    .then(|| {
+      ["Native", "Node"].into_iter().find(|h| declared.iter().any(|d| d == h))
+    })
+    .flatten();
+
   match &options.host {
+    HostOption::Auto if native_default.is_some() => {
+      Ok(native_default.map(str::to_string))
+    }
     HostOption::Auto => choose_host(None, &declared),
     HostOption::Flag(flag) => choose_host(Some(flag), &declared),
     HostOption::Fixed(host) => Ok(host.clone()),

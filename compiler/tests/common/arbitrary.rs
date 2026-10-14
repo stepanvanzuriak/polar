@@ -647,6 +647,7 @@ fn extern_decl() -> impl Strategy<Value = Decl> {
         effects,
         module,
         export,
+        rs: None,
       })
     })
 }
@@ -678,6 +679,7 @@ fn bind_decl() -> impl Strategy<Value = Decl> {
         host,
         from: via,
         module,
+        rs: None,
         ops,
       })
     })

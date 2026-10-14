@@ -398,7 +398,7 @@ mod output {
       .output()
       .unwrap();
 
-    assert_eq!(String::from_utf8_lossy(&ran.stdout), "12\n");
+    assert_eq!(String::from_utf8_lossy(&ran.stdout), "12.0\n");
   }
 
   #[test]
@@ -417,11 +417,16 @@ mod output {
   fn run_prints_through_a_dependency() {
     let ran = polar(&fixtures().join("basic"), &["run"]);
 
-    assert_eq!((ran.code, ran.out.as_str()), (Some(0), "12\n"), "{}", ran.err);
+    assert_eq!(
+      (ran.code, ran.out.as_str()),
+      (Some(0), "12.0\n"),
+      "{}",
+      ran.err
+    );
 
     let ran = polar(&fixtures().join("transitive"), &["run"]);
 
-    assert_eq!(ran.out, "a circle of area 3\n", "{}", ran.err);
+    assert_eq!(ran.out, "a circle of area 3.0\n", "{}", ran.err);
   }
 
   #[test]

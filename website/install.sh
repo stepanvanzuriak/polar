@@ -61,6 +61,8 @@ tar xzf "$tmp/$name.tar.gz" -C "$tmp"
 mkdir -p "$prefix/bin"
 cp "$tmp/$name/polar" "$prefix/bin/polar"
 chmod +x "$prefix/bin/polar"
+cp "$tmp/$name/polar-rt" "$prefix/bin/polar-rt"
+chmod +x "$prefix/bin/polar-rt"
 
 echo "Installed polar $version to $prefix/bin/polar"
 

@@ -8,9 +8,9 @@ other string
 yes
 no
 red
-circle 2
-rect 3x4
-boxed circle 1
+circle 2.0
+rect 3.0x4.0
+boxed circle 1.0
 boxed other
 Ada herself
 Alan at 41

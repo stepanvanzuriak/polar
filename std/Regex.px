@@ -13,16 +13,24 @@ types
   Regex = Regex(String)
 
 externs
-  matches(pattern: String, text: String) -> Bool = "./bindings/Regex.js" test_pattern
+  matches(pattern: String, text: String) -> Bool
+    = js "./bindings/Regex.js" test_pattern,
+      rs "regex::matches"
   first_match(pattern: String, text: String) -> Option<String>
-    = "./bindings/Regex.js" first_match
+    = js "./bindings/Regex.js" first_match,
+      rs "regex::first_match"
   all_matches(pattern: String, text: String) -> List<String>
-    = "./bindings/Regex.js" all_matches
+    = js "./bindings/Regex.js" all_matches,
+      rs "regex::all_matches"
   capture_groups(pattern: String, text: String) -> Option<List<String>>
-    = "./bindings/Regex.js" capture_groups
+    = js "./bindings/Regex.js" capture_groups,
+      rs "regex::capture_groups"
   replace_all(pattern: String, text: String, with: String) -> String
-    = "./bindings/Regex.js" replace_all
-  syntax_error(pattern: String) -> Option<String> = "./bindings/Regex.js" syntax_error
+    = js "./bindings/Regex.js" replace_all,
+      rs "regex::replace_all"
+  syntax_error(pattern: String) -> Option<String>
+    = js "./bindings/Regex.js" syntax_error,
+      rs "regex::syntax_error"
 
 functions
   compile(pattern: String) -> Result<String, Regex> {

@@ -437,6 +437,58 @@ export const String = {
   },
 };
 
+/** Thrown by checked `Int` arithmetic. */
+export class PolarArithmeticError extends Error {}
+
+/**
+ * `Int` is exact up to ±(2^53 − 1); a result outside that range is an error
+ * rather than a silent rounding.
+ * @param {number} n
+ * @returns {number}
+ */
+function safe(n) {
+  if (!Number.isSafeInteger(n)) {
+    throw new PolarArithmeticError("integer overflow");
+  }
+
+  return n;
+}
+
+function nonZero(b, file, line, column) {
+  if (b === 0) {
+    throw new PolarArithmeticError(
+      `division by zero (${file}:${line}:${column})`,
+    );
+  }
+}
+
+/** Checked `Int` arithmetic; the compiler calls these for `+ - * / %`. */
+export function intAdd(a, b) {
+  return safe(a + b);
+}
+
+export function intSub(a, b) {
+  return safe(a - b);
+}
+
+export function intMul(a, b) {
+  return safe(a * b) + 0;
+}
+
+/** Truncates toward zero. */
+export function intDiv(a, b, file, line, column) {
+  nonZero(b, file, line, column);
+
+  return (a - (a % b)) / b + 0;
+}
+
+/** The remainder has the sign of the dividend. */
+export function intMod(a, b, file, line, column) {
+  nonZero(b, file, line, column);
+
+  return (a % b) + 0;
+}
+
 export const Int = {
   /** @param {number} n @returns {string} */
   to_string(n) {
@@ -483,8 +535,11 @@ export const Float = {
     return a === b;
   },
 
+  /** The shortest text that reads back as `n`; whole numbers end in `.0`. */
   to_string(n) {
-    return JsString(n);
+    const text = JsString(n);
+
+    return /^-?\d+$/.test(text) ? `${text}.0` : text;
   },
 
   to_int(n) {

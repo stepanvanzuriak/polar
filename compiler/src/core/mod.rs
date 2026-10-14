@@ -7,5 +7,6 @@ pub mod ir;
 pub mod lower;
 pub mod matching;
 pub mod scope;
+pub mod serial;
 
 pub use lower::lower;

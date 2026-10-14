@@ -7,8 +7,12 @@ types
   Pair = { name: String, value: String } derive(Eq, Show)
 
 externs
-  decode(text: String) -> String = "./bindings/Url.js" decode
-  encode(text: String) -> String = "./bindings/Url.js" encode
+  decode(text: String) -> String
+    = js "./bindings/Url.js" decode,
+      rs "url::decode"
+  encode(text: String) -> String
+    = js "./bindings/Url.js" encode,
+      rs "url::encode"
 
 functions
   parse_query(text: String) -> List<Pair> {

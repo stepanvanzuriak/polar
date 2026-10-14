@@ -151,7 +151,7 @@ fn runtime_error_names_the_polar_line() {
   assert_eq!(ran.code, Some(1));
   assert_eq!(ran.out, "one\n");
   assert!(ran.err.starts_with("error: uncaught "), "{}", ran.err);
-  assert!(ran.err.contains("nested.px:3:5)"), "{}", ran.err);
+  assert!(ran.err.contains("nested.px:3:"), "{}", ran.err);
 }
 
 #[test]

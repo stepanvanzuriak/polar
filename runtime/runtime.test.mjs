@@ -578,3 +578,24 @@ test("http_files_serve_under_a_prefix_and_stay_inside", async () => {
     server.close();
   }
 });
+
+test("Int arithmetic is exact or an error", () => {
+  const { intAdd, intDiv, intMod, intMul, intSub, PolarArithmeticError } = rt;
+
+  assert.equal(intAdd(9007199254740990, 1), 9007199254740991);
+  assert.throws(() => intAdd(9007199254740991, 1), PolarArithmeticError);
+  assert.throws(() => intMul(9007199254740991, 2), PolarArithmeticError);
+  assert.throws(() => intSub(-9007199254740991, 2), PolarArithmeticError);
+  assert.equal(intDiv(-7, 2, "f", 1, 1), -3);
+  assert.equal(intMod(-7, 2, "f", 1, 1), -1);
+  assert.equal(Object.is(intMod(-4, 2, "f", 1, 1), 0), true);
+  assert.throws(() => intDiv(1, 0, "f", 1, 1), /division by zero \(f:1:1\)/);
+});
+
+test("Float.to_string keeps whole numbers recognisably Float", () => {
+  assert.equal(rt.Float.to_string(1), "1.0");
+  assert.equal(rt.Float.to_string(-2), "-2.0");
+  assert.equal(rt.Float.to_string(0.1 + 0.2), "0.30000000000000004");
+  assert.equal(rt.Float.to_string(1e21), "1e+21");
+  assert.equal(rt.Float.to_string(NaN), "NaN");
+});

@@ -32,11 +32,17 @@ effects
   }
 
 externs
-  to_parts(ms: Int) -> Parts = "./bindings/Time.js" to_parts
-  from_parts(parts: Parts) -> Int = "./bindings/Time.js" from_parts
+  to_parts(ms: Int) -> Parts
+    = js "./bindings/Time.js" to_parts,
+      rs "time::to_parts"
+  from_parts(parts: Parts) -> Int
+    = js "./bindings/Time.js" from_parts,
+      rs "time::from_parts"
 
 binds
   Clock in Node = "./bindings/Time.js"
+
+  Clock in Native = rs "time"
 
   Clock in Browser = "./bindings/Time.js"
 

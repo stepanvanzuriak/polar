@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-  CompileOptions,
+  CompileOptions, Target,
   check::{
     Types,
     hosts::{label_hosts, runs_on, show},
@@ -12,9 +12,11 @@ use crate::{
   core::{
     dictionaries::walk,
     effects::EffectTable,
-    ir::{Boundary, CDecl, CExpr, CExprKind, CModule, DeclKind},
+    ir::{Boundary, CDecl, CExpr, CExprKind, CExtern, CModule, DeclKind},
   },
-  shared::codes::DiagnosticCode::{HostCantRunMain, MissingBinding},
+  shared::codes::DiagnosticCode::{
+    HostCantRunMain, MissingBinding, MissingImplementation,
+  },
   shared::diagnostic::{Diagnostic, DiagnosticBag, Label},
   shared::source::Span,
   types::{
@@ -81,7 +83,7 @@ pub(crate) fn for_host(
     module.binds.clear();
     module.bridges.clear();
 
-    let files = prepare_externs(&mut module, types, options);
+    let files = prepare_externs(&mut module, types, options, bag);
 
     return (module, files);
   };
@@ -156,7 +158,7 @@ pub(crate) fn for_host(
     }
   }
 
-  let files = prepare_externs(&mut module, types, options);
+  let files = prepare_externs(&mut module, types, options, bag);
 
   (module, files)
 }
@@ -207,6 +209,7 @@ fn prepare_externs(
   module: &mut CModule,
   types: &Types,
   options: &CompileOptions,
+  bag: &mut DiagnosticBag,
 ) -> Vec<(String, String)> {
   let mut externs: BTreeSet<String> = BTreeSet::new();
 
@@ -221,6 +224,19 @@ fn prepare_externs(
   module.externs.retain(|e| externs.contains(&e.name));
 
   let mut files: Vec<(String, String)> = Vec::new();
+
+  let called = called_externs(module, options.target);
+
+  for ext in &module.externs {
+    let missing = match options.target {
+      Target::Js => ext.export.is_empty(),
+      Target::Native => ext.rs.is_none(),
+    };
+
+    if missing && called.contains(&ext.name) {
+      bag.push(missing_implementation(ext, options.target));
+    }
+  }
 
   for ext in &mut module.externs {
     let (rewritten, copy) = specifier(&ext.module, options);
@@ -349,6 +365,143 @@ fn missing_binding(
     Label::new(at).with_message(format!("`{effect}` is used here")),
   )
   .with_help(format!("add `{effect} in {host} {{ … }}` to a `binds` zone"))
+}
+
+fn missing_implementation(ext: &CExtern, target: Target) -> Diagnostic {
+  let at = ext
+    .origin
+    .clone()
+    .unwrap_or_else(|| Span::empty(std::sync::Arc::from(""), 0));
+  let lang = target.lang();
+
+  Diagnostic::error(
+    MissingImplementation,
+    format!(
+      "`{}` has no `{lang}` implementation for the {} target",
+      ext.label,
+      target.label()
+    ),
+    Label::new(at),
+  )
+  .with_help(match (ext.label.split_once('.'), target) {
+    (Some((effect, _)), Target::Native) => {
+      format!("add `{effect} in Native = rs \"…\"` to a `binds` zone")
+    }
+    (_, Target::Native) => "add `rs \"…\"` to its definition".to_string(),
+    (_, Target::Js) => {
+      "add `js \"./file.js\" export_name` to its definition".to_string()
+    }
+  })
+}
+
+/// The extern an exported function only forwards its parameters to.
+fn wrapped_extern(decl: &CDecl) -> Option<&str> {
+  if !decl.exported {
+    return None;
+  }
+
+  match &decl.body.kind {
+    CExprKind::Extern { name } => Some(name),
+    CExprKind::App { func, args } => match &func.kind {
+      CExprKind::Extern { name }
+        if args.len() == decl.params.len()
+          && args.iter().zip(&decl.params).all(
+            |(a, p)| matches!(&a.kind, CExprKind::Var(s) if s.id == p.id),
+          ) =>
+      {
+        Some(name)
+      }
+      _ => None,
+    },
+    _ => None,
+  }
+}
+
+/// Externs the module itself calls on the native target. An extern only
+/// re-exported by a forwarding function is checked where it is imported.
+fn called_externs(module: &CModule, target: Target) -> BTreeSet<String> {
+  let wrappers: BTreeMap<u32, &str> = match target {
+    Target::Js => BTreeMap::new(),
+    Target::Native => module
+      .decls
+      .iter()
+      .filter_map(|d| wrapped_extern(d).map(|name| (d.sym.id, name)))
+      .collect(),
+  };
+  let mut called = BTreeSet::new();
+  let roots = module
+    .decls
+    .iter()
+    .filter(|d| !wrappers.contains_key(&d.sym.id))
+    .map(|d| &d.body)
+    .chain(module.binds.iter().flat_map(|b| b.ops.iter().map(|op| &op.body)));
+
+  for body in roots {
+    walk(body, &mut |e| match &e.kind {
+      CExprKind::Extern { name } => {
+        called.insert(name.clone());
+      }
+      CExprKind::Var(sym) => {
+        if let Some(name) = wrappers.get(&sym.id) {
+          called.insert((*name).to_string());
+        }
+      }
+      _ => {}
+    });
+  }
+
+  called
+}
+
+/// Imported functions that forward to an extern the native runtime lacks.
+pub(crate) fn missing_native_imports(
+  main: &CModule,
+  modules: &[(String, CModule)],
+) -> Vec<Diagnostic> {
+  let mut out = Vec::new();
+  let all = std::iter::once(main).chain(modules.iter().map(|(_, m)| m));
+
+  for module in all {
+    for body in bodies(module) {
+      walk(body, &mut |e| {
+        let (path, member) = match &e.kind {
+          CExprKind::Std { module, member } => {
+            (format!("Std.{module}"), member)
+          }
+          CExprKind::User { module, member } => (module.clone(), member),
+          _ => return,
+        };
+        let Some((_, target)) = modules.iter().find(|(p, _)| *p == path) else {
+          return;
+        };
+        let Some(ext) = target
+          .decls
+          .iter()
+          .find(|d| *d.sym.name == **member)
+          .and_then(wrapped_extern)
+          .and_then(|name| target.externs.iter().find(|x| x.name == name))
+          .filter(|x| x.rs.is_none())
+        else {
+          return;
+        };
+        let mut diagnostic = missing_implementation(ext, Target::Native);
+
+        if let Some(at) = &e.origin {
+          diagnostic.primary = Label::new(at.clone());
+        }
+
+        diagnostic.message = format!(
+          "`{path}.{member}` has no `rs` implementation for the native target"
+        );
+        diagnostic.help =
+          Some(format!("`{path}` implements `{member}` for JavaScript only"));
+
+        out.push(diagnostic);
+      });
+    }
+  }
+
+  out
 }
 
 fn specifier(

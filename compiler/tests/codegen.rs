@@ -490,7 +490,7 @@ mod typed {
   fn int_division_truncates() {
     assert_eq!(prints("7 / 2"), "3\n");
     assert!(
-      function_js("f(a: Int, b: Int) { a / b }").contains("Math.trunc(a / b)")
+      function_js("f(a: Int, b: Int) { a / b }").contains("$rt.intDiv(a, b, ")
     );
   }
 
@@ -574,7 +574,7 @@ types
       "typed.px",
     );
 
-    assert!(js.contains("`${b} ${x}`"), "{js}");
+    assert!(js.contains("`${b} ${$rt.Float.to_string(x)}`"), "{js}");
   }
 
   #[test]
@@ -761,7 +761,7 @@ exports
     );
     assert!(
       js.contains(
-        "$rt.poly(0, () => f() + 1, async () => await f($rt.ASYNC) + 1)"
+        "$rt.poly(0, () => $rt.intAdd(f(), 1), async () => $rt.intAdd(await f($rt.ASYNC), 1))"
       ),
       "{js}"
     );
@@ -775,7 +775,7 @@ exports
     assert!(!js.contains("await"), "{js}");
     assert!(!js.contains("async"), "{js}");
     assert!(
-      js.contains("$List.map($rt.list([1, 2, 3]), (x) => x * 2)"),
+      js.contains("$List.map($rt.list([1, 2, 3]), (x) => $rt.intMul(x, 2))"),
       "{js}"
     );
     assert_eq!(lines(src), ["12"]);
@@ -1013,7 +1013,7 @@ functions
     let js = compile_ok(&src, "twice.px");
 
     assert!(!js.contains("both"), "{js}");
-    assert!(js.contains("const f = (x) => x * 3;"), "{js}");
+    assert!(js.contains("const f = (x) => $rt.intMul(x, 3);"), "{js}");
     assert_eq!(lines(&src), ["9"]);
   }
 
@@ -1027,7 +1027,7 @@ functions
     let js = compile_ok(&src, "forward.px");
 
     assert!(!js.contains("forward"), "{js}");
-    assert!(js.contains("const f = (x) => x + 5;"), "{js}");
+    assert!(js.contains("const f = (x) => $rt.intAdd(x, 5);"), "{js}");
     assert_eq!(lines(&src), ["6"]);
   }
 
@@ -1248,7 +1248,7 @@ mod tail_calls {
     let js = compile_ok(&fixture("countdown.px"), "countdown.px");
 
     assert!(!js.contains("while"), "{js}");
-    assert!(js.contains("1 + count(n - 1)"), "{js}");
+    assert!(js.contains("$rt.intAdd(1, count($rt.intSub(n, 1)))"), "{js}");
   }
 
   #[test]
