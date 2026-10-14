@@ -402,6 +402,8 @@ functions
     Log.info("#{Math.pi} #{tau}")
     Log.info("#{Math.max(3, 7)} #{Math.max(-2, -5)} #{Math.min(3, 7)} #{Math.min(-2, -5)}")
     Log.info("#{Math.abs(-4)} #{Math.abs(4)} #{Math.abs(0)}")
+    Log.info("#{Math.max(1.5, 2.0)} #{Math.min(1.5, 2.0)} #{Math.abs(-2.5)}")
+    Log.info("#{Math.max("a", "b")} #{Math.min("a", "b")}")
   }
 
 exports
@@ -412,8 +414,51 @@ exports
   assert_eq!(ran.code, Some(0), "{}", ran.err);
   assert_eq!(
     ran.out,
-    "3.141592653589793 6.283185307179586\n7 -2 3 -5\n4 4 0\n"
+    "3.141592653589793 6.283185307179586\n7 -2 3 -5\n4 4 0\n2.0 1.5 2.5\nb a\n"
   );
+}
+
+#[test]
+fn num_constraint_dispatches_division_by_type() {
+  let src = r##"uses
+  Std.Prelude
+
+functions
+  half(x: a, y: a) -> a where Num<a> {
+    x / y
+  }
+
+  main() {
+    Log.info("#{half(7, 2)} #{half(7.0, 2.0)}")
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "3 3.5\n");
+}
+
+#[test]
+fn ord_operator_without_where_is_rejected() {
+  let src = r##"functions
+  bigger(x: a, y: a) -> Bool {
+    x > y
+  }
+
+  main() {
+    Log.info("#{bigger(1, 2)}")
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_ne!(ran.code, Some(0));
+  assert!(ran.err.contains("Ord"), "{}", ran.err);
 }
 
 #[test]

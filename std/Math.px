@@ -4,17 +4,16 @@ constants
   pi: Float = 3.141592653589793
 
 functions
-  // TODO: Replace Int with generic after the P-27
-  max(x: Int, y: Int) -> Int {
+  max(x: a, y: a) -> a where Ord<a> {
     if x >= y { x } else { y }
   }
 
-  min(x: Int, y: Int) -> Int {
+  min(x: a, y: a) -> a where Ord<a> {
     if x <= y { x } else { y }
   }
 
-  abs(x: Int) -> Int {
-    if x < 0 { -x } else { x }
+  abs(x: a) -> a where Num<a>, Ord<a> {
+    if x < Prelude.from_int(0) { -x } else { x }
   }
 
 exports

@@ -9,6 +9,20 @@ traits
     show(value: a) -> String
   }
 
+  Ord<a> {
+    compare(x: a, y: a) -> Int
+  }
+
+  Num<a> {
+    add(x: a, y: a) -> a
+    sub(x: a, y: a) -> a
+    mul(x: a, y: a) -> a
+    div(x: a, y: a) -> a
+    rem(x: a, y: a) -> a
+    neg(x: a) -> a
+    from_int(n: Int) -> a
+  }
+
 impls
   Eq for Int {
     eq(x, y) {
@@ -58,6 +72,86 @@ impls
     }
   }
 
+  Ord for Int {
+    compare(x, y) {
+      if x < y { -1 } else if x > y { 1 } else { 0 }
+    }
+  }
+
+  Ord for Float {
+    compare(x, y) {
+      if x < y { -1 } else if x > y { 1 } else { 0 }
+    }
+  }
+
+  Ord for String {
+    compare(x, y) {
+      if x < y { -1 } else if x > y { 1 } else { 0 }
+    }
+  }
+
+  Num for Int {
+    add(x, y) {
+      x + y
+    }
+
+    sub(x, y) {
+      x - y
+    }
+
+    mul(x, y) {
+      x * y
+    }
+
+    div(x, y) {
+      x / y
+    }
+
+    rem(x, y) {
+      x % y
+    }
+
+    neg(x) {
+      -x
+    }
+
+    from_int(n) {
+      n
+    }
+  }
+
+  Num for Float {
+    add(x, y) {
+      x + y
+    }
+
+    sub(x, y) {
+      x - y
+    }
+
+    mul(x, y) {
+      x * y
+    }
+
+    div(x, y) {
+      x / y
+    }
+
+    rem(x, y) {
+      x % y
+    }
+
+    neg(x) {
+      -x
+    }
+
+    from_int(n) {
+      Int.to_float(n)
+    }
+  }
+
 exports
   Eq { eq }
   Show { show }
+  Ord { compare }
+  Num { add, sub, mul, div, rem, neg, from_int }

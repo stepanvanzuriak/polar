@@ -363,12 +363,20 @@ impl<'a> Checker<'a> {
       | BinaryOp::Rem => {
         let n = self.fresh_constrained(Constraint::Num);
 
-        if self.operands(binary, &n) { n } else { self.fresh() }
+        if self.operands(binary, &n) {
+          self.want_rigid(&n, "Num", &binary.span, &binary.op_span);
+          n
+        } else {
+          self.fresh()
+        }
       }
       BinaryOp::Lt | BinaryOp::LtEq | BinaryOp::Gt | BinaryOp::GtEq => {
         let o = self.fresh_constrained(Constraint::Ord);
 
-        self.operands(binary, &o);
+        if self.operands(binary, &o) {
+          self.want_rigid(&o, "Ord", &binary.span, &binary.op_span);
+        }
+
         Type::bool()
       }
       BinaryOp::Eq | BinaryOp::NotEq => {
@@ -400,6 +408,24 @@ impl<'a> Checker<'a> {
     }
   }
 
+  fn want_rigid(
+    &mut self,
+    ty: &Type,
+    trait_name: &str,
+    key: &Span,
+    blame: &Span,
+  ) {
+    if !matches!(self.store.zonk(ty), Type::Rigid { .. }) {
+      return;
+    }
+
+    if let Some(path) = self.prelude_trait(trait_name) {
+      let pred = Pred { trait_path: path, ty: ty.clone() };
+
+      self.want(vec![pred], key, blame, &Source::Operator);
+    }
+  }
+
   fn operands(&mut self, binary: &'a Binary, expected: &Type) -> bool {
     if self.check_expr(&binary.left, expected) {
       self.check_expr(&binary.right, expected)
@@ -414,7 +440,12 @@ impl<'a> Checker<'a> {
       UnaryOp::Negate => {
         let n = self.fresh_constrained(Constraint::Num);
 
-        if self.check_expr(&unary.operand, &n) { n } else { self.fresh() }
+        if self.check_expr(&unary.operand, &n) {
+          self.want_rigid(&n, "Num", &unary.span, &unary.span);
+          n
+        } else {
+          self.fresh()
+        }
       }
       UnaryOp::Not => {
         self.check_expr(&unary.operand, &Type::bool());
