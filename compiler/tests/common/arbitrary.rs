@@ -534,6 +534,7 @@ fn method_sig() -> impl Strategy<Value = MethodSig> + Clone {
       params,
       return_type,
       effects,
+      bounds: vec![],
     })
 }
 

@@ -1,0 +1,49 @@
+module Main
+
+uses
+  Std.Json
+  Std.Option
+  Std.Result
+  Std.Log
+
+hosts
+  Node
+
+types
+  Post = { id: Int, title: String } derive(Json, Eq)
+
+effects
+  Store in Node {
+    put(key: String, value: a) -> {} where Json<a>
+    get(key: String, fallback: a) -> a where Json<a>
+  }
+
+binds
+  Store in Node {
+    put(key, value) {
+      Log.info("#{key} = #{Json.encode(value)}")
+    }
+
+    get(key, fallback) {
+      match Json.decode("{\"id\": 7, \"title\": \"decoded\"}") {
+        Ok(value) -> value,
+        Err(_) -> fallback,
+      }
+    }
+  }
+
+functions
+  main() {
+    let post: Post = { id: 1, title: "stored" }
+    let fallback: Post = { id: 0, title: "none" }
+
+    Store.put("post", post)
+    Store.put("count", 3)
+
+    let loaded: Post = Store.get("post", fallback)
+
+    Log.info("#{loaded.id}: #{loaded.title}")
+  }
+
+exports
+  main

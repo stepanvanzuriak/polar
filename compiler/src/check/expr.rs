@@ -156,7 +156,7 @@ impl<'a> Checker<'a> {
     ty
   }
 
-  fn instantiate_wanting(
+  pub(crate) fn instantiate_wanting(
     &mut self,
     scheme: &Scheme,
     key: &Span,
@@ -203,7 +203,7 @@ impl<'a> Checker<'a> {
         }
       }
       Some(Resolved::Operation { effect, op }) => {
-        self.operation_type(&effect, &op)
+        self.operation_wanting(&effect, &op, &field.span, &field.field.span)
       }
       Some(Resolved::Imported { module, member }) => {
         self.imported_wanting(&module, &member, &field.span, &field.field.span)

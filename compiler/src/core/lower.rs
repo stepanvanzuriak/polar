@@ -25,9 +25,9 @@ use crate::{
   syntax::ast::{
     Binary, BinaryOp, Block, Bound, Call, ConstDecl, Decl, Else, ExportDecl,
     Expr, FieldAccess, FnDecl, If, ImplDecl, Import, IntLit, Lambda, ListLit,
-    Match, MatchArm, Module, Name, Param, PatLit, Pattern, Stmt, StringLit,
-    StringPart, TraitDecl, Try, TypeBody, TypeDecl, TypeExpr, Unary, UnaryOp,
-    Var,
+    Match, MatchArm, MethodSig, Module, Name, Param, PatLit, Pattern, Stmt,
+    StringLit, StringPart, TraitDecl, Try, TypeBody, TypeDecl, TypeExpr, Unary,
+    UnaryOp, Var,
   },
   syntax::builder::Expansion,
 };
@@ -302,6 +302,7 @@ impl Lowerer<'_> {
           }
         }
         Decl::Fn(f) => self.resolve_bounds(&f.bounds),
+        Decl::Effect(e) => self.resolve_op_bounds(&e.ops),
         _ => {}
       }
     }
@@ -664,6 +665,12 @@ impl Lowerer<'_> {
           name.text
         )),
       );
+    }
+  }
+
+  fn resolve_op_bounds(&mut self, ops: &[MethodSig]) {
+    for op in ops {
+      self.resolve_bounds(&op.bounds);
     }
   }
 

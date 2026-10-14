@@ -272,6 +272,7 @@ pub struct MethodSig {
   pub params: Vec<Param>,
   pub return_type: TypeExpr,
   pub effects: Option<EffectRow>,
+  pub bounds: Vec<Bound>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -830,7 +831,7 @@ ast! {
     ExternDecl  { span, docs, name, params, return_type, effects, module, export }
     BindDecl    { span, docs, force, effect, host, from, module, ops }
     TraitDecl   { span, docs, name, param, methods, recipe }
-    MethodSig   { span, docs, name, params, return_type, effects }
+    MethodSig   { span, docs, name, params, return_type, effects, bounds }
     Recipe      { span, cases }
     ImplDecl    { span, docs, trait_name, target, bounds, methods }
     Bound       { span, trait_name, var }
