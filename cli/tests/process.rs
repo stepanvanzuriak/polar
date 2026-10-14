@@ -1562,3 +1562,82 @@ fn projects_pass_polar_test() {
 
   assert!(checked >= 2);
 }
+
+#[test]
+fn test_mock_replaces_a_bound_operation_and_restores_it() {
+  let src = r##"uses
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  main() {
+    let real = Process.cwd()
+
+    Log.info(Test.mock(Process, { cwd: function() { "/mocked" } }, function() {
+      Test.mock(Process, { cwd: function() { "/inner" } }, function() {
+        Log.info(Process.cwd())
+      })
+
+      Process.cwd()
+    }))
+
+    Log.info(if Process.cwd() == real { "restored" } else { "leaked" })
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "/inner\n/mocked\nrestored\n");
+}
+
+#[test]
+fn test_mock_rejects_an_unknown_operation() {
+  let src = r##"uses
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  main() {
+    Test.mock(Process, { cwdd: function() { "/x" } }, function() { 1 })
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_ne!(ran.code, Some(0));
+  assert!(ran.err.contains("has no operation `cwdd`"), "{}", ran.err);
+  assert!(ran.err.contains("did you mean `cwd`?"), "{}", ran.err);
+}
+
+#[test]
+fn test_mock_checks_the_operation_signature() {
+  let src = r##"uses
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  main() {
+    Test.mock(Process, { cwd: function() { 1 } }, function() { 1 })
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_ne!(ran.code, Some(0));
+}

@@ -1,0 +1,40 @@
+module GenericTest
+
+uses
+  Std.Assert
+  Std.Math
+
+functions
+  clamp(x: a, low: a, high: a) -> a where Ord<a> {
+    Math.min(Math.max(x, low), high)
+  }
+
+  half(x: a, y: a) -> a where Num<a> {
+    x / y
+  }
+
+  test_clamp_ints() -> {} / {Throws<Failed>} {
+    Assert.equal(clamp(15, 0, 10), 10)
+    Assert.equal(clamp(-3, 0, 10), 0)
+  }
+
+  test_clamp_floats_and_strings() -> {} / {Throws<Failed>} {
+    Assert.equal(clamp(0.5, 1.0, 2.0), 1.0)
+    Assert.equal(clamp("z", "a", "m"), "m")
+  }
+
+  test_num_division_follows_the_type() -> {} / {Throws<Failed>} {
+    Assert.equal(half(7, 2), 3)
+    Assert.equal(half(7.0, 2.0), 3.5)
+  }
+
+  test_abs_is_generic() -> {} / {Throws<Failed>} {
+    Assert.equal(Math.abs(-2), 2)
+    Assert.equal(Math.abs(-2.5), 2.5)
+  }
+
+exports
+  test_clamp_ints
+  test_clamp_floats_and_strings
+  test_num_division_follows_the_type
+  test_abs_is_generic

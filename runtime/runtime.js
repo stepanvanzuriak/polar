@@ -324,6 +324,42 @@ export function matchFailure(file, line, column) {
   throw new PolarMatchError(`no pattern matched (${file}:${line}:${column})`);
 }
 
+const boundEffects = new Map();
+
+export const effects = {
+  register(name, bound) {
+    if (!boundEffects.has(name)) {
+      boundEffects.set(name, new Set());
+    }
+
+    boundEffects.get(name).add(bound);
+
+    return bound;
+  },
+
+  async mock(name, ops, body) {
+    const targets = [...(boundEffects.get(name) ?? [])];
+
+    if (targets.length === 0) {
+      throw new Error(`no bound effect \`${name}\` to mock`);
+    }
+
+    const saved = targets.map((bound) =>
+      Object.fromEntries(Object.keys(ops).map((op) => [op, bound[op]])),
+    );
+
+    for (const bound of targets) {
+      Object.assign(bound, ops);
+    }
+
+    try {
+      return await body();
+    } finally {
+      targets.forEach((bound, i) => Object.assign(bound, saved[i]));
+    }
+  },
+};
+
 export const Log = {
   /** @param {string} s */
   info(s) {

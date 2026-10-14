@@ -314,6 +314,82 @@ impl Lowerer<'_> {
       })
   }
 
+  pub(super) fn mock_call(
+    &mut self,
+    call: &crate::syntax::ast::Call,
+  ) -> Option<CExpr> {
+    let crate::syntax::ast::Expr::Field(callee) = &*call.callee else {
+      return None;
+    };
+
+    if callee.field.text != "mock" || call.args.len() != 3 {
+      return None;
+    }
+
+    let (module, _) = self.std_import(&callee.target)?;
+
+    if module.path() != "Std.Test" {
+      return None;
+    }
+
+    let crate::syntax::ast::Expr::Var(var) = &call.args[0] else {
+      return None;
+    };
+    let effect = var.name.text.clone();
+    let info = self.effects.effects.get(&effect)?;
+    let names: Vec<String> = info.ops.iter().map(|(n, _)| n.clone()).collect();
+
+    self.resolutions.insert(&var.name.span, Resolved::Effect(effect.clone()));
+
+    match &call.args[1] {
+      crate::syntax::ast::Expr::Record(record) if record.spread.is_none() => {
+        for field in &record.fields {
+          if names.contains(&field.name.text) {
+            continue;
+          }
+
+          let listed: Vec<String> =
+            names.iter().map(|n| format!("`{n}`")).collect();
+          let help =
+            suggest(&field.name.text, names.iter().map(String::as_str))
+              .map_or_else(
+                || format!("its operations are {}", listed.join(", ")),
+                |s| format!("did you mean `{s}`?"),
+              );
+
+          self.error(
+            UnknownOperation,
+            format!("`{effect}` has no operation `{}`", field.name.text),
+            field.name.span.clone(),
+            Some(help),
+          );
+        }
+      }
+      other => {
+        self.error(
+          UnknownOperation,
+          "the operations to mock must be a record literal",
+          other.span().clone(),
+          Some(format!(
+            "write the operations of `{effect}` inline: `{{ {} : … }}`",
+            names.first().map_or("<operation>", String::as_str)
+          )),
+        );
+      }
+    }
+
+    let args = vec![
+      CExpr::new(
+        CExprKind::Lit(crate::core::ir::Lit::String(effect)),
+        Some(var.name.span.clone()),
+      ),
+      self.expr(&call.args[1]),
+      self.expr(&call.args[2]),
+    ];
+
+    Some(self.apply(&call.callee, args, call.span.clone()))
+  }
+
   pub(super) fn operation(
     &mut self,
     effect: &str,

@@ -8,7 +8,7 @@ use polar_compiler::backend::codegen::builtins::BUILTINS;
 const LIST_MEMBERS: &str = r#"
 import { pathToFileURL } from "node:url";
 const rt = await import(pathToFileURL(process.argv[1]).href);
-const forGeneratedCode = new Set(["bridge", "http"]);
+const forGeneratedCode = new Set(["bridge", "effects", "http"]);
 for (const [module, value] of Object.entries(rt)) {
   if (typeof value !== "object" || value === null) continue;
   if (forGeneratedCode.has(module)) continue;

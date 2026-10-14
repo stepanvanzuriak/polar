@@ -51,6 +51,7 @@ pub enum Resolved {
   StdList { nil: CtorId, cons: CtorId },
   Operation { effect: String, op: String },
   Extern(String),
+  Effect(String),
 }
 
 pub const STD_RESULT: &str = "Std.Result.Result";
@@ -1062,7 +1063,7 @@ impl Lowerer<'_> {
     );
   }
 
-  fn std_import(&self, expr: &Expr) -> Option<&(Origin, Interface)> {
+  pub(super) fn std_import(&self, expr: &Expr) -> Option<&(Origin, Interface)> {
     match expr {
       Expr::Var(var) => self.imports.get(&var.name.text),
       _ => None,
@@ -1241,7 +1242,7 @@ impl Lowerer<'_> {
     sym
   }
 
-  fn expr(&mut self, expr: &Expr) -> CExpr {
+  pub(super) fn expr(&mut self, expr: &Expr) -> CExpr {
     let origin = Some(expr.span().clone());
 
     let kind = match expr {
@@ -1800,12 +1801,21 @@ impl Lowerer<'_> {
   }
 
   fn call(&mut self, call: &Call) -> CExpr {
+    if let Some(mock) = self.mock_call(call) {
+      return mock;
+    }
+
     let args = call.args.iter().map(|arg| self.expr(arg)).collect();
 
     self.apply(&call.callee, args, call.span.clone())
   }
 
-  fn apply(&mut self, callee: &Expr, args: Vec<CExpr>, origin: Span) -> CExpr {
+  pub(super) fn apply(
+    &mut self,
+    callee: &Expr,
+    args: Vec<CExpr>,
+    origin: Span,
+  ) -> CExpr {
     if let Expr::Var(var) = callee {
       let name = &var.name.text;
 

@@ -1,0 +1,45 @@
+module DeadlineTest
+
+uses
+  Deadline
+  Std.Assert
+  Std.Option
+  Std.Test
+  Std.Time
+
+hosts
+  Node
+
+functions
+  at(text: String) -> Time {
+    Option.with_default(Time.from_iso(text), Time.from_millis(0))
+  }
+
+  test_status_is_relative_to_now() -> {} / {Throws<Failed>} {
+    let now = at("2026-10-09T12:00:00Z")
+    let soon = { title: "soon", due: at("2026-10-09T12:40:00Z") }
+    let late = { title: "late", due: at("2026-10-01T00:00:00Z") }
+
+    Assert.equal(Deadline.status(soon, now), "due within the hour")
+    Assert.equal(Deadline.status(late, now), "overdue")
+  }
+
+  test_mocked_clock_drives_the_status() -> {} / {Async, Clock, Throws<Failed>} {
+    let task = { title: "ship", due: at("2026-10-09T18:00:00Z") }
+
+    Test.mock(
+      Clock,
+      { now: function() { at("2026-10-09T12:00:00Z") } },
+      function() { Assert.equal(Deadline.status(task, Clock.now()), "due in 6h") },
+    )
+
+    Test.mock(
+      Clock,
+      { now: function() { at("2026-10-10T12:00:00Z") } },
+      function() { Assert.equal(Deadline.status(task, Clock.now()), "overdue") },
+    )
+  }
+
+exports
+  test_status_is_relative_to_now
+  test_mocked_clock_drives_the_status

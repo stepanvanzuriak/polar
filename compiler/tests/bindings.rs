@@ -143,6 +143,8 @@ export const $bind$Storage = {
   set: async (key, value) => ({}),
 };
 
+$rt.effects.register(\"Storage\", $bind$Storage);
+
 async function title(key) {
   return await $bind$Storage.get(key);
 }
