@@ -1,0 +1,12 @@
+[workspace]
+members = [
+  "bridge_posts",
+  "complex",
+  "crypto_accounts",
+  "deadlines",
+  "framework_demo",
+  "testing_project",
+  "todo",
+  "typed_store",
+  "web_posts",
+]

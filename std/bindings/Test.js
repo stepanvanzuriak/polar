@@ -1,4 +1,4 @@
-import { ASYNC, bridge, http, isPolarError, payload, show, variant } from "../../runtime.js";
+import { ASYNC, bridge, effects, http, isPolarError, payload, show, variant } from "../../runtime.js";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -346,4 +346,8 @@ function fakeDocument(writes) {
       };
     },
   };
+}
+
+export function mock(effect, ops, body) {
+  return effects.mock(effect, ops, body);
 }

@@ -589,9 +589,9 @@ fn testing_project_passes() {
   let ran = polar(&dir, &["test"]);
 
   assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
-  assert!(ran.out.contains("running 9 tests"), "{}", ran.out);
+  assert!(ran.out.contains("running 14 tests"), "{}", ran.out);
   assert!(
-    ran.out.contains("test result: ok. 9 passed; 0 failed"),
+    ran.out.contains("test result: ok. 14 passed; 0 failed"),
     "{}",
     ran.out
   );

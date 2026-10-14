@@ -34,8 +34,10 @@ polar fmt projects/todo
 cd projects/todo && polar run          # inside a project, no arguments needed
 ```
 
-A project may have a `main.expected.txt`: `cargo test` runs every project here and
-compares its output with it. A project that lists `hosts` is run once with each
+A project may have a `src/main_test.px` that captures `Main.main()` with `Test.capture` and
+compares it with `snapshots/main.txt` (`POLAR_UPDATE=1 polar test` rewrites it); `cargo test` runs
+those with `polar test`. A project without `snapshots/` is run by `cargo test` and must exit 0.
+One with a `main.expected.txt` (the multi-host ones) has its output compared with it. A project that lists `hosts` is run once with each
 `--host`, all against `main.expected.txt`; give it a `main.<Host>.expected.txt`
 per host instead when the output differs between hosts.
 
@@ -45,6 +47,10 @@ dependencies resolve), then `node e2e.mjs <temp>/dist`, and compares stdout with
 `e2e.expected.txt`.
 `bridge_posts/` is the example: its `e2e.mjs` serves `dist/Node/_polar/bridges.js`
 over HTTP and runs the browser bundle's `start` against it.
+
+`polar.toml` here is a workspace listing the projects that have `*_test.px` files, so
+`cd projects && polar test` runs all of their tests in one go (`--project <name>` picks one).
+Add a project to `members` when it gets its first test.
 
 To start a new one, copy `todo/`, rename it in `polar.toml`, and replace
 `src/main.px`.

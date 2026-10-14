@@ -124,10 +124,10 @@ fn bind(store: &mut Store, var: TVar, ty: &Type) -> Result<(), UnifyError> {
   let constraint = store.constraint_of(var).unwrap_or(Constraint::None);
   let admitted = match ty {
     Type::Con { name, .. } => constraint.admits(name),
-    Type::Fn { .. } | Type::Record(_) | Type::Gen(_) | Type::Rigid { .. } => {
+    Type::Fn { .. } | Type::Record(_) | Type::Gen(_) => {
       constraint == Constraint::None
     }
-    Type::Var(_) => true,
+    Type::Rigid { .. } | Type::Var(_) => true,
   };
 
   if !admitted {

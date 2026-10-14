@@ -153,6 +153,7 @@ pub fn emit(
       exported: true,
       origin: bind.origin.clone(),
     })));
+    items.push(register_effect(&bind.effect));
   }
 
   let dictionaries = module
@@ -409,6 +410,19 @@ fn bridge_name(effect: &str) -> String {
 
 fn bind_name(effect: &str) -> String {
   format!("$bind${effect}")
+}
+
+fn register_effect(effect: &str) -> Item {
+  let register = call(
+    member(builtin_path("effects"), "register"),
+    vec![string(effect), var(&bind_name(effect))],
+    None,
+  );
+
+  Item::Stmt(Stmt::Expr(crate::backend::js::ast::ExprStmt {
+    expr: register,
+    origin: None,
+  }))
 }
 
 fn extern_name(name: &str) -> String {

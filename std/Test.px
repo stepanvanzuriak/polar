@@ -76,6 +76,8 @@ externs
     = "./bindings/Test.js" with_app
   run_browser(app: App, export_name: String) -> List<String> / {Async}
     = "./bindings/Test.js" run_browser
+  mock_effect(name: String, ops: o, body: function() -> a / {| e}) -> a / {Async | e}
+    = "./bindings/Test.js" mock
   log(app: App) -> List<String> / {Mut} = "./bindings/Test.js" log
 
 binds
@@ -137,6 +139,10 @@ functions
 
   capture(run: function() -> a / {| e}) -> Captured<a> / {Async | e} {
     capture_raw(run)
+  }
+
+  mock(name: String, ops: o, body: function() -> a / {| e}) -> a / {Async | e} {
+    mock_effect(name, ops, body)
   }
 
   with_app(body: function(App) -> a / {| e}) -> a / {Async | e} {
@@ -418,6 +424,7 @@ exports
   follow
   remember
   cookie_header
+  mock
   with_app
   with_app_env
   run_browser

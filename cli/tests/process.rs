@@ -402,6 +402,8 @@ functions
     Log.info("#{Math.pi} #{tau}")
     Log.info("#{Math.max(3, 7)} #{Math.max(-2, -5)} #{Math.min(3, 7)} #{Math.min(-2, -5)}")
     Log.info("#{Math.abs(-4)} #{Math.abs(4)} #{Math.abs(0)}")
+    Log.info("#{Math.max(1.5, 2.0)} #{Math.min(1.5, 2.0)} #{Math.abs(-2.5)}")
+    Log.info("#{Math.max("a", "b")} #{Math.min("a", "b")}")
   }
 
 exports
@@ -412,8 +414,51 @@ exports
   assert_eq!(ran.code, Some(0), "{}", ran.err);
   assert_eq!(
     ran.out,
-    "3.141592653589793 6.283185307179586\n7 -2 3 -5\n4 4 0\n"
+    "3.141592653589793 6.283185307179586\n7 -2 3 -5\n4 4 0\n2.0 1.5 2.5\nb a\n"
   );
+}
+
+#[test]
+fn num_constraint_dispatches_division_by_type() {
+  let src = r##"uses
+  Std.Prelude
+
+functions
+  half(x: a, y: a) -> a where Num<a> {
+    x / y
+  }
+
+  main() {
+    Log.info("#{half(7, 2)} #{half(7.0, 2.0)}")
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "3 3.5\n");
+}
+
+#[test]
+fn ord_operator_without_where_is_rejected() {
+  let src = r##"functions
+  bigger(x: a, y: a) -> Bool {
+    x > y
+  }
+
+  main() {
+    Log.info("#{bigger(1, 2)}")
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_ne!(ran.code, Some(0));
+  assert!(ran.err.contains("Ord"), "{}", ran.err);
 }
 
 #[test]
@@ -1516,4 +1561,83 @@ fn projects_pass_polar_test() {
   }
 
   assert!(checked >= 2);
+}
+
+#[test]
+fn test_mock_replaces_a_bound_operation_and_restores_it() {
+  let src = r##"uses
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  main() {
+    let real = Process.cwd()
+
+    Log.info(Test.mock(Process, { cwd: function() { "/mocked" } }, function() {
+      Test.mock(Process, { cwd: function() { "/inner" } }, function() {
+        Log.info(Process.cwd())
+      })
+
+      Process.cwd()
+    }))
+
+    Log.info(if Process.cwd() == real { "restored" } else { "leaked" })
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "/inner\n/mocked\nrestored\n");
+}
+
+#[test]
+fn test_mock_rejects_an_unknown_operation() {
+  let src = r##"uses
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  main() {
+    Test.mock(Process, { cwdd: function() { "/x" } }, function() { 1 })
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_ne!(ran.code, Some(0));
+  assert!(ran.err.contains("has no operation `cwdd`"), "{}", ran.err);
+  assert!(ran.err.contains("did you mean `cwd`?"), "{}", ran.err);
+}
+
+#[test]
+fn test_mock_checks_the_operation_signature() {
+  let src = r##"uses
+  Std.Process
+  Std.Test
+
+hosts
+  Node
+
+functions
+  main() {
+    Test.mock(Process, { cwd: function() { 1 } }, function() { 1 })
+  }
+
+exports
+  main
+"##;
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_ne!(ran.code, Some(0));
 }

@@ -131,7 +131,8 @@ impl<'a> Checker<'a> {
         | Resolved::Builtin { .. }
         | Resolved::Imported { .. }
         | Resolved::Trait(_)
-        | Resolved::Operation { .. },
+        | Resolved::Operation { .. }
+        | Resolved::Effect(_),
       )
       | None => self.fresh(),
     }
@@ -275,6 +276,10 @@ impl<'a> Checker<'a> {
     args: &[&'a Expr],
     span: &Span,
   ) -> Type {
+    if let Some(effect) = self.mock_effect(args) {
+      return self.mock_call(&effect, callee, args, span);
+    }
+
     let func = self.infer(callee);
 
     match self.store.resolve(&func) {
@@ -340,6 +345,57 @@ impl<'a> Checker<'a> {
     }
   }
 
+  fn mock_effect(&self, args: &[&'a Expr]) -> Option<String> {
+    let [Expr::Var(var), ..] = args else { return None };
+
+    match self.resolved(&var.name.span) {
+      Some(Resolved::Effect(effect)) => Some(effect),
+      _ => None,
+    }
+  }
+
+  fn mock_call(
+    &mut self,
+    effect: &str,
+    callee: &'a Expr,
+    args: &[&'a Expr],
+    span: &Span,
+  ) -> Type {
+    let func = self.infer(callee);
+    let Type::Fn { params, ret, effects } = self.store.resolve(&func) else {
+      return self.fresh();
+    };
+
+    if let Expr::Record(record) = args[1] {
+      let fields: Vec<(Arc<str>, Type)> = record
+        .fields
+        .iter()
+        .map(|init| {
+          let name = init.name.text.as_str();
+          let ty = self.operation_wanting(
+            effect,
+            name,
+            &init.name.span,
+            &init.name.span,
+          );
+
+          self.check_expr(&init.value, &ty);
+          (Arc::from(name), ty)
+        })
+        .collect();
+      let ops =
+        Type::Record(Row::new(fields, Tail::Closed(self.store.fresh_brand())));
+
+      self.expect(&params[1], &ops, args[1].span());
+    }
+
+    let found = self.infer(args[2]);
+
+    self.expect(&params[2], &found, args[2].span());
+    self.perform_at(&effects, span, callee.span());
+    *ret
+  }
+
   fn parameter_because(&self, callee: &Expr, index: usize) -> Because {
     let Expr::Var(var) = callee else { return Because::Nothing };
     let Some(Resolved::Top(sym)) = self.resolutions.get(&var.name.span) else {
@@ -363,12 +419,20 @@ impl<'a> Checker<'a> {
       | BinaryOp::Rem => {
         let n = self.fresh_constrained(Constraint::Num);
 
-        if self.operands(binary, &n) { n } else { self.fresh() }
+        if self.operands(binary, &n) {
+          self.want_rigid(&n, "Num", &binary.span, &binary.op_span);
+          n
+        } else {
+          self.fresh()
+        }
       }
       BinaryOp::Lt | BinaryOp::LtEq | BinaryOp::Gt | BinaryOp::GtEq => {
         let o = self.fresh_constrained(Constraint::Ord);
 
-        self.operands(binary, &o);
+        if self.operands(binary, &o) {
+          self.want_rigid(&o, "Ord", &binary.span, &binary.op_span);
+        }
+
         Type::bool()
       }
       BinaryOp::Eq | BinaryOp::NotEq => {
@@ -400,6 +464,24 @@ impl<'a> Checker<'a> {
     }
   }
 
+  fn want_rigid(
+    &mut self,
+    ty: &Type,
+    trait_name: &str,
+    key: &Span,
+    blame: &Span,
+  ) {
+    if !matches!(self.store.zonk(ty), Type::Rigid { .. }) {
+      return;
+    }
+
+    if let Some(path) = self.prelude_trait(trait_name) {
+      let pred = Pred { trait_path: path, ty: ty.clone() };
+
+      self.want(vec![pred], key, blame, &Source::Operator);
+    }
+  }
+
   fn operands(&mut self, binary: &'a Binary, expected: &Type) -> bool {
     if self.check_expr(&binary.left, expected) {
       self.check_expr(&binary.right, expected)
@@ -414,7 +496,12 @@ impl<'a> Checker<'a> {
       UnaryOp::Negate => {
         let n = self.fresh_constrained(Constraint::Num);
 
-        if self.check_expr(&unary.operand, &n) { n } else { self.fresh() }
+        if self.check_expr(&unary.operand, &n) {
+          self.want_rigid(&n, "Num", &unary.span, &unary.span);
+          n
+        } else {
+          self.fresh()
+        }
       }
       UnaryOp::Not => {
         self.check_expr(&unary.operand, &Type::bool());

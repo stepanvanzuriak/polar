@@ -1,0 +1,18 @@
+module MainTest
+
+uses
+  Main
+  Std.Assert
+  Std.Fs
+  Std.Process
+  Std.Test
+
+functions
+  test_main_output() -> {} / {Async, Fs, Process, Throws<Failed>} {
+    let ran = Test.capture(function() { Main.main() })
+
+    Test.assert_snapshot("main", ran.output)
+  }
+
+exports
+  test_main_output

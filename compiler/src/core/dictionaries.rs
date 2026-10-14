@@ -6,7 +6,7 @@ use crate::{
   core::{
     ir::{
       CArm, CBridge, CBridgeOp, CDecl, CExpr, CExprKind, CModule, DeclKind,
-      EffectSlot, Sym, SymGen, TypeSlot,
+      EffectSlot, Lit, PrimOp, Sym, SymGen, TypeSlot,
     },
     matching::next_sym_id,
   },
@@ -262,38 +262,42 @@ impl Elaborator<'_> {
           .as_ref()
           .and_then(|o| self.types.evidence_at(o))
           .and_then(|e| e.first())
-          .filter(|_| {
-            matches!(
-              op,
-              crate::core::ir::PrimOp::Eq | crate::core::ir::PrimOp::Ne
-            )
-          });
+          .filter(|_| dispatched(op));
 
         match evidence {
           Some(evidence) => {
+            let (method, ty) = dispatch_method(op);
             let call = CExpr {
               kind: CExprKind::App {
                 func: Box::new(CExpr::new(
                   CExprKind::Field {
                     target: Box::new(self.dict(evidence, origin.as_ref())),
-                    name: "eq".to_string(),
+                    name: method.to_string(),
                   },
                   origin.clone(),
                 )),
                 args,
               },
               origin: origin.clone(),
-              ty: Some(TypeSlot(Type::bool())),
+              ty: ty.map(TypeSlot),
               effects: Some(EffectSlot::pure()),
             };
 
-            if op == crate::core::ir::PrimOp::Ne {
-              CExprKind::Prim {
-                op: crate::core::ir::PrimOp::Not,
-                args: vec![call],
+            match op {
+              PrimOp::Ne => {
+                CExprKind::Prim { op: PrimOp::Not, args: vec![call] }
               }
-            } else {
-              return call;
+              PrimOp::Lt | PrimOp::Le | PrimOp::Gt | PrimOp::Ge => {
+                let zero = CExpr {
+                  kind: CExprKind::Lit(Lit::Number(0.0)),
+                  origin: origin.clone(),
+                  ty: Some(TypeSlot(Type::int())),
+                  effects: Some(EffectSlot::pure()),
+                };
+
+                CExprKind::Prim { op, args: vec![call, zero] }
+              }
+              _ => return call,
             }
           }
           None => CExprKind::Prim { op, args },
@@ -690,4 +694,37 @@ pub fn bridge_dicts(bridge: &CBridge) -> Vec<&CExpr> {
         .chain(op.throws.iter().map(|(_, d)| d))
     })
     .collect()
+}
+
+fn dispatched(op: PrimOp) -> bool {
+  matches!(
+    op,
+    PrimOp::Eq
+      | PrimOp::Ne
+      | PrimOp::Lt
+      | PrimOp::Le
+      | PrimOp::Gt
+      | PrimOp::Ge
+      | PrimOp::Add
+      | PrimOp::Sub
+      | PrimOp::Mul
+      | PrimOp::Div
+      | PrimOp::Mod
+      | PrimOp::Neg
+  )
+}
+
+fn dispatch_method(op: PrimOp) -> (&'static str, Option<Type>) {
+  match op {
+    PrimOp::Eq | PrimOp::Ne => ("eq", Some(Type::bool())),
+    PrimOp::Lt | PrimOp::Le | PrimOp::Gt | PrimOp::Ge => {
+      ("compare", Some(Type::int()))
+    }
+    PrimOp::Add => ("add", None),
+    PrimOp::Sub => ("sub", None),
+    PrimOp::Mul => ("mul", None),
+    PrimOp::Div => ("div", None),
+    PrimOp::Mod => ("rem", None),
+    _ => ("neg", None),
+  }
 }
