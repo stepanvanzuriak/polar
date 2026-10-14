@@ -96,6 +96,7 @@ fn fixture() -> Module {
           args: vec![],
         }],
         tail: None,
+        inferred: false,
       }),
       body: Block {
         span: sp("{}", 0),

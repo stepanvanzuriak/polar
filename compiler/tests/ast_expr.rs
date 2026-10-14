@@ -92,6 +92,7 @@ fn let_ctor(src: &Src) -> Stmt {
       span: src.at("/ {Db}", 0),
       entries: vec![src.type_ref("Db", 0)],
       tail: None,
+      inferred: false,
     }),
     body: Box::new(src.block("{ beta }", 0, src.var("beta", 1))),
   };

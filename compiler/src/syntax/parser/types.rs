@@ -1,14 +1,14 @@
 use super::Parser;
 use crate::{
-  shared::codes::DiagnosticCode::EffectVariableWithoutBar,
+  shared::codes::DiagnosticCode::{EffectVariableWithoutBar, UnexpectedToken},
   shared::diagnostic::{Diagnostic, Label},
   syntax::ast::{
     EffectRow, FieldType, FnType, InvalidType, Name, RecordType, TypeExpr,
     TypeRef, TypeVar,
   },
   syntax::lexer::token::TokenKind::{
-    Arrow, Bar, Colon, Comma, Eof, Gt, KwFunction, LBrace, LParen, Lower, Lt,
-    RBrace, RParen, Slash, Upper,
+    Arrow, Bar, Colon, Comma, DotDot, Eof, Gt, KwFunction, LBrace, LParen,
+    Lower, Lt, RBrace, RParen, Slash, Upper,
   },
 };
 
@@ -27,6 +27,7 @@ impl Parser<'_> {
 
     let mut entries = Vec::new();
     let mut tail = None;
+    let mut inferred = false;
 
     loop {
       if self.at(RBrace) || self.at(Bar) || self.at(Eof) {
@@ -35,7 +36,15 @@ impl Parser<'_> {
 
       let before = self.pos;
 
-      if self.at(Lower) {
+      if self.at(DotDot) {
+        let dots = self.bump().span.clone();
+
+        if inferred {
+          self.row_error(&dots, "a row has one `..`");
+        }
+
+        inferred = true;
+      } else if self.at(Lower) {
         let name = self.lower_name("as an effect variable");
 
         self.effect_variable_without_bar(&name);
@@ -54,13 +63,19 @@ impl Parser<'_> {
       self.progress(before);
     }
 
-    if self.eat(Bar).is_some() {
+    if let Some(bar) = self.eat(Bar) {
+      let bar = bar.span.clone();
+
       tail = Some(self.lower_name("as an effect variable"));
+
+      if inferred {
+        self.row_error(&bar, "`..` and `| e` cannot be combined");
+      }
     }
 
     self.expect(RBrace, "to close the effect row");
 
-    Some(EffectRow { span: self.span_from(&start), entries, tail })
+    Some(EffectRow { span: self.span_from(&start), entries, tail, inferred })
   }
 
   fn type_expr_inner(&mut self) -> TypeExpr {
@@ -186,6 +201,14 @@ impl Parser<'_> {
     let effects = self.effect_row();
 
     TypeExpr::Fn(FnType { span: self.span_from(&start), params, ret, effects })
+  }
+
+  fn row_error(&mut self, span: &crate::shared::source::Span, message: &str) {
+    self.diagnostics.push(Diagnostic::error(
+      UnexpectedToken,
+      message,
+      Label::new(span.clone()),
+    ));
   }
 
   fn effect_variable_without_bar(&mut self, name: &Name) {

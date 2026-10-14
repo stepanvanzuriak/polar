@@ -724,3 +724,94 @@ mod subsumption {
     assert_eq!(errors_of(&src).len(), 1, "{:?}", errors_of(&src));
   }
 }
+
+mod inferred_rows {
+  use super::*;
+
+  #[test]
+  fn infers_the_body_row() {
+    let src = with_effects("f() -> String / {..} {\n    Db.load(1)\n  }");
+
+    assert_eq!(type_of(&src, "f"), "function() -> String / {Db}");
+  }
+
+  #[test]
+  fn an_unused_row_is_pure() {
+    let src = with_effects("f() -> Int / {..} { 1 }");
+
+    assert_eq!(type_of(&src, "f"), "function() -> Int");
+  }
+
+  #[test]
+  fn effects_travel_through_calls() {
+    let src = with_effects(
+      "g() -> String / {Db} {\n    Db.load(1)\n  }\n\n  f() -> String / {..} {\n    g()\n  }",
+    );
+
+    assert_eq!(type_of(&src, "f"), "function() -> String / {Db}");
+  }
+
+  #[test]
+  fn mutual_recursion_is_inferred() {
+    let src = with_effects(
+      "f(n: Int) -> String / {..} {\n    g(n)\n  }\n\n  g(n: Int) -> String / {..} {\n    let s = Db.load(n)\n\n    f(n)\n  }",
+    );
+
+    assert_eq!(type_of(&src, "f"), "function(Int) -> String / {Db}");
+    assert_eq!(type_of(&src, "g"), "function(Int) -> String / {Db}");
+  }
+
+  #[test]
+  fn explicit_callers_still_need_the_inferred_effects() {
+    let src = with_effects(
+      "g() -> String / {..} {\n    Db.load(1)\n  }\n\n  f() -> String / {Storage} {\n    g()\n  }",
+    );
+
+    assert!(!errors_of(&src).is_empty());
+  }
+
+  #[test]
+  fn listed_entries_are_guaranteed() {
+    let src = with_effects("f() -> Int / {.., Async} { 1 }");
+
+    assert_eq!(type_of(&src, "f"), "function() -> Int / {Async}");
+  }
+
+  #[test]
+  fn order_is_irrelevant() {
+    let a = with_effects("f() -> Int / {Async, ..} { 1 }");
+    let b = with_effects("f() -> Int / {.., Async} { 1 }");
+
+    assert_eq!(type_of(&a, "f"), type_of(&b, "f"));
+  }
+
+  #[test]
+  fn duplicate_entries_are_still_errors() {
+    let src = with_effects("f() -> Int / {Db, .., Db} { 1 }");
+
+    assert_eq!(errors_of(&src).len(), 1, "{:?}", errors_of(&src));
+  }
+
+  #[test]
+  fn the_return_type_is_still_checked() {
+    let src = with_effects("f() -> Int / {..} { \"a\" }");
+
+    assert_eq!(errors_of(&src).len(), 1, "{:?}", errors_of(&src));
+  }
+
+  #[test]
+  fn two_dots_and_a_tail_are_errors() {
+    let two = with_effects("f() -> Int / {.., ..} { 1 }");
+    let tail = with_effects("f() -> Int / {Db, .. | e} { 1 }");
+
+    assert_eq!(errors_of(&two).len(), 1, "{:?}", errors_of(&two));
+    assert_eq!(errors_of(&tail).len(), 1, "{:?}", errors_of(&tail));
+  }
+
+  #[test]
+  fn lambdas_and_fn_types_cannot_infer() {
+    let src = with_effects("f(g: function() -> Int / {..}) -> Int { g() }");
+
+    assert_eq!(errors_of(&src).len(), 1, "{:?}", errors_of(&src));
+  }
+}

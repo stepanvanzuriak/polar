@@ -9,7 +9,7 @@ use crate::{
   shared::codes::DiagnosticCode::{
     BadThrowsType, DuplicateDefinition, DuplicateField, DuplicateImpl,
     NotDerivable, RecursiveAlias, TypeArgumentCount, TypeMismatch,
-    UnboundTypeVariable, UnknownEffect, UnknownType,
+    UnboundTypeVariable, UnexpectedToken, UnknownEffect, UnknownType,
   },
   shared::diagnostic::{Diagnostic, Label},
   shared::ice::ice,
@@ -649,6 +649,20 @@ impl<'a> Checker<'a> {
 
   pub(crate) fn convert_effects(&mut self, row: Option<&EffectRow>) -> Effects {
     let Some(row) = row else { return Effects::pure() };
+
+    if row.inferred {
+      self.push(
+        Diagnostic::error(
+          UnexpectedToken,
+          "`..` is not allowed in this effect row",
+          Label::new(row.span.clone()),
+        )
+        .with_help(
+          "only a function with a body can infer its row; write the effects \
+           out here",
+        ),
+      );
+    }
     let mut labels: Vec<EffectLabel> = Vec::new();
 
     for entry in &row.entries {

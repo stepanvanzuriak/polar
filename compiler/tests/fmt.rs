@@ -797,3 +797,12 @@ fn module_groups_keep_comments() {
     "uses\n  // runtime\n  Std.{List, Map}\n  // app\n  Geometry.Shapes\n",
   );
 }
+
+#[test]
+fn inferred_effect_row_is_formatted() {
+  assert_formatted("functions\n  f() -> Int / {..} {\n    1\n  }\n");
+  assert_formats(
+    "functions\n  f() -> Int / {.., Async} {\n    1\n  }\n",
+    "functions\n  f() -> Int / {Async, ..} {\n    1\n  }\n",
+  );
+}

@@ -859,15 +859,23 @@ impl Printer<'_> {
   fn effect_row(&self, e: &EffectRow) -> Doc {
     let node = e.as_node();
 
-    let row = if e.entries.is_empty() && e.tail.is_none() {
+    let row = if e.entries.is_empty() && e.tail.is_none() && !e.inferred {
       self.empty(node, "{", "}")
     } else {
-      let entries: Vec<Doc> =
+      let mut entries: Vec<Doc> =
         e.entries.iter().map(|r| self.type_ref(r)).collect();
+
+      let lone_dots = e.inferred && entries.is_empty() && e.tail.is_none();
+
+      if e.inferred && !lone_dots {
+        entries.push(text(".."));
+      }
+
       let has_entries = !entries.is_empty();
       let mut inner = join(entries, &concat([text(","), line()]));
 
       inner = match &e.tail {
+        None if lone_dots => self.lone_tail(node, "..".to_string()),
         Some(tail) if has_entries => concat([
           inner,
           if_break(concat([text(","), line()]), text(" ")),
@@ -1459,7 +1467,9 @@ pub(super) fn opens_list(node: NodeRef<'_>) -> bool {
     NodeRef::PList(l) => !l.items.is_empty() || l.tail.is_some(),
     NodeRef::PRecord(r) => !r.fields.is_empty() || r.open,
     NodeRef::RecordType(r) => !r.fields.is_empty() || r.tail.is_some(),
-    NodeRef::EffectRow(e) => !e.entries.is_empty() || e.tail.is_some(),
+    NodeRef::EffectRow(e) => {
+      !e.entries.is_empty() || e.tail.is_some() || e.inferred
+    }
     NodeRef::Block(_)
     | NodeRef::TraitDecl(_)
     | NodeRef::ImplDecl(_)

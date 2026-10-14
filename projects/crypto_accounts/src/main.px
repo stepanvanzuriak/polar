@@ -13,7 +13,7 @@ types
   Account = { name: String, digest: String }
 
 functions
-  register(name: String, plain: String) -> Account / {Random, Async} {
+  register(name: String, plain: String) -> Account / {..} {
     { name: name, digest: Crypto.hash_password(plain) }
   }
 
@@ -45,7 +45,7 @@ functions
     }
   }
 
-  main() -> {} / {Random, Async} {
+  main() -> {} / {..} {
     let ada = register("ada", "correct horse")
 
     Log.info("stored scrypt: #{String.starts_with(ada.digest, "$scrypt$")}")

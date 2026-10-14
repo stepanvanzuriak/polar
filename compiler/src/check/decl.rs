@@ -21,7 +21,7 @@ use crate::{
   shared::source::Span,
   stdlib,
   syntax::ast::{
-    ConstDecl, Decl, FnDecl, ImplDecl, Module, TraitDecl, TypeExpr,
+    ConstDecl, Decl, EffectRow, FnDecl, ImplDecl, Module, TraitDecl, TypeExpr,
   },
   types::{
     generalise::{
@@ -29,7 +29,7 @@ use crate::{
       generalise_indexed, seal_closed,
     },
     print::Printer,
-    ty::{Brand, Effects, Pred, Row, Scheme, Tail, Type},
+    ty::{Brand, EffTail, Effects, Pred, Row, Scheme, Tail, Type},
     unify::unify,
   },
 };
@@ -350,9 +350,15 @@ impl<'a> Checker<'a> {
       Some(ty) => self.convert(ty),
       None => self.fresh(),
     };
-    let effects = match &f.return_type {
-      Some(_) => self.convert_effects(f.effects.as_ref()),
-      None => Effects::open(self.fresh_var()),
+    let effects = match (&f.return_type, &f.effects) {
+      (Some(_), Some(row)) if row.inferred => {
+        let listed = self
+          .convert_effects(Some(&EffectRow { inferred: false, ..row.clone() }));
+
+        Effects::new(listed.labels, EffTail::Open(self.fresh_var()))
+      }
+      (Some(_), row) => self.convert_effects(row.as_ref()),
+      (None, _) => Effects::open(self.fresh_var()),
     };
     let givens = self.givens_of(f);
     let mut vars = std::mem::replace(&mut self.vars, TypeVars::flexible());
@@ -471,7 +477,7 @@ impl<'a> Checker<'a> {
     for (((f, sym), mut scheme), signature) in
       members.iter().zip(schemes).zip(&signatures)
     {
-      if f.return_type.is_none() {
+      if infers_row(f) {
         close_row(&mut scheme);
       }
 
@@ -869,8 +875,12 @@ fn signature_span(f: &FnDecl) -> Span {
   f.name.span.join(&end)
 }
 
+fn infers_row(f: &FnDecl) -> bool {
+  f.return_type.is_none() || f.effects.as_ref().is_some_and(|r| r.inferred)
+}
+
 fn fully_annotated(f: &FnDecl) -> bool {
-  f.return_type.is_some() && f.params.iter().all(|p| p.ty.is_some())
+  f.params.iter().all(|p| p.ty.is_some()) && !infers_row(f)
 }
 
 #[must_use]
