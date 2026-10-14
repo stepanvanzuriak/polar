@@ -189,13 +189,15 @@ mod effect_rows {
   #[test]
   fn effect_tail() {
     assert!(
-      check_row("/ {Db | e}", &sexp!(EffectRow e inferred=false (TypeRef Db))).is_empty()
+      check_row("/ {Db | e}", &sexp!(EffectRow e inferred=false (TypeRef Db)))
+        .is_empty()
     );
   }
 
   #[test]
   fn lowercase_effect_without_bar() {
-    let diagnostics = check_row("/ {Db, e}", &sexp!(EffectRow e inferred=false (TypeRef Db)));
+    let diagnostics =
+      check_row("/ {Db, e}", &sexp!(EffectRow e inferred=false (TypeRef Db)));
 
     assert_eq!(codes(&diagnostics), ["POLAR0205@7..8"]);
     assert_eq!(
