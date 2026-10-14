@@ -207,6 +207,29 @@
                     Joins strings with <code>separator</code> between them
                   </td>
                 </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >take(xs: List&lt;a&gt;, count: Int) -&gt;
+                      List&lt;a&gt;</code
+                    >
+                  </td>
+                  <td>
+                    The first <code>count</code> elements, or all of them if
+                    there are fewer
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >drop(xs: List&lt;a&gt;, count: Int) -&gt;
+                      List&lt;a&gt;</code
+                    >
+                  </td>
+                  <td>
+                    Everything after the first <code>count</code> elements
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -806,6 +829,49 @@ effects
                   </td>
                   <td>Add an environment variable</td>
                 </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >scoped_env(vars: List&lt;EnvVar&gt;, body: function()
+                      -&gt; a / {| e}) -&gt; a / {Async | e}</code
+                    >
+                  </td>
+                  <td>
+                    Runs <code>body</code> with these environment variables set,
+                    and puts the old values back afterwards, also when
+                    <code>body</code> throws
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >spawn(command: String, args: List&lt;String&gt;, options:
+                      RunOptions) -&gt; Child / {Async}</code
+                    >
+                  </td>
+                  <td>Starts a program and returns without waiting for it</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >wait_for_line(child: Child, pattern: String, timeout_ms:
+                      Int) -&gt; Option&lt;String&gt; / {Async}</code
+                    >
+                  </td>
+                  <td>
+                    Waits until the child prints a line matching
+                    <code>pattern</code>, and returns that line, or
+                    <code>None</code> at the deadline
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >stop(child: Child) -&gt; Int / {Async}</code
+                    >
+                  </td>
+                  <td>Stops the child and returns its exit code</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -888,6 +954,13 @@ effects
                   <td><code>remove_all</code></td>
                   <td>
                     Removes a path and everything below it. Fine if it's missing
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>mkdtemp</code></td>
+                  <td>
+                    Creates a new empty directory under the system's temporary
+                    folder, named from <code>prefix</code>, and returns its path
                   </td>
                 </tr>
               </tbody>
@@ -1071,6 +1144,18 @@ effects
                   <td>
                     <code>is_match</code> of <code>compile(pattern)</code>, and
                     <code>false</code> for a bad pattern
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >captures(regex: Regex, text: String) -&gt;
+                      Option&lt;List&lt;String&gt;&gt;</code
+                    >
+                  </td>
+                  <td>
+                    The capture groups of the first match, in order, or
+                    <code>None</code> if nothing matches
                   </td>
                 </tr>
               </tbody>
@@ -1359,6 +1444,19 @@ effects
                     so it fits any <code>match</code> arm
                   </td>
                 </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >equal_text(actual: String, expected: String) -&gt; {} /
+                      {Throws&lt;Failed&gt;}</code
+                    >
+                  </td>
+                  <td>
+                    Throws <code>Failed</code> with a line diff of only the
+                    lines that changed, such as <code>- 2: expected</code> and
+                    <code>+ 2: actual</code>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1413,6 +1511,175 @@ Problem = { kind: String, message: String, at: String }</code></pre>
             running at the deadline is a <code>Timeout</code>.
           </p>
 
+          <h3 id="test-helpers">Helpers for tests</h3>
+          <p>
+            Modules that import <code>Std.Test</code> get these on the
+            <code>Node</code> host:
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >mock(effect: Effect, ops: { … }, body: function() -&gt; a
+                      / {| e}) -&gt; a / {Async | e}</code
+                    >
+                  </td>
+                  <td>
+                    Runs <code>body</code> with the listed operations of
+                    <code>effect</code> replaced, and puts the real ones back
+                    afterwards, also when <code>body</code> throws. An operation
+                    you leave out keeps its real implementation, and mocks nest
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >capture(run: function() -&gt; a / {| e}) -&gt;
+                      Captured&lt;a&gt; / {Async | e}</code
+                    >
+                  </td>
+                  <td>
+                    Runs <code>run</code> and returns
+                    <code>{ output, value }</code>, where <code>output</code> is
+                    what <code>Log.info</code> and
+                    <code>Log.error</code> printed meanwhile
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >assert_snapshot(name: String, text: String) -&gt; {} /
+                      {Fs, Process, Throws&lt;Failed&gt;}</code
+                    >
+                  </td>
+                  <td>
+                    Compares <code>text</code> with
+                    <code>snapshots/&lt;name&gt;.txt</code>. A missing or
+                    different snapshot fails with a diff, unless
+                    <code>POLAR_UPDATE=1</code> or
+                    <code>polar test --bless</code> is set, which writes the
+                    file instead
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >assert_snapshot_with(name: String, text: String,
+                      normalise: function(String) -&gt; String)</code
+                    >
+                  </td>
+                  <td>
+                    The same, after running <code>normalise</code> over
+                    <code>text</code>, to take out timestamps and ids
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >with_app(body: function(App) -&gt; a / {| e}) -&gt; a /
+                      {Async | e}</code
+                    >
+                  </td>
+                  <td>
+                    Starts the project's app on a free port, runs
+                    <code>body</code> with its <code>App</code> and stops it.
+                    <code>with_app_env</code> also takes a list of
+                    <code>EnvVar</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >send(app: App, method: String, path: String, body:
+                      String) -&gt; Response</code
+                    >
+                  </td>
+                  <td>
+                    One request to the app, throwing <code>ClientError</code> on
+                    a network error
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >get(url: String) -&gt; Result&lt;ClientError,
+                      Response&gt; / {Net}</code
+                    >
+                  </td>
+                  <td>
+                    A GET request to any URL. <code>request</code> takes a
+                    <code>RequestOptions</code> with the method, headers, body,
+                    whether to follow redirects, and a timeout
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >session(base: String) -&gt; Ref&lt;Browser&gt;</code
+                    >
+                  </td>
+                  <td>
+                    A client that keeps cookies between requests.
+                    <code>go</code> sends a request through it, and
+                    <code>go_follow</code> also follows redirects
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <code>Test.mock</code> checks the operations against the effect, so
+            a misspelt name is a compile error:
+          </p>
+          <pre class="code" data-lang="polar"><code>Test.mock(
+  Clock,
+  { now: function() { Time.from_millis(1_700_000_000_000) } },
+  function() {
+    Assert.equal(Time.to_iso(Clock.now()), "2023-11-14T22:13:20.000Z")
+  },
+)</code></pre>
+
+          <h2 id="algo">Algo</h2>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>Line&lt;a&gt; = { index: Int, value: a }
+Edit&lt;a&gt; = Keep(a) | Remove(Line&lt;a&gt;) | Insert(Line&lt;a&gt;)</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >diff(expected: List&lt;a&gt;, actual: List&lt;a&gt;)
+                      -&gt; List&lt;Edit&lt;a&gt;&gt; where Eq&lt;a&gt;</code
+                    >
+                  </td>
+                  <td>
+                    The edit script that turns <code>expected</code> into
+                    <code>actual</code>, built on their longest common
+                    subsequence. <code>Remove</code> indexes into the first list
+                    and <code>Insert</code> into the second, both from 1
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <h2 id="math">Math</h2>
           <div class="table-wrap">
             <table>
@@ -1430,6 +1697,45 @@ Problem = { kind: String, message: String, at: String }</code></pre>
               </tbody>
             </table>
           </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >max(x: a, y: a) -&gt; a where Ord&lt;a&gt;</code
+                    >
+                  </td>
+                  <td>
+                    The larger of the two, for <code>Int</code>,
+                    <code>Float</code> or <code>String</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >min(x: a, y: a) -&gt; a where Ord&lt;a&gt;</code
+                    >
+                  </td>
+                  <td>The smaller of the two</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code class="sig"
+                      >abs(x: a) -&gt; a where Num&lt;a&gt;, Ord&lt;a&gt;</code
+                    >
+                  </td>
+                  <td>The value without its sign</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2 id="prelude">Prelude</h2>
           <p>Always in scope, without a <code>uses</code>.</p>
@@ -1440,11 +1746,32 @@ Problem = { kind: String, message: String, at: String }</code></pre>
 
   Show&lt;a&gt; {
     show(value: a) -> String
+  }
+
+  Ord&lt;a&gt; {
+    compare(x: a, y: a) -> Int
+  }
+
+  Num&lt;a&gt; {
+    add(x: a, y: a) -> a
+    sub(x: a, y: a) -> a
+    mul(x: a, y: a) -> a
+    div(x: a, y: a) -> a
+    rem(x: a, y: a) -> a
+    neg(x: a) -> a
+    from_int(n: Int) -> a
   }</code></pre>
           <p>
             <code>Int</code>, <code>Float</code>, <code>String</code> and
-            <code>Bool</code> implement both. <code>==</code> uses
-            <code>Eq</code>, and <code>#{…}</code> uses <code>Show</code>.
+            <code>Bool</code> implement <code>Eq</code> and <code>Show</code>.
+            <code>==</code> uses <code>Eq</code>, and <code>#{…}</code> uses
+            <code>Show</code>. <code>Int</code>, <code>Float</code> and
+            <code>String</code> implement <code>Ord</code>, and
+            <code>Int</code> and <code>Float</code> implement <code>Num</code>.
+            <code>compare</code> returns a negative number, <code>0</code> or a
+            positive number. A function can ask for them with
+            <code>where Ord&lt;a&gt;</code> or <code>where Num&lt;a&gt;</code>,
+            see <a href="traits.html#ord-num">Traits</a>.
           </p>
         </article>
         <p class="edit" id="edit"></p>

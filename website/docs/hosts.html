@@ -145,6 +145,26 @@ built visits (1 file) for Node into dist/Node in 191ms</code></pre>
           ><code><span class="pr">$</span> polar build --host Node
 <span class="pr">$</span> polar run --host Node</code></pre>
 
+          <h2 id="native-target">The Native host</h2>
+          <p>
+            <code>Native</code> is the host of a program built with
+            <a href="cli.html#native"
+              ><code>polar build --target native</code></a
+            >, which runs in <code>polar-rt</code> instead of Node. It has the
+            standard library's <code>Time</code>, <code>Url</code>,
+            <code>Regex</code>, <code>Crypto</code>, <code>Fs</code> and
+            <code>Process</code>. Anything that is only bound for
+            <code>Node</code> or <code>Browser</code>, including
+            <code>Http</code> and <code>Dom</code>, can't run there, and the
+            build says which function needs it.
+          </p>
+          <p>
+            A native program can also serve its effects to a browser bundle.
+            Start the executable with <code>--serve &lt;PORT&gt;</code> and it
+            answers the same requests as the Node bridge server, so the browser
+            build doesn't change.
+          </p>
+
           <h2 id="native">Native effects and force</h2>
           <p>
             Some effects truly belong to one host. Mark those

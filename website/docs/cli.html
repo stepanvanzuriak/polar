@@ -91,6 +91,14 @@ Commands:
                   </td>
                 </tr>
                 <tr>
+                  <td><code>--target &lt;TARGET&gt;</code></td>
+                  <td>
+                    <code>js</code> (default) or <code>native</code>. Native
+                    builds a one-file executable and runs it. See
+                    <a href="#native">Native executables</a>
+                  </td>
+                </tr>
+                <tr>
                   <td><code>--debounce &lt;MS&gt;</code></td>
                   <td>
                     With <code>--watch</code>, how long to wait after a change
@@ -177,6 +185,24 @@ Commands:
                   <td>Builds only one host, into <code>dist/</code></td>
                 </tr>
                 <tr>
+                  <td><code>--target &lt;TARGET&gt;</code></td>
+                  <td><code>js</code> (default) or <code>native</code></td>
+                </tr>
+                <tr>
+                  <td><code>--triple &lt;TRIPLE&gt;</code></td>
+                  <td>
+                    With <code>--target native</code>, the platform to build
+                    for, such as <code>x86_64-unknown-linux-gnu</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>-o, --output &lt;FILE&gt;</code></td>
+                  <td>
+                    With <code>--target native</code>, the file to write.
+                    Defaults to <code>dist/&lt;name&gt;</code>
+                  </td>
+                </tr>
+                <tr>
                   <td><code>--emit &lt;STAGE&gt;</code></td>
                   <td>
                     Prints one compiler stage for a single file instead of
@@ -238,6 +264,32 @@ Commands:
             </p>
           </div>
 
+          <h3 id="native">Native executables</h3>
+          <pre
+            class="code"
+          ><code><span class="pr">$</span> polar build --target native
+dist/app
+<span class="pr">$</span> ./dist/app</code></pre>
+          <p>
+            <code>--target native</code> writes one executable that runs without
+            Node. It is a copy of <code>polar-rt</code>, a Rust evaluator that
+            ships next to <code>polar</code>, with your compiled program
+            attached to the end. The program is interpreted, so it is slower
+            than Node's JIT and plenty fast for command-line tools.
+          </p>
+          <p>
+            The build takes the <code>Native</code> host, which has
+            <code>Time</code>, <code>Url</code>, <code>Regex</code>,
+            <code>Crypto</code>, <code>Fs</code> and <code>Process</code>. A
+            function that needs something else is reported as POLAR0824, with a
+            hint on where to add the <code>rs</code> implementation. See
+            <a href="hosts.html#native-target">Hosts</a>. Cross-compiling is a
+            file copy: <code>--triple</code> looks for
+            <code>polar-rt-&lt;TRIPLE&gt;</code> beside <code>polar</code>, or
+            in <code>POLAR_RT_DIR</code>. <code>--watch</code> and
+            <code>--emit</code> don't work with <code>--target native</code>.
+          </p>
+
           <h2 id="fmt">polar fmt</h2>
           <pre class="code"><code>polar fmt [OPTIONS] [PATHS]...</code></pre>
           <p>Formats files in place in the standard layout.</p>
@@ -257,9 +309,31 @@ Commands:
                     any
                   </td>
                 </tr>
+                <tr>
+                  <td><code>--idempotent</code></td>
+                  <td>
+                    With <code>--check</code>, formats twice and fails if the
+                    second pass changes anything
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>--expect &lt;FILE&gt;</code></td>
+                  <td>
+                    Formats the one input in memory and compares it with
+                    <code>FILE</code>, printing a line diff and exiting 1 if
+                    they differ. Never writes
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
+          <p>
+            <code>polar fmt</code> skips <code>x.px</code> when
+            <code>x.expected.px</code> sits next to it, skips
+            <code>*.expected.px</code> files, and skips paths listed under
+            <code>[fmt] exclude</code> in <code>polar.toml</code>. A file named
+            on the command line is always formatted.
+          </p>
 
           <h2 id="test">polar test</h2>
           <pre
@@ -294,6 +368,34 @@ Commands:
                 <tr>
                   <td><code>--timeout &lt;MS&gt;</code></td>
                   <td>How long one test may run (default 5000)</td>
+                </tr>
+                <tr>
+                  <td><code>--bless</code></td>
+                  <td>
+                    Rewrites <code>expect-error</code> annotations and snapshots
+                    from what actually happened.
+                    <code>POLAR_UPDATE=1</code> does the same
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>--format &lt;FORMAT&gt;</code></td>
+                  <td>
+                    <code>text</code> (default) or <code>json</code>: one object
+                    per test, then a final <code>result</code> object
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>-p, --project &lt;NAME&gt;</code></td>
+                  <td>
+                    In a workspace, runs only the members with this project
+                    name. Repeatable
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>-j, --jobs &lt;N&gt;</code></td>
+                  <td>
+                    In a workspace, runs this many members at once (default 1)
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -333,6 +435,62 @@ test result: FAILED. 1 passed; 2 failed; 0 filtered out; finished in 5.01s</code
             <a href="standard-library.html#test"><code>Std.Test</code></a> for
             the runner itself.
           </p>
+
+          <h3 id="expect-error">Tests that expect an error</h3>
+          <p>
+            A file that must <em>not</em> compile is a test too. Put an
+            <code>expect-error</code> comment above the line that should fail:
+          </p>
+          <pre class="code" data-lang="polar"><code>functions
+  total(xs: List&lt;Int&gt;) -> Int {
+    // expect-error: POLAR0501 "mismatched types"
+    List.length(xs) + "one"
+  }</code></pre>
+          <p>
+            The file is one test, named by its path (such as
+            <code>routes_errors::unknown_action</code>). It passes when every
+            annotation matches an error with that code on the next line of code,
+            and fails if the file compiles, a code or line differs, or an error
+            has no annotation. The quoted text is optional and only has to be
+            part of the message. Files with annotations are left out of
+            <code>polar build</code>, <code>polar check</code> and
+            <code>--watch</code>.
+          </p>
+
+          <h3 id="test-more">Around, capture and snapshots</h3>
+          <p>
+            A test file may define
+            <code>around_each(run: function() -> {} / {| e}) -> {} / {| e}</code
+            >. Every test in that file then runs as
+            <code>around_each(test)</code>, which is where set-up and tear-down
+            go. A test's stderr is merged into its stdout, so a test that passes
+            prints nothing. For mocking an effect, capturing <code>Log</code>,
+            snapshots and an HTTP client, see
+            <a href="standard-library.html#test"><code>Std.Test</code></a
+            >.
+          </p>
+
+          <h3 id="workspaces">Workspaces</h3>
+          <p>
+            A repository with many projects can name them all in a root
+            <code>polar.toml</code> that has no project of its own:
+          </p>
+          <pre class="code"><code>[workspace]
+members = ["tests/*", "examples/blog"]
+exclude = ["tests/fixtures"]</code></pre>
+          <p>
+            A member is a directory with a <code>polar.toml</code>, written out
+            or as <code>dir/*</code> for every subdirectory that has one. Run
+            <code>polar check</code>, <code>polar build</code>,
+            <code>polar fmt</code> or <code>polar test</code> at the root and
+            each one acts on every member. For <code>polar test</code>, a
+            failing member doesn't stop the others. Each member's output comes
+            under a <code>project &lt;dir&gt;</code> line, and the report ends
+            with one total:
+          </p>
+          <pre
+            class="code out"
+          ><code>workspace result: ok. 3 projects; 41 passed; 0 failed; 0 filtered out; finished in 4.2s</code></pre>
 
           <h2 id="repl">polar repl</h2>
           <pre class="code"><code>polar repl [OPTIONS] [PATH]</code></pre>
@@ -576,6 +734,9 @@ out = "dist"
 main = "src/main.px"
 hosts = ["Browser", "Node"]
 
+[fmt]
+exclude = ["tests/*/fmt"]
+
 [dependencies]
 shapes = { path = "../shapes" }
 ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }
@@ -584,11 +745,16 @@ ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }
 launcher = "simple_framework"
 options = { port = 3000 }
 
+<span class="cm"># a root that only lists projects (no [project] or [package])</span>
+[workspace]
+members = ["tests/*", "examples/blog"]
+exclude = ["tests/fixtures"]
+
 <span class="cm"># packages only</span>
 [package]
 name = "simple_framework"
 module = "Framework"
-polar = "0.3.0"
+polar = "0.4.0"
 
 [launcher]
 script = "launcher/serve.mjs"

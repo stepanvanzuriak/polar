@@ -54,7 +54,8 @@
           <pre class="code" data-lang="polar"><code>uses
   Std.List
   Money as M
-  Std.Prelude { show }</code></pre>
+  Std.Prelude { show }
+  Ticket.{Conn, Response}</code></pre>
           <ul>
             <li>
               <code>Std.List</code> imports the module under its last name, so
@@ -67,6 +68,12 @@
             <li>
               <code>Std.Prelude { show }</code> also brings trait methods into
               scope, so you can call <code>show(x)</code> without a prefix.
+            </li>
+            <li>
+              <code>Ticket.{Conn, Response}</code> is a module group. It is the
+              same as writing <code>Ticket.Conn</code> and
+              <code>Ticket.Response</code> on their own lines, and each one is
+              used under its last name.
             </li>
           </ul>
 
@@ -189,7 +196,7 @@ ticket = { git = "github.com/owner/ticket", version = "v0.1.0" }</code></pre>
           <pre class="code"><code>[package]
 name = "ticket"
 module = "Ticket"
-polar = "0.3.0"</code></pre>
+polar = "0.4.0"</code></pre>
           <p>
             If you import a package written for an older Polar, or one that
             needs a newer Polar than yours, <code>polar</code> prints a warning

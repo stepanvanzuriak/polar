@@ -137,6 +137,18 @@ hello-world</code></pre>
             get a surprise rounding.
           </p>
 
+          <h3 id="int-range">How big an Int can be</h3>
+          <p>
+            An <code>Int</code> is exact from -(2<sup>53</sup> - 1) to 2<sup
+              >53</sup
+            >
+            - 1, the same on every backend. A result outside that range is a
+            runtime error, <code>integer overflow</code>, instead of a silently
+            rounded number, and so is dividing by zero, which names the line. A
+            literal beyond the range is a compile error.
+            <code>Float</code> division by zero is still <code>Infinity</code>.
+          </p>
+
           <h2 id="strings">Strings and interpolation</h2>
           <p>
             <code>#{…}</code> inside a string inserts the value of any

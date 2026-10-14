@@ -1,6 +1,6 @@
 # Polar
 
-A statically typed, row-polymorphic language that compiles to JavaScript.
+A statically typed, row-polymorphic language for the web, servers and native binaries.
 
 > Experimental: expect breaking changes before 1.0.
 
