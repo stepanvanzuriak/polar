@@ -240,6 +240,7 @@ pub struct ExternDecl {
   pub effects: Option<EffectRow>,
   pub module: StringLit,
   pub export: Name,
+  pub rs: Option<StringLit>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -251,6 +252,7 @@ pub struct BindDecl {
   pub host: Name,
   pub from: Option<Name>,
   pub module: Option<StringLit>,
+  pub rs: Option<StringLit>,
   pub ops: Vec<FnDecl>,
 }
 
@@ -829,8 +831,8 @@ ast! {
     ExportDecl  { span, name, methods }
     HostDecl    { span, docs, name }
     EffectDecl  { span, docs, native, name, host, ops }
-    ExternDecl  { span, docs, name, params, return_type, effects, module, export }
-    BindDecl    { span, docs, force, effect, host, from, module, ops }
+    ExternDecl  { span, docs, name, params, return_type, effects, module, export, rs }
+    BindDecl    { span, docs, force, effect, host, from, module, rs, ops }
     TraitDecl   { span, docs, name, param, methods, recipe }
     MethodSig   { span, docs, name, params, return_type, effects, bounds }
     Recipe      { span, cases }

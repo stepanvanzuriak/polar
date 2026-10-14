@@ -126,6 +126,7 @@ diagnostic_codes! {
   TestHasParams               = 821,
   NotRunAsTest                = 822,
   AroundEachParams            = 823,
+  MissingImplementation       = 824,
   PluginError                 = 901,
   PluginFailed                = 902,
 }

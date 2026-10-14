@@ -27,10 +27,13 @@ effects
 
 externs
   with_temp_dir(prefix: String, body: function(String) -> a / {| e}) -> a / {Async | e}
-    = "./bindings/Fs.js" with_temp_dir
+    = js "./bindings/Fs.js" with_temp_dir,
+      rs "fs::with_temp_dir"
 
 binds
   Fs in Node = "./bindings/Fs.js"
+
+  Fs in Native = rs "fs"
 
 exports
   FsError

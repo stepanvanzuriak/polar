@@ -1,0 +1,63 @@
+module Main
+
+uses
+  Std.Json
+  Std.List
+  Std.Option
+
+hosts
+  Native
+  Node
+
+types
+  Post = { id: Int, title: String } derive(Json, Eq)
+
+  Missing = Missing(Int) derive(Json)
+
+constants
+  seed: List<Post> = [
+    { id: 1, title: "Hello from the server" },
+    { id: 2, title: "Bridges forward effects" },
+  ]
+
+effects
+  Posts in Node {
+    fetch(id: Int) -> Post / {Throws<Missing>}
+    count() -> Int
+  }
+
+binds
+  Posts in Node {
+    fetch(id) {
+      match List.find(seed, function(p) { p.id == id }) {
+        Some(post) -> post,
+        None -> throw Missing(id),
+      }
+    }
+
+    count() {
+      List.length(seed)
+    }
+  }
+
+  Posts in Native from Node
+
+functions
+  describe(id: Int) -> String / {Posts} {
+    try {
+      let post = Posts.fetch(id)
+
+      "#{post.id}: #{post.title}"
+    } catch {
+      Missing(n) -> "no post #{n}",
+    }
+  }
+
+  main() -> {} / {Posts} {
+    Log.info("#{Posts.count()} posts on the server")
+    Log.info(describe(1))
+    Log.info(describe(42))
+  }
+
+exports
+  main

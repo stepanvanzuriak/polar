@@ -24,21 +24,34 @@ effects
   }
 
 externs
-  sha256(text: String) -> String = "./bindings/Crypto.js" digest_sha256
+  sha256(text: String) -> String
+    = js "./bindings/Crypto.js" digest_sha256,
+      rs "crypto::sha256"
   hmac_sha256(key: String, text: String) -> String
-    = "./bindings/Crypto.js" digest_hmac_sha256
-  equal(a: String, b: String) -> Bool = "./bindings/Crypto.js" timing_safe_equal
-  base64url(text: String) -> String = "./bindings/Crypto.js" base64url_encode
-  from_base64url(text: String) -> Option<String> = "./bindings/Crypto.js" base64url_decode
+    = js "./bindings/Crypto.js" digest_hmac_sha256,
+      rs "crypto::hmac_sha256"
+  equal(a: String, b: String) -> Bool
+    = js "./bindings/Crypto.js" timing_safe_equal,
+      rs "crypto::equal"
+  base64url(text: String) -> String
+    = js "./bindings/Crypto.js" base64url_encode,
+      rs "crypto::base64url"
+  from_base64url(text: String) -> Option<String>
+    = js "./bindings/Crypto.js" base64url_decode,
+      rs "crypto::from_base64url"
   scrypt(plain: String, salt: String, ln: Int, r: Int, p: Int) -> String / {Async}
-    = "./bindings/Crypto.js" scrypt
+    = js "./bindings/Crypto.js" scrypt,
+      rs "crypto::scrypt"
   try_scrypt(plain: String, salt: String, ln: Int, r: Int, p: Int) -> Option<String> / {
     Async,
   }
-    = "./bindings/Crypto.js" try_scrypt
+    = js "./bindings/Crypto.js" try_scrypt,
+      rs "crypto::try_scrypt"
 
 binds
   Random in Node = "./bindings/Crypto.js"
+
+  Random in Native = rs "crypto"
 
 functions
   hash_password(plain: String) -> String / {Random, Async} {

@@ -1,0 +1,10 @@
+exact: 9007199254740990 -9007199254740991
+truncating: -3 -3 3
+remainder: -1 1 1
+float_whole: 1.0 2.0 -3
+float_fraction: 0.30000000000000004 1.5 33.333333333333336
+float_large: 1000000000000.0 1e+21 0.000001
+length: 6 0
+slice: éllo🙂
+chars: 3
+equal: true true

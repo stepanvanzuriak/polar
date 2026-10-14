@@ -28,6 +28,11 @@ use crate::{
   syntax::plugins,
 };
 
+enum ImplTag {
+  Js,
+  Rs,
+}
+
 impl Parser<'_> {
   pub(super) fn module(&mut self) -> Module {
     let file = self.peek(0).span.file.clone();
@@ -770,6 +775,7 @@ impl Parser<'_> {
     let host = self.upper_name("as the host");
     let mut ops = Vec::new();
     let mut module = None;
+    let mut rs = None;
     let from = if self.at_from(0) {
       self.bump();
       Some(self.upper_name("as the host the bridge forwards to"))
@@ -782,7 +788,7 @@ impl Parser<'_> {
         self.bridge_with_body(&effect, &host, target);
       }
     } else if self.eat(Eq).is_some() {
-      module = self.bind_module(&effect, &host);
+      (module, rs) = self.bind_module(&effect, &host);
     } else {
       self.expect(LBrace, "to open the binding");
       self.members(&mut ops);
@@ -797,6 +803,7 @@ impl Parser<'_> {
       host,
       from,
       module,
+      rs,
       ops,
     }
   }
@@ -853,7 +860,7 @@ impl Parser<'_> {
       (self.invalid_type(), None)
     };
 
-    let (module, export) = self.extern_target(&name);
+    let (module, export, rs) = self.extern_target(&name);
 
     ExternDecl {
       span: self.span_from(&name.span),
@@ -864,28 +871,135 @@ impl Parser<'_> {
       effects,
       module,
       export,
+      rs,
     }
   }
 
-  fn extern_target(&mut self, name: &Name) -> (StringLit, Name) {
-    if self.eat(Eq).is_none() || !self.at(StringStart) {
+  fn extern_target(
+    &mut self,
+    name: &Name,
+  ) -> (StringLit, Name, Option<StringLit>) {
+    let missing = self.missing_span();
+    let none = || {
+      (
+        StringLit { span: missing.clone(), parts: vec![] },
+        Name { text: String::new(), span: missing.clone() },
+      )
+    };
+
+    if self.eat(Eq).is_none() || !(self.at(StringStart) || self.at(Lower)) {
       let span = self.error_span();
 
       self.diagnostics.push(
         Diagnostic::error(
           ExternTarget,
-          format!("the extern `{}` needs a JavaScript target", name.text),
+          format!("the extern `{}` needs an implementation", name.text),
           Label::new(span),
         )
-        .with_help("write `= \"./file.js\" export_name`"),
+        .with_help(
+          "write `= js \"./file.js\" export_name` or `= rs \"module::name\"`",
+        ),
       );
+
+      let (module, export) = none();
+
+      return (module, export, None);
+    }
+
+    let mut js = None;
+    let mut rs = None;
+
+    loop {
+      let start = self.peek(0).span.clone();
+
+      match self.impl_tag() {
+        Some(ImplTag::Js) => {
+          let module = self.impl_path("an extern");
+          let export = self.export_name();
+          let at = self.span_from(&start);
+
+          self.keep_first(&mut js, (module, export), "js", at);
+        }
+        Some(ImplTag::Rs) => {
+          let path = self.impl_path("an extern");
+          let at = self.span_from(&start);
+
+          self.keep_first(&mut rs, path, "rs", at);
+        }
+        None => break,
+      }
+
+      if self.eat(Comma).is_none() {
+        break;
+      }
+    }
+
+    let (module, export) = js.unwrap_or_else(none);
+
+    (module, export, rs)
+  }
+
+  fn export_name(&mut self) -> Name {
+    if self.at(Upper) {
+      self.upper_name("as the export name")
+    } else {
+      self.lower_name("as the export name")
+    }
+  }
+
+  fn impl_tag(&mut self) -> Option<ImplTag> {
+    if self.at(StringStart) {
+      return Some(ImplTag::Js);
+    }
+
+    if !self.at(Lower) {
+      return None;
+    }
+
+    let token = self.peek(0).clone();
+
+    match self.file.slice(&token.span) {
+      "js" => {
+        self.bump();
+        Some(ImplTag::Js)
+      }
+      "rs" => {
+        self.bump();
+        Some(ImplTag::Rs)
+      }
+      other => {
+        let other = other.to_string();
+
+        self.diagnostics.push(
+          Diagnostic::error(
+            ExternTarget,
+            format!("unknown implementation language `{other}`"),
+            Label::new(token.span),
+          )
+          .with_help("the languages are `js` and `rs`"),
+        );
+        self.recovering = true;
+        self.bump();
+
+        None
+      }
+    }
+  }
+
+  fn impl_path(&mut self, what: &str) -> StringLit {
+    if !self.at(StringStart) {
+      let span = self.error_span();
+
+      self.diagnostics.push(Diagnostic::error(
+        ExternTarget,
+        format!("{what} needs a quoted path after the language"),
+        Label::new(span),
+      ));
+      self.recovering = true;
 
       let missing = self.missing_span();
 
-      return (
-        StringLit { span: missing.clone(), parts: vec![] },
-        Name { text: String::new(), span: missing },
-      );
+      return StringLit { span: missing, parts: vec![] };
     }
 
     let module = self.string_lit();
@@ -897,24 +1011,40 @@ impl Parser<'_> {
       self.diagnostics.push(
         Diagnostic::error(
           ExternTarget,
-          "the module of an extern can't be interpolated",
+          format!("the module of {what} can't be interpolated"),
           Label::new(interp.span.clone()),
         )
         .with_help("write the module path out in full"),
       );
     }
 
-    let export = if self.at(Upper) {
-      self.upper_name("as the export name")
-    } else {
-      self.lower_name("as the export name")
-    };
-
-    (module, export)
+    module
   }
 
-  fn bind_module(&mut self, effect: &Name, host: &Name) -> Option<StringLit> {
-    if !self.at(StringStart) {
+  fn keep_first<T>(
+    &mut self,
+    slot: &mut Option<T>,
+    value: T,
+    lang: &str,
+    span: Span,
+  ) {
+    if slot.is_some() {
+      self.diagnostics.push(Diagnostic::error(
+        ExternTarget,
+        format!("`{lang}` is given twice"),
+        Label::new(span),
+      ));
+    } else {
+      *slot = Some(value);
+    }
+  }
+
+  fn bind_module(
+    &mut self,
+    effect: &Name,
+    host: &Name,
+  ) -> (Option<StringLit>, Option<StringLit>) {
+    if !(self.at(StringStart) || self.at(Lower)) {
       let span = self.error_span();
 
       self.diagnostics.push(
@@ -932,26 +1062,14 @@ impl Parser<'_> {
       );
       self.recovering = true;
 
-      return None;
+      return (None, None);
     }
 
-    let module = self.string_lit();
-
-    if let Some(interp) = module.parts.iter().find_map(|part| match part {
-      StringPart::Interp(interp) => Some(interp),
-      StringPart::Text(_) => None,
-    }) {
-      self.diagnostics.push(
-        Diagnostic::error(
-          ExternTarget,
-          "the module of a binding can't be interpolated",
-          Label::new(interp.span.clone()),
-        )
-        .with_help("write the module path out in full"),
-      );
+    match self.impl_tag() {
+      Some(ImplTag::Rs) => (None, Some(self.impl_path("a binding"))),
+      Some(ImplTag::Js) => (Some(self.impl_path("a binding")), None),
+      None => (None, None),
     }
-
-    Some(module)
   }
 
   fn modifier_in_wrong_zone(&mut self, shape: Builtin, zone: Builtin) -> bool {

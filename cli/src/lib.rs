@@ -126,6 +126,12 @@ pub(crate) enum Command {
     emit: Option<EmitStage>,
     #[arg(long)]
     host: Option<String>,
+    #[arg(long, value_enum, default_value_t = BuildTarget::Js)]
+    target: BuildTarget,
+    #[arg(long)]
+    triple: Option<String>,
+    #[arg(short = 'o', long, value_name = "FILE")]
+    output: Option<PathBuf>,
   },
   Check {
     paths: Vec<PathBuf>,
@@ -138,6 +144,8 @@ pub(crate) enum Command {
     file: Option<PathBuf>,
     #[arg(long)]
     host: Option<String>,
+    #[arg(long, value_enum, default_value_t = BuildTarget::Js)]
+    target: BuildTarget,
     #[arg(long)]
     watch: bool,
     #[arg(long, value_name = "MS", default_value_t = 100, requires = "watch")]
@@ -205,6 +213,12 @@ pub(crate) enum Command {
     #[arg(long = "zone")]
     zones: Vec<String>,
   },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum BuildTarget {
+  Js,
+  Native,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]

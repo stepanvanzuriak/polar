@@ -495,6 +495,10 @@ impl Printer<'_> {
       return self.wrap(node, concat([head, text("= "), self.string(module)]));
     }
 
+    if let Some(rs) = &b.rs {
+      return self.wrap(node, concat([head, text("= rs "), self.string(rs)]));
+    }
+
     let ops = b.ops.iter().map(|f| (f.as_node(), self.fn_decl(f))).collect();
 
     self.wrap(node, concat([head, self.braced(node, ops, true)]))
@@ -506,13 +510,36 @@ impl Printer<'_> {
       self.params(e.as_node(), &e.params),
       self.signature_tail(Some(&e.return_type), e.effects.as_ref()),
     ]);
-    let target = concat([
-      line(),
-      text("= "),
-      self.string(&e.module),
-      text(" "),
-      name(&e.export),
-    ]);
+    let has_js = !e.export.text.is_empty();
+    let mut parts = vec![line(), text("= ")];
+
+    match (has_js, &e.rs) {
+      (true, None) => {
+        parts.extend([self.string(&e.module), text(" "), name(&e.export)]);
+      }
+      (has_js, rs) => {
+        if has_js {
+          parts.extend([
+            text("js "),
+            self.string(&e.module),
+            text(" "),
+            name(&e.export),
+          ]);
+        }
+
+        if let Some(rs) = rs {
+          let entry = concat([text("rs "), self.string(rs)]);
+
+          if has_js {
+            parts.extend([text(","), nest(2, concat([hardline(), entry]))]);
+          } else {
+            parts.push(entry);
+          }
+        }
+      }
+    }
+
+    let target = concat(parts);
 
     self.wrap(e.as_node(), group(concat([signature, nest(INDENT, target)])))
   }

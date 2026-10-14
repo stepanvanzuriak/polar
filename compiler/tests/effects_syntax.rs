@@ -211,6 +211,7 @@ fn dump_force_bind() {
     host: name("Node", 16, 20),
     from: None,
     module: None,
+    rs: None,
     ops: vec![],
   };
 

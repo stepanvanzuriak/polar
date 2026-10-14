@@ -8,9 +8,9 @@ use crate::{
   },
   shared::codes::DiagnosticCode::{
     BridgeChain, BridgeTargetUnbound, BuiltinModuleAsValue, CallArity,
-    DuplicateBind, DuplicateDefinition, ExtraOperation, IncompleteTraitExport,
-    MissingOperation, NativeBind, NativeWithoutHost, NeedlessForce,
-    OperationParamCount, OrphanBind, UnknownEffect, UnknownHost,
+    DuplicateBind, DuplicateDefinition, ExternTarget, ExtraOperation,
+    IncompleteTraitExport, MissingOperation, NativeBind, NativeWithoutHost,
+    NeedlessForce, OperationParamCount, OrphanBind, UnknownEffect, UnknownHost,
     UnknownOperation,
   },
   shared::diagnostic::{Diagnostic, Label},
@@ -64,6 +64,7 @@ pub struct BindInfo {
 pub struct BoundExtern {
   pub name: String,
   pub module: String,
+  pub rs: Option<String>,
   pub effect: String,
   pub op: String,
   pub span: Span,
@@ -76,6 +77,7 @@ pub struct EffectTable {
   pub binds: Vec<BindInfo>,
   pub externs: BTreeMap<String, ExternDecl>,
   pub bound: Vec<BoundExtern>,
+  pub native: BTreeMap<String, String>,
 }
 
 impl EffectTable {
@@ -523,7 +525,64 @@ impl Lowerer<'_> {
     }
   }
 
+  fn native_bind(&mut self, b: &BindDecl) {
+    if !self.effects.effects.contains_key(&b.effect.text) {
+      self.error(
+        UnknownEffect,
+        format!("there is no effect `{}`", b.effect.text),
+        b.effect.span.clone(),
+        None,
+      );
+
+      return;
+    }
+
+    match &b.rs {
+      Some(_) if self.effects.native.contains_key(&b.effect.text) => {
+        self.error(
+          DuplicateBind,
+          format!("`{}` is already bound in `Native`", b.effect.text),
+          b.effect.span.join(&b.host.span),
+          None,
+        );
+      }
+      Some(rs) if b.from.is_none() && b.ops.is_empty() => {
+        self.effects.native.insert(b.effect.text.clone(), string_text(rs));
+      }
+      _ => self.error(
+        ExternTarget,
+        format!(
+          "`{} in Native` is implemented by the native runtime, so it \
+           takes `= rs \"name\"` and nothing else",
+          b.effect.text
+        ),
+        b.host.span.clone(),
+        Some("write `= rs \"module\"`".to_string()),
+      ),
+    }
+  }
+
   fn lower_bind(&mut self, b: &BindDecl) -> Option<CBind> {
+    if b.host.text == "Native" && !self.effects.hosts.contains_key("Native") {
+      self.native_bind(b);
+
+      return None;
+    }
+
+    if let Some(rs) = &b.rs {
+      self.error(
+        ExternTarget,
+        format!(
+          "only the native runtime takes `rs`, not `{}` in `{}`",
+          b.effect.text, b.host.text
+        ),
+        rs.span.clone(),
+        Some(format!("write `{} in Native = rs \"…\"`", b.effect.text)),
+      );
+
+      return None;
+    }
+
     let header = b.effect.span.join(&b.host.span);
     let info = self.bind_target(b, &header)?;
 
@@ -551,8 +610,7 @@ impl Lowerer<'_> {
       });
     }
 
-    if let Some(module) = &b.module {
-      let module = string_text(module);
+    if let Some(module) = b.module.as_ref().map(string_text) {
       let ops = info
         .ops
         .iter()
@@ -606,6 +664,7 @@ impl Lowerer<'_> {
     self.effects.bound.push(BoundExtern {
       name,
       module: module.to_string(),
+      rs: None,
       effect: b.effect.text.clone(),
       op: op.to_string(),
       span: header.clone(),
@@ -844,19 +903,27 @@ impl Lowerer<'_> {
         name: e.name.text.clone(),
         module: string_text(&e.module),
         export: e.export.text.clone(),
+        rs: e.rs.as_ref().map(string_text),
         label: crate::syntax::externs::source_name(&e.name.text).to_string(),
         params: Vec::new(),
         ret: Boundary::Plain,
         origin: Some(e.name.span.clone()),
       })
-      .chain(self.effects.bound.iter().map(|b| CExtern {
-        name: b.name.clone(),
-        module: b.module.clone(),
-        export: b.op.clone(),
-        label: format!("{}.{}", b.effect, b.op),
-        params: Vec::new(),
-        ret: Boundary::Plain,
-        origin: Some(b.span.clone()),
+      .chain(self.effects.bound.iter().map(|b| {
+        CExtern {
+          name: b.name.clone(),
+          module: b.module.clone(),
+          export: b.op.clone(),
+          rs: self
+            .effects
+            .native
+            .get(&b.effect)
+            .map(|path| format!("{path}::{}", b.op)),
+          label: format!("{}.{}", b.effect, b.op),
+          params: Vec::new(),
+          ret: Boundary::Plain,
+          origin: Some(b.span.clone()),
+        }
       }))
       .collect()
   }

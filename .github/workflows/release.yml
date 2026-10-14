@@ -33,19 +33,25 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match polar-cli $version" >&2
             exit 1
           fi
-      - run: cargo build --release --locked -p polar-cli --target ${{ matrix.target }}
+      - run: cargo build --release --locked -p polar-cli -p runtime-native --target ${{ matrix.target }}
       - name: Package
         shell: bash
         run: |
           name="polar-${GITHUB_REF_NAME#v}-${{ matrix.target }}"
           mkdir "$name"
-          cp "target/${{ matrix.target }}/release/polar" LICENSE README.md "$name/"
+          cp "target/${{ matrix.target }}/release/polar" "$name/"
+          cp "target/${{ matrix.target }}/release/polar-rt" "$name/"
+          cp LICENSE README.md "$name/"
           tar czf "$name.tar.gz" "$name"
           shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          cp "target/${{ matrix.target }}/release/polar-rt" "polar-rt-${{ matrix.target }}"
+          shasum -a 256 "polar-rt-${{ matrix.target }}" > "polar-rt-${{ matrix.target }}.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: polar-*.tar.gz*
+          path: |
+            polar-*.tar.gz*
+            polar-rt-*
 
   release:
     needs: build

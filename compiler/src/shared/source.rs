@@ -4,7 +4,7 @@ use std::{
   sync::{Arc, OnceLock},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Span {
   pub file: Arc<str>,
   pub start: usize,

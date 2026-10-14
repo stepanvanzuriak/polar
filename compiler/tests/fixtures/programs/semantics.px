@@ -1,0 +1,28 @@
+module Semantics
+
+uses
+  Std.List
+
+functions
+  neg(n: Int) -> Int {
+    0 - n
+  }
+
+  main() -> {} {
+    let seven = 7
+    let big = 9007199254740991
+
+    Log.info("exact: #{big - 1} #{neg(big)}")
+    Log.info("truncating: #{neg(seven) / 2} #{seven / neg(2)} #{seven / 2}")
+    Log.info("remainder: #{neg(seven) % 2} #{seven % neg(2)} #{seven % 2}")
+    Log.info("float_whole: #{1.0} #{Float.to_string(2.0)} #{neg(3) + 0}")
+    Log.info("float_fraction: #{0.1 + 0.2} #{1.5} #{100.0 / 3.0}")
+    Log.info("float_large: #{1000000.0 * 1000000.0} #{1.0e21} #{0.000001}")
+    Log.info("length: #{String.length("héllo🙂")} #{String.length("")}")
+    Log.info("slice: #{String.slice("héllo🙂!", 1, 6)}")
+    Log.info("chars: #{List.length(String.chars("a🙂b"))}")
+    Log.info("equal: #{"é" == "é"} #{1.0 == 1.0}")
+  }
+
+exports
+  main

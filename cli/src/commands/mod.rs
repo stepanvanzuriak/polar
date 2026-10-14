@@ -2,6 +2,7 @@ mod build;
 mod check;
 mod fmt;
 mod init;
+mod native;
 mod packages;
 mod repl;
 mod run;
@@ -15,7 +16,7 @@ pub(crate) use build::{
 };
 
 use crate::{
-  CliError, Command, Ctx,
+  BuildTarget, CliError, Command, Ctx,
   files::{
     Input, decode, module_input, module_specifier, normalize, read_bytes,
     read_source,
@@ -33,6 +34,7 @@ use polar_compiler::{
 };
 use std::{collections::HashMap, io::Write, path::PathBuf, sync::Arc};
 
+#[allow(clippy::too_many_lines, reason = "one arm per command")]
 pub(crate) fn dispatch(
   command: Command,
   ctx: &mut Ctx<'_, '_>,
@@ -40,6 +42,40 @@ pub(crate) fn dispatch(
   let cwd = ctx.io.cwd.clone();
 
   match command {
+    Command::Build { target: BuildTarget::Native, watch: true, .. }
+    | Command::Run { target: BuildTarget::Native, watch: true, .. } => Err(
+      CliError::Message("`--target native` does not support `--watch`".into()),
+    ),
+    Command::Build { target: BuildTarget::Native, emit: Some(_), .. } => Err(
+      CliError::Message("`--target native` does not support `--emit`".into()),
+    ),
+    Command::Build { target: BuildTarget::Js, triple: Some(_), .. }
+    | Command::Build { target: BuildTarget::Js, output: Some(_), .. } => {
+      Err(CliError::Message(
+        "`--triple` and `--output` need `--target native`".into(),
+      ))
+    }
+    Command::Build {
+      paths,
+      out,
+      host,
+      target: BuildTarget::Native,
+      triple,
+      output,
+      ..
+    } => native::build(
+      ctx,
+      &paths,
+      &native::BuildOptions {
+        host: host.as_deref(),
+        triple: triple.as_deref(),
+        out: out.as_deref(),
+        output: output.as_deref(),
+      },
+    ),
+    Command::Run { file, host, args, target: BuildTarget::Native, .. } => {
+      native::run(ctx, file.as_deref(), host.as_deref(), &args)
+    }
     Command::Build { paths, emit: Some(stage), host, .. } => {
       build::emit(ctx, &paths, stage.into(), host.as_deref())
     }
@@ -52,7 +88,7 @@ pub(crate) fn dispatch(
         WatchMode::Build { out: target.out },
       )
     }
-    Command::Build { paths, out, watch: false, emit: None, host } => {
+    Command::Build { paths, out, watch: false, emit: None, host, .. } => {
       build::build(
         ctx,
         &targets(&paths, &cwd, out.as_deref())?,
@@ -71,7 +107,7 @@ pub(crate) fn dispatch(
     Command::Check { paths, out, watch: false } => {
       check::check(ctx, &targets(&paths, &cwd, out.as_deref())?)
     }
-    Command::Run { file, host, args, watch: true, debounce } => {
+    Command::Run { file, host, args, watch: true, debounce, .. } => {
       run_watch::watch(
         ctx,
         file.as_deref(),
@@ -343,6 +379,7 @@ pub(crate) fn compile_source(
   let source_root =
     input.source_root().map(|root| root.to_string_lossy().into_owned());
   let options = CompileOptions {
+    target: polar_compiler::Target::Js,
     runtime,
     modules,
     host: plan.host.clone(),
