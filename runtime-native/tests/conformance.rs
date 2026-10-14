@@ -17,6 +17,23 @@ struct Outcome {
   exit_code: i32,
 }
 
+const TEXT_FILE_BUSY: i32 = 26;
+
+fn when_not_busy<T>(
+  mut start: impl FnMut() -> std::io::Result<T>,
+) -> std::io::Result<T> {
+  for _ in 0..50 {
+    match start() {
+      Err(e) if e.raw_os_error() == Some(TEXT_FILE_BUSY) => {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+      }
+      result => return result,
+    }
+  }
+
+  start()
+}
+
 fn run_native(px: &Path, args: &[&str]) -> Result<Outcome, String> {
   let source = fs::read_to_string(px).map_err(|e| e.to_string())?;
   let name = px.file_name().unwrap().to_string_lossy().into_owned();
@@ -45,11 +62,9 @@ fn run_native(px: &Path, args: &[&str]) -> Result<Outcome, String> {
     fs::set_permissions(&exe, fs::Permissions::from_mode(0o755)).unwrap();
   }
 
-  let output = Command::new(&exe)
-    .args(args)
-    .env_clear()
-    .output()
-    .map_err(|e| e.to_string())?;
+  let output =
+    when_not_busy(|| Command::new(&exe).args(args).env_clear().output())
+      .map_err(|e| e.to_string())?;
 
   Ok(Outcome {
     stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -344,11 +359,13 @@ fn a_native_executable_serves_bridged_effects() {
 
   let port = free_port();
   let _server = Server(
-    Command::new(&exe)
-      .args(["--serve", &port.to_string()])
-      .stderr(std::process::Stdio::null())
-      .spawn()
-      .unwrap(),
+    when_not_busy(|| {
+      Command::new(&exe)
+        .args(["--serve", &port.to_string()])
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    })
+    .unwrap(),
   );
 
   for _ in 0..100 {
