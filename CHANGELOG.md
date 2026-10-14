@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.4.0
+
+### Major changes
+
+#### Native executables
+
+`polar build --target native` writes one file that runs on a machine without Node.
+
+- The executable is a copy of `polar-rt`, a Rust evaluator for the typed program, with the
+  program attached to the end of the file
+- `polar run --target native` builds and runs in one step
+- `--triple <TRIPLE>` picks the platform (the runtime for it is looked up as
+  `polar-rt-<TRIPLE>` in `POLAR_RT_DIR`) and `-o`/`--output <FILE>` names the file
+- `--watch` and `--emit` are not supported with `--target native`
+- The standard library bindings for `Time`, `Url`, `Regex`, `Crypto`, `Fs` and `Process`
+  are built in. `Dom`, the browser host and user-written bindings are not available
+- An executable that serves an effect to browser bundles starts with `--serve <PORT>`, with
+  the same wire format as the Node bridge server
+- The two backends follow one written definition of `Int`, `Float` printing, string length and
+  JSON numbers, and one conformance suite runs on both
+
+#### Workspaces
+
+- A `polar.toml` with `[workspace] members = ["tests/*", "examples/blog"]` and
+  an optional `exclude`. `polar check`, `polar build`, `polar fmt` and `polar test` at the
+  root act on every member. A root with `[workspace]` has no `[project]` or `[package]`
+- `polar test -p <NAME>` picks workspace members by project name, and `-j`/`--jobs <N>` runs
+  members in parallel. The report ends with a `workspace result:` line
+
+#### Testing
+
+- `polar test --format json` prints one JSON object per test and a final result line
+- Tests that expect a compile error: a `// expect-error: POLAR0504 "no action `show`"` line
+  applies to the next line of code, and the file passes when the errors match. Such files are
+  left out of `polar build`, `polar check` and `--watch`
+- `polar test --bless` (or `POLAR_UPDATE=1`) rewrites `expect-error` annotations and snapshots
+  from what actually happened
+- `polar fmt --expect <FILE>` compares formatted output with a golden file, and
+  `polar fmt --check --idempotent` formats twice and fails if the second pass changes anything
+- `[fmt] exclude = ["tests/*/fmt"]` in `polar.toml` leaves paths out of `polar fmt`
+- `test_*` functions in a `*_test.px` file are exported automatically, so `exports` there is
+  optional
+- A test file may define `around_each(run)`; every test in the file runs as `around_each(test)`.
+  It must take one parameter (POLAR0823)
+- A test's stderr is merged into its stdout, so a passing test prints nothing
+
+### Breaking changes
+
+- **`Int` is exact up to ±(2^53 − 1) on every backend.** `+`, `-` and `*` whose result leaves
+  that range are a runtime error (`integer overflow`) instead of a silent rounding, and an
+  integer literal beyond it is a compile error. `/` and `%` by `0` are a runtime error that
+  names the location (`division by zero (src/main.px:4:9)`); `/` on `Float` is still IEEE
+- `polar fmt` skips `X.px` when `X.expected.px` sits next to it, and skips `*.expected.px` itself,
+  unless the file is named on the command line
+
+### Language
+
+- Trait constraints on effect operations: `get(key: String) -> Option<a> where Json<a>`. The
+  `binds` that implements the operation can then use what the trait gives it
+- `Ord` and `Num` are Prelude traits. `where Ord<a>` allows `<`, `<=`, `>` and `>=` on `a`, and
+  `where Num<a>` allows `+`, `-`, `*`, `/`, `%` and unary `-`. `Int`, `Float` and `String`
+  implement `Ord`; `Int` and `Float` implement `Num`. Code on concrete types compiles to the
+  same JavaScript as before
+- Inferred effect rows: `f() -> Response / {..}` keeps the written return type and infers the
+  row from the body, and `/ {.., Async}` adds labels to what is inferred. A signature with `->`
+  and no row is still a promise of purity
+- Module groups in `uses`: `uses Ticket.{Conn, Response}` imports each module under its last
+  name
+- An extern or a `binds` entry can name an implementation per target:
+  `= js "./bindings/Crypto.js" digest_sha256, rs "crypto::sha256"`, and
+  `Random in Native = rs "crypto"`. The plain `"./file.js" name` form still means JavaScript
+- `Native`, a built-in host for the native runtime
+- A missing implementation for the target being built is POLAR0824
+
+### Standard library
+
+- `Std.Test`: `capture` (what `Log` printed meanwhile), `mock` (replace the operations of an
+  effect for the length of a body), `assert_snapshot` and `assert_snapshot_with` (golden files
+  under `snapshots/`), `with_app` and `with_app_env` (serve the project's app on a free port),
+  `send`, `get` and `request` (an HTTP client), and `session`, `go` and `go_follow` (a client
+  that keeps cookies)
+- `Std.Assert.equal_text` fails with a line diff of only the lines that changed
+- New `Std.Algo` with `diff`, a line diff built on the longest common subsequence
+- `Std.Math`: `max`, `min` and `abs` work on `Float` and `String` too, where they have `Ord`
+  and `Num`
+- `Std.List`: `take` and `drop`
+- `Std.Regex`: `captures`
+- `Std.Fs`: `mkdtemp` and `with_temp_dir`
+- `Std.Process`: `scoped_env`, and `spawn`, `wait_for_line` and `stop` for a child process
+- `Std.Json`: numbers are printed with their own text, so `3` stays `3`
+
 ## 0.3.0
 
 ### Breaking changes

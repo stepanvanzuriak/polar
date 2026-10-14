@@ -86,6 +86,27 @@ export function words(text) {
             </p>
           </div>
 
+          <h3 id="per-target">One implementation per target</h3>
+          <p>
+            A program built with <code>--target native</code> doesn't run
+            JavaScript, so an extern can name an implementation for each target.
+            <code>js</code> is the file and export as before, and
+            <code>rs</code> is a built-in Rust function of the native runtime:
+          </p>
+          <pre class="code" data-lang="polar"><code>externs
+  sha256(text: String) -&gt; String
+    = js "./bindings/Crypto.js" digest_sha256,
+      rs "crypto::sha256"</code></pre>
+          <p>
+            The plain <code>"./file.js" name</code> form still means JavaScript.
+            Building for a target an extern has no implementation for is
+            POLAR0824. The <code>rs</code> names are the ones built into
+            <code>polar-rt</code>, so this is for the standard library:
+            user-written native bindings aren't supported yet. An effect gets
+            its native side in a <code>binds</code> zone with
+            <code>Random in Native = rs "crypto"</code>.
+          </p>
+
           <h3 id="sync">Externs are synchronous by default</h3>
           <p>
             An extern called from an ordinary function is a plain, synchronous

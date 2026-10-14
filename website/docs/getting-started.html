@@ -42,8 +42,9 @@
         <article>
           <h1>Getting Started</h1>
           <p class="lead">
-            Polar is a statically typed language that compiles to JavaScript.
-            This page is an overview of the docs and of what you need to start.
+            Polar is a statically typed language for Node, the browser and
+            native executables. This page is an overview of the docs and of what
+            you need to start.
           </p>
 
           <h2 id="what-is-polar">What is Polar?</h2>
@@ -72,13 +73,18 @@
               modules, with source maps and <code>.d.ts</code> files, so it fits
               into existing projects.
             </li>
+            <li>
+              <strong>Or one native file.</strong>
+              <code>polar build --target native</code> writes an executable that
+              runs without Node.
+            </li>
           </ul>
 
           <h2 id="try-polar">Try Polar</h2>
           <p>
             Install the latest release. You need
             <a href="https://nodejs.org/">Node.js</a> to run the JavaScript
-            Polar writes, and
+            Polar writes (native executables don't need it), and
             <a href="https://www.rust-lang.org/tools/install">Rust</a>
             if your project uses zone plugins.
           </p>
@@ -86,8 +92,9 @@
             class="code"
           ><code><span class="pr">$</span> curl -fsSL https://polar-lang.vercel.app/install.sh | sh</code></pre>
           <p>
-            This puts <code>polar</code> in <code>~/.polar/bin</code>. Set
-            <code>POLAR_VERSION=0.3.0</code> to pick a version. To build from
+            This puts <code>polar</code> and <code>polar-rt</code>, the runtime
+            for native executables, in <code>~/.polar/bin</code>. Set
+            <code>POLAR_VERSION=0.4.0</code> to pick a version. To build from
             source instead, you need Rust 1.85 or newer:
           </p>
           <pre

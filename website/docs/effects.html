@@ -176,6 +176,33 @@ effects
             callback.
           </p>
 
+          <h2 id="inferred">Letting Polar infer the row</h2>
+          <p>
+            A function with no return type has both its return type and its
+            effects inferred. When you want to write the return type but not the
+            effects, put <code>..</code> in the row:
+          </p>
+          <pre class="code" data-lang="polar"><code>seed() -> {} / {..} {
+  Db.insert("alice")
+  Db.insert("bob")
+}</code></pre>
+          <p>
+            <code>{..}</code> means "whatever the body uses". Here that is
+            <code>{Db}</code>. Names next to it are added to what is inferred,
+            so <code>{.., Async}</code> is "everything the body uses, and
+            <code>Async</code> too". The return type is still checked. A
+            signature with <code>-&gt;</code> and no <code>/ {…}</code> is still
+            a promise of purity.
+          </p>
+          <p>
+            Callers, other modules and the <code>.d.ts</code> file see the
+            inferred row, never the <code>..</code>. It works in the
+            <code>functions</code> zone only: lambdas, trait methods, externs
+            and effect operations spell their rows out. It also can't be
+            combined with a row variable, so <code>{Db, .. | e}</code> is an
+            error.
+          </p>
+
           <h2 id="all-together">All together</h2>
           <pre class="code" data-lang="polar"><code>module Clock
 

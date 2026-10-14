@@ -163,11 +163,12 @@
             probably shouldn't be easy to print.
           </p>
 
-          <h2 id="prelude">Eq and Show are always there</h2>
+          <h2 id="prelude">Eq, Show, Ord and Num are always there</h2>
           <p>
-            <code>Eq</code> and <code>Show</code> come from the prelude, which
-            every module sees without importing it. The basic types already
-            implement both. To call <code>show</code> yourself, either write
+            <code>Eq</code>, <code>Show</code>, <code>Ord</code> and
+            <code>Num</code> come from the prelude, which every module sees
+            without importing it. The basic types already implement both. To
+            call <code>show</code> yourself, either write
             <code>Prelude.show(x)</code>, or bring the method into scope:
           </p>
           <pre class="code" data-lang="polar"><code>uses
@@ -175,6 +176,34 @@
           <p>
             The braces after a module name import trait methods, so you can call
             them without the module prefix.
+          </p>
+
+          <h3 id="ord-num">Comparing and calculating on a generic type</h3>
+          <p>
+            <code>Ord</code> and <code>Num</code> are what let the operators
+            work on a type variable. <code>where Ord&lt;a&gt;</code> allows
+            <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and
+            <code>&gt;=</code> on <code>a</code>, and
+            <code>where Num&lt;a&gt;</code> allows <code>+</code>,
+            <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code> and
+            unary <code>-</code>:
+          </p>
+          <pre
+            class="code"
+            data-lang="polar"
+          ><code>largest(x: a, y: a) -> a where Ord&lt;a&gt; {
+  if x >= y { x } else { y }
+}</code></pre>
+          <p>
+            <code>Int</code>, <code>Float</code> and
+            <code>String</code> implement <code>Ord</code>, and
+            <code>Int</code> and <code>Float</code> implement <code>Num</code>,
+            so <code>largest(1.5, 2.0)</code> and
+            <code>largest("a", "b")</code> both work.
+            <code>largest(true, false)</code> says <code>Bool</code> has no
+            <code>Ord</code> impl. Without the <code>where</code> clause, the
+            error tells you to add it. Operators on concrete types compile to
+            the same JavaScript as always.
           </p>
 
           <h2 id="all-together">All together</h2>
