@@ -1,0 +1,5 @@
+[project]
+name = "typed_store"
+src = "src"
+out = "dist"
+main = "src/main.px"

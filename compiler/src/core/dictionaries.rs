@@ -104,11 +104,21 @@ pub fn elaborate(
 
   for bind in &mut module.binds {
     for op in &mut bind.ops {
-      pass.current.clear();
+      let count = pass
+        .types
+        .op_schemes
+        .get(&(bind.effect.clone(), op.sym.name.to_string()))
+        .map_or(0, |scheme| scheme.preds.len());
+      let dicts: Vec<Sym> =
+        (0..count).map(|i| pass.syms.fresh(&format!("$d{i}"))).collect();
+
+      pass.current.clone_from(&dicts);
 
       let body = std::mem::replace(&mut op.body, placeholder());
 
       op.body = pass.expr(body);
+      op.params =
+        dicts.into_iter().chain(std::mem::take(&mut op.params)).collect();
     }
   }
 
@@ -194,6 +204,11 @@ impl Elaborator<'_> {
     let constrained = match &e.kind {
       CExprKind::Var(sym) => self.preds.get(&sym.id).is_some_and(|&n| n > 0),
       CExprKind::User { .. } | CExprKind::Std { .. } => true,
+      CExprKind::Op { effect, op } => self
+        .types
+        .op_schemes
+        .get(&(effect.clone(), op.clone()))
+        .is_some_and(|scheme| !scheme.preds.is_empty()),
       _ => false,
     };
 

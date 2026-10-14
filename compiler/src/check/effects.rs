@@ -12,11 +12,12 @@ use crate::{
   core::lower::Resolved,
   shared::codes::DiagnosticCode::{
     BadThrowsType, BridgeNotWireSafe, CatchNeedsType, EffectNotAllowed,
+    UnboundTypeVariable,
   },
   shared::diagnostic::{Diagnostic, Label},
   shared::source::Span,
   shared::text::quoted_list,
-  syntax::ast::{BindDecl, Decl, FnDecl, Pattern, Throw, Try},
+  syntax::ast::{BindDecl, Decl, FnDecl, MethodSig, Pattern, Throw, Try},
   types::{
     generalise::{instantiate, instantiate_open},
     print::{Printer, bare},
@@ -326,18 +327,22 @@ impl<'a> Checker<'a> {
             .collect();
           let ret = self.convert(&sig.return_type);
           let own = self.convert_effects(sig.effects.as_ref());
+          let preds = self.op_preds(sig);
           let count = u32::try_from(self.vars.names.len()).unwrap_or(u32::MAX);
           let mut labels = own.labels;
 
           labels.push(EffectLabel::effect(effect));
           self.vars = saved;
-          self.op_schemes.insert(
-            (effect.clone(), sig.name.text.clone()),
-            Scheme::new(
-              count,
-              Type::func_with(params, ret, Effects::new(labels, own.tail)),
-            ),
+
+          let mut scheme = Scheme::new(
+            count,
+            Type::func_with(params, ret, Effects::new(labels, own.tail)),
           );
+
+          scheme.preds = preds;
+          self
+            .op_schemes
+            .insert((effect.clone(), sig.name.text.clone()), scheme);
         }
       } else {
         for (op, scheme) in &info.schemes {
@@ -371,6 +376,44 @@ impl<'a> Checker<'a> {
     }
   }
 
+  fn op_preds(&mut self, sig: &MethodSig) -> Vec<Pred> {
+    let mut preds = Vec::new();
+
+    for bound in &sig.bounds {
+      let Some(Resolved::Trait(path)) =
+        self.resolutions.get(&bound.trait_name.span).cloned()
+      else {
+        continue;
+      };
+
+      match self.vars.get(&bound.var.text).cloned() {
+        Some(Type::Gen(index)) => {
+          preds.push(Pred {
+            trait_path: self.trait_path(&path),
+            ty: Type::Gen(index),
+          });
+        }
+        _ => self.push(
+          Diagnostic::error(
+            UnboundTypeVariable,
+            format!(
+              "the type variable `{}` is not in the signature",
+              bound.var.text
+            ),
+            Label::new(bound.var.span.clone()),
+          )
+          .with_help(format!(
+            "a `where` can only name a type variable used by a parameter or \
+             the return type, like `x: {}`",
+            bound.var.text
+          )),
+        ),
+      }
+    }
+
+    preds
+  }
+
   pub(crate) fn extern_types(&self) -> BTreeMap<String, Type> {
     let own = self
       .extern_schemes
@@ -385,11 +428,22 @@ impl<'a> Checker<'a> {
     own.chain(bound).collect()
   }
 
-  pub(crate) fn operation_type(&mut self, effect: &str, op: &str) -> Type {
+  pub(crate) fn operation_wanting(
+    &mut self,
+    effect: &str,
+    op: &str,
+    key: &Span,
+    blame: &Span,
+  ) -> Type {
     let scheme = self.op_schemes.get(&(effect.to_string(), op.to_string()));
 
     match scheme.cloned() {
-      Some(scheme) => instantiate_open(&mut self.store, &scheme).0,
+      Some(scheme) if scheme.preds.is_empty() => {
+        instantiate_open(&mut self.store, &scheme).0
+      }
+      Some(scheme) => {
+        self.instantiate_wanting(&scheme, key, blame, &format!("{effect}.{op}"))
+      }
       None => self.fresh(),
     }
   }
@@ -610,6 +664,14 @@ impl<'a> Checker<'a> {
     }
 
     self.vars = TypeVars::rigid();
+    self.givens = scheme
+      .preds
+      .iter()
+      .map(|p| Pred {
+        trait_path: p.trait_path.clone(),
+        ty: substitute(&p.ty, &fill),
+      })
+      .collect();
 
     for (param, ty) in op.params.iter().zip(&params) {
       if let Some(annotation) = &param.ty {
@@ -636,6 +698,7 @@ impl<'a> Checker<'a> {
     self.expect(&ret, &body, blame);
     self.store.leave_level();
     self.solve_closed(start);
+    self.givens.clear();
     self.vars = TypeVars::flexible();
 
     let row = self.store.zonk_effects(&row);

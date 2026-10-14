@@ -694,6 +694,8 @@ impl Parser<'_> {
       (self.invalid_type(), None)
     };
 
+    let bounds = if what == "effect" { self.bounds() } else { Vec::new() };
+
     MethodSig {
       span: self.span_from(&name.span),
       docs,
@@ -701,6 +703,7 @@ impl Parser<'_> {
       params,
       return_type,
       effects,
+      bounds,
     }
   }
 

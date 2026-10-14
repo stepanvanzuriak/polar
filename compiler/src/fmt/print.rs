@@ -562,6 +562,7 @@ impl Printer<'_> {
       name(&m.name),
       self.params(m.as_node(), &m.params),
       self.signature_tail(Some(&m.return_type), m.effects.as_ref()),
+      group(self.bounds(&m.bounds)),
     ]);
 
     self.wrap(m.as_node(), doc)
