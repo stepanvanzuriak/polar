@@ -411,6 +411,7 @@ pub struct EffectRow {
   pub span: Span,
   pub entries: Vec<TypeRef>,
   pub tail: Option<Name>,
+  pub inferred: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -847,7 +848,7 @@ ast! {
     FnType      { span, params, ret, effects }
     RecordType  { span, fields, tail }
     FieldType   { span, name, ty }
-    EffectRow   { span, entries, tail }
+    EffectRow   { span, entries, tail, inferred }
     InvalidType { span }
     IntLit       { span, raw }
     FloatLit     { span, raw }

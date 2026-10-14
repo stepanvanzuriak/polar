@@ -297,6 +297,7 @@ mod ast {
             args: vec![],
           }],
           tail: None,
+          inferred: false,
         }),
         body: placeholder(src.at("{}", 0)),
       })],
@@ -309,7 +310,7 @@ mod ast {
   (Zone functions 0..32
     (FnDecl f 12..32
       (TypeRef Int 19..22)
-      (EffectRow 23..29
+      (EffectRow inferred=false 23..29
         (TypeRef Db 26..28))
       (Block 30..32
         (InvalidExpr 30..32)))))
@@ -513,6 +514,7 @@ exports
           args: vec![],
         }],
         tail: Some(src.name("eff", 0)),
+        inferred: false,
       }),
       body: placeholder(src.at("{}", 0)),
     })
@@ -660,7 +662,7 @@ exports
         (TypeRef Int))
       (Param flag)
       (TypeRef Bool)
-      (EffectRow eff
+      (EffectRow eff inferred=false
         (TypeRef Db))
       (Block
         (InvalidExpr)))

@@ -121,7 +121,7 @@ mod types {
   fn fn_type_with_effects() {
     check_type(
       "function(Int) -> Bool / {Db}",
-      &sexp!(FnType (TypeRef Int) (TypeRef Bool) (EffectRow (TypeRef Db))),
+      &sexp!(FnType (TypeRef Int) (TypeRef Bool) (EffectRow inferred=false (TypeRef Db))),
     );
   }
 
@@ -131,7 +131,7 @@ mod types {
       "function(A) -> function(B) -> C / {E}",
       &sexp!(FnType
         (TypeRef A)
-        (FnType (TypeRef B) (TypeRef C) (EffectRow (TypeRef E)))),
+        (FnType (TypeRef B) (TypeRef C) (EffectRow inferred=false (TypeRef E)))),
     );
   }
 
@@ -150,7 +150,7 @@ mod types {
 
       assert_eq!(
         dump_node_shape(row.as_node()),
-        sexp!(EffectRow (TypeRef E)),
+        sexp!(EffectRow inferred=false (TypeRef E)),
         "the row is left for the enclosing type or signature"
       );
     });
@@ -183,19 +183,19 @@ mod effect_rows {
 
   #[test]
   fn empty_effect_row() {
-    assert!(check_row("/ {}", &sexp!(EffectRow)).is_empty());
+    assert!(check_row("/ {}", &sexp!(EffectRow inferred=false)).is_empty());
   }
 
   #[test]
   fn effect_tail() {
     assert!(
-      check_row("/ {Db | e}", &sexp!(EffectRow e (TypeRef Db))).is_empty()
+      check_row("/ {Db | e}", &sexp!(EffectRow e inferred=false (TypeRef Db))).is_empty()
     );
   }
 
   #[test]
   fn lowercase_effect_without_bar() {
-    let diagnostics = check_row("/ {Db, e}", &sexp!(EffectRow e (TypeRef Db)));
+    let diagnostics = check_row("/ {Db, e}", &sexp!(EffectRow e inferred=false (TypeRef Db)));
 
     assert_eq!(codes(&diagnostics), ["POLAR0205@7..8"]);
     assert_eq!(

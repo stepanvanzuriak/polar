@@ -15,7 +15,7 @@ schema
     done   Bool
 
 functions
-  main() -> {} / {Todos, Users} {
+  main() -> {} / {..} {
     let ada = Accounts.register("Ada", "ada@example.com")
     let first = Todos.insert({ title: "write the schema plugin", done: false })
     let second = Todos.insert({ title: "ship it", done: false })

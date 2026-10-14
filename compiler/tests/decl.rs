@@ -518,7 +518,7 @@ mod functions {
         (Zone functions
           (FnDecl f
             (TypeRef Int)
-            (EffectRow (TypeRef Db))
+            (EffectRow inferred=false (TypeRef Db))
             (Block (IntLit raw="0")))))
     );
 
@@ -572,7 +572,7 @@ create_post(body: NewPost) -> Post / {Db, Auth, Throws<Invalid>} {
           (FnDecl create_post
             (Param body (TypeRef NewPost))
             (TypeRef Post)
-            (EffectRow
+            (EffectRow inferred=false
               (TypeRef Db)
               (TypeRef Auth)
               (TypeRef Throws (TypeRef Invalid)))

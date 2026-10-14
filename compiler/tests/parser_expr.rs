@@ -495,7 +495,7 @@ mod prefix {
       &sexp!(Lambda
         (Param x (TypeRef Int))
         (TypeRef Int)
-        (EffectRow (TypeRef Db))
+        (EffectRow inferred=false (TypeRef Db))
         (Block (Var x))),
     );
   }

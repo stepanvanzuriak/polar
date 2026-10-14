@@ -305,7 +305,7 @@ fn parses_effect() {
     ast_shape(
       "module M\n\neffects\n  Storage in DOM { get(key: String) -> String / {Throws<Missing>} }\n"
     ),
-    "(Module M\n  (Zone effects\n    (EffectDecl native=false Storage DOM\n      (MethodSig get\n        (Param key\n          (TypeRef String))\n        (TypeRef String)\n        (EffectRow\n          (TypeRef Throws\n            (TypeRef Missing)))))))\n"
+    "(Module M\n  (Zone effects\n    (EffectDecl native=false Storage DOM\n      (MethodSig get\n        (Param key\n          (TypeRef String))\n        (TypeRef String)\n        (EffectRow inferred=false\n          (TypeRef Throws\n            (TypeRef Missing)))))))\n"
   );
 }
 

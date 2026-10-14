@@ -145,8 +145,13 @@ fn effect_row(
     args,
   });
 
-  (vec(entry, 0..3), option::of(lower()))
-    .prop_map(|(entries, tail)| EffectRow { span: sp(), entries, tail })
+  (vec(entry, 0..3), option::of(lower()), proptest::bool::ANY).prop_map(
+    |(entries, tail, dots)| {
+      let inferred = dots && tail.is_none();
+
+      EffectRow { span: sp(), entries, tail, inferred }
+    },
+  )
 }
 
 pub fn type_expr() -> BoxedStrategy<TypeExpr> {
