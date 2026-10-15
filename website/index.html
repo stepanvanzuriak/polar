@@ -427,6 +427,15 @@
       .feature p code {
         color: var(--ink);
       }
+      .feature .more {
+        margin: 1rem 0 0;
+      }
+      .feature .more a {
+        color: var(--ink);
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
 
       .code {
         margin: 0;
@@ -777,6 +786,9 @@ export declare function greet(user: User): string;</code></pre>
             a <code>Post</code> or one written inline, and every field access is
             still checked.
           </p>
+          <p class="more">
+            <a href="docs/records.html">Read about records &rarr;</a>
+          </p>
         </div>
         <pre class="code" data-lang="polar"><code>types
   Task = { id: Int, title: String, done: Bool } derive(Eq, Json)
@@ -799,6 +811,9 @@ functions
             nothing else. Functions without effects stay pure, and
             <code>List.map</code> passes its callback's effects through, so
             nothing slips past the checker.
+          </p>
+          <p class="more">
+            <a href="docs/effects.html">Read about effects &rarr;</a>
           </p>
         </div>
         <pre class="code" data-lang="polar"><code>effects
@@ -825,6 +840,9 @@ functions
             lets the browser call an effect that lives in Node, with the same
             types on both ends.
           </p>
+          <p class="more">
+            <a href="docs/hosts.html">Read about hosts &rarr;</a>
+          </p>
         </div>
         <pre class="code" data-lang="polar"><code>hosts
   Browser
@@ -849,6 +867,9 @@ binds
             <code>views</code>, and the code they generate goes through the same
             type checker as yours.
           </p>
+          <p class="more">
+            <a href="docs/zone-plugins.html">Read about zone plugins &rarr;</a>
+          </p>
         </div>
         <pre class="code" data-lang="polar"><code>routes
   GET     /posts      -> index
@@ -872,6 +893,9 @@ views
             browser project. The build folder runs on its own with
             <code>node dist/start.mjs</code>.
           </p>
+          <p class="more">
+            <a href="docs/cli.html">Read about the CLI &rarr;</a>
+          </p>
         </div>
         <pre
           class="code"
@@ -886,18 +910,18 @@ main.js  main.js.map  main.d.ts  start.mjs
 
     <section id="install" class="depths">
       <div class="wrap">
-        <h2>Build from source</h2>
+        <h2>Install</h2>
         <p>
-          Polar needs Rust 1.85 or newer and Node.js. The
-          <a href="docs/getting-started.html">docs</a> cover the language,
+          Polar installs as a single binary and needs Node.js to run programs.
+          The <a href="docs/getting-started.html">docs</a> cover the language,
           projects, packages and the standard library.
         </p>
         <pre
           class="code"
           data-lang="polar"
-        ><code><span class="pr">$</span> curl -fsSL https://polar-lang.vercel.app/install.sh | sh
-<span class="pr">$</span> polar run hello.px</code></pre>
+        ><code><span class="pr">$</span> curl -fsSL https://polar-lang.vercel.app/install.sh | sh</code></pre>
 
+        <p>Save this as <code>hello.px</code>:</p>
         <pre class="code" data-lang="polar"><code>module Main
 
 functions
@@ -907,6 +931,17 @@ functions
 
 exports
   main</code></pre>
+
+        <p>Then run it:</p>
+        <pre
+          class="code"
+          data-lang="polar"
+        ><code><span class="pr">$</span> polar run hello.px</code></pre>
+
+        <p>
+          To build from source you need Rust 1.85 or newer; see the
+          <a href="https://github.com/stepanvanzuriak/polar#polar">README</a>.
+        </p>
 
         <footer class="foot">
           <span>Polar is released under the MIT license.</span>
