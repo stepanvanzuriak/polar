@@ -11,7 +11,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%%-*}"
+          awk -v v="$version" '$0 == "## " v {found=1; next} /^## / {found=0} found' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "CHANGELOG.md has no section '## $version' for tag $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
   build:
+    needs: notes
     strategy:
       matrix:
         include:
@@ -57,10 +73,21 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%%-*}"
+          awk -v v="$version" '$0 == "## " v {found=1; next} /^## / {found=0} found' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "CHANGELOG.md has no section '## $version' for tag $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,4 +95,4 @@ jobs:
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" --generate-notes $flags
+            --title "$GITHUB_REF_NAME" --notes-file notes.md $flags
