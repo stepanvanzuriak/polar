@@ -87,6 +87,11 @@ impl Value {
   }
 
   #[must_use]
+  pub fn maybe_str(s: Option<impl AsRef<str>>) -> Self {
+    s.map_or_else(Self::none, |s| Self::some(Self::str(s)))
+  }
+
+  #[must_use]
   pub fn ok(value: Value) -> Self {
     Self::variant("Ok", vec![value])
   }

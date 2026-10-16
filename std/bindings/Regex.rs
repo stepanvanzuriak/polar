@@ -14,40 +14,7 @@ thread_local! {
 const NEWLINES: &str = "\\n\\r\\u{2028}\\u{2029}";
 const SPACE: &str = " \\t\\n\\u{b}\\u{c}\\r\\u{a0}\\u{1680}\\u{2000}-\\u{200a}\\u{2028}\\u{2029}\\u{202f}\\u{205f}\\u{3000}\\u{feff}";
 
-fn portable(pattern: &str) -> Result<(), String> {
-  let mut chars = pattern.chars().peekable();
-  let mut in_class = false;
-
-  while let Some(c) = chars.next() {
-    match c {
-      '\\' => {
-        let Some(next) = chars.next() else { continue };
-
-        if !in_class && (next.is_ascii_digit() && next != '0' || next == 'k') {
-          return Err("back-references are not supported".to_string());
-        }
-      }
-      '[' => in_class = true,
-      ']' => in_class = false,
-      '(' if !in_class && chars.peek() == Some(&'?') => {
-        let rest: String = chars.clone().skip(1).take(2).collect();
-
-        if rest.starts_with('=')
-          || rest.starts_with('!')
-          || rest == "<="
-          || rest == "<!"
-        {
-          return Err("look-around is not supported".to_string());
-        }
-      }
-      _ => {}
-    }
-  }
-
-  Ok(())
-}
-
-fn translate(pattern: &str) -> String {
+fn translate(pattern: &str) -> Result<String, String> {
   let mut out = String::new();
   let mut chars = pattern.chars().peekable();
   let mut in_class = false;
@@ -61,6 +28,9 @@ fn translate(pattern: &str) -> String {
         };
 
         match (next, in_class) {
+          ('1'..='9' | 'k', false) => {
+            return Err("back-references are not supported".to_string());
+          }
           ('d', false) => out.push_str("[0-9]"),
           ('D', false) => out.push_str("[^0-9]"),
           ('w', false) => out.push_str("[0-9A-Za-z_]"),
@@ -86,19 +56,32 @@ fn translate(pattern: &str) -> String {
         in_class = false;
         out.push(']');
       }
+      '(' if !in_class && chars.peek() == Some(&'?') => {
+        let rest: String = chars.clone().skip(1).take(2).collect();
+
+        if rest.starts_with(['=', '!']) || rest == "<=" || rest == "<!" {
+          return Err("look-around is not supported".to_string());
+        }
+
+        out.push('(');
+      }
       '.' if !in_class => out.push_str(&format!("[^{NEWLINES}]")),
       c => out.push(c),
     }
   }
 
-  out
+  Ok(out)
 }
 
 fn build(pattern: &str) -> Result<Regex, String> {
-  portable(pattern)?;
-
-  Regex::new(&translate(pattern)).map_err(|e| {
-    e.to_string().lines().last().unwrap_or("invalid pattern").trim().to_string()
+  Regex::new(&translate(pattern)?).map_err(|e| {
+    e.to_string()
+      .lines()
+      .rev()
+      .map(str::trim)
+      .find(|line| !line.is_empty())
+      .unwrap_or("invalid pattern")
+      .to_string()
   })
 }
 
@@ -113,14 +96,7 @@ fn compiled(pattern: &str) -> Option<Regex> {
 }
 
 pub fn syntax_error(_: &mut Interp, a: &[Value]) -> R {
-  Ok(match build(text(a, 0)?) {
-    Ok(_) => Value::none(),
-    Err(message) => Value::some(Value::str(if message.is_empty() {
-      "invalid pattern".to_string()
-    } else {
-      message
-    })),
-  })
+  Ok(Value::maybe_str(build(text(a, 0)?).err()))
 }
 
 pub fn matches(_: &mut Interp, a: &[Value]) -> R {
@@ -134,7 +110,7 @@ pub fn first_match(_: &mut Interp, a: &[Value]) -> R {
   let found = compiled(pattern)
     .and_then(|re| re.find(input).map(|m| m.as_str().to_string()));
 
-  Ok(found.map_or_else(Value::none, |m| Value::some(Value::str(m))))
+  Ok(Value::maybe_str(found))
 }
 
 pub fn all_matches(_: &mut Interp, a: &[Value]) -> R {

@@ -132,6 +132,47 @@ pub struct TestFn {
 
 pub use codegen::hosts::choose_host;
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TestFile {
+  pub module: Option<String>,
+  pub hosts: Vec<String>,
+  pub tests: Vec<TestFn>,
+  pub each: bool,
+}
+
+/// What a test file declares, read from its syntax alone: its module name,
+/// the hosts in its `hosts` zone and its tests.
+#[must_use]
+pub fn test_file(source: &str, filename: &str, plugins: &[String]) -> TestFile {
+  syntax::plugins::within(plugins, || {
+    let file = SourceFile::new(filename, source);
+    let mut bag = DiagnosticBag::default();
+    let lexed = syntax::lexer::lex(&file, &mut bag);
+    let mut module = syntax::parser::parse(&file, &lexed, &mut bag);
+
+    testing::auto_export(&mut module, filename);
+
+    let testing::Checked { tests, each } =
+      testing::check(&module, &file, &mut bag);
+    let hosts = module
+      .zones
+      .iter()
+      .flat_map(|z| &z.decls)
+      .filter_map(|d| match d {
+        syntax::ast::Decl::Host(h) => Some(h.name.text.clone()),
+        _ => None,
+      })
+      .collect();
+
+    TestFile {
+      module: module.name.as_ref().map(|n| n.text.clone()),
+      hosts,
+      tests,
+      each,
+    }
+  })
+}
+
 #[must_use]
 pub fn compile(
   source: &str,
@@ -340,10 +381,16 @@ pub fn compile_native(
 
     let out = if let Some(name) = path.strip_prefix("Std.") {
       let Some(std) = stdlib::module(name) else { continue };
-      let std_options = CompileOptions {
+      let mut std_options = CompileOptions {
         target: Target::Native,
         ..stdlib::compile_options(name, &options.runtime)
       };
+
+      if let Some(host) = host.as_ref().filter(|h| {
+        stdlib::interface(name).is_some_and(|i| i.hosts.contains(h))
+      }) {
+        std_options.host = HostOption::Fixed(Some(host.clone()));
+      }
 
       compile_core(std.source, &stdlib::filename(name), &std_options)
     } else {

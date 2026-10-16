@@ -3,7 +3,6 @@ module Test
 uses
   Std.Algo
   Std.Assert
-  Std.Fs
   Std.Http
   Std.Json
   Std.List
@@ -15,6 +14,8 @@ uses
 
 hosts
   Node
+  Browser
+  Native
 
 types
   Captured<a> = { output: String, value: a }
@@ -63,28 +64,34 @@ effects
 
 externs
   guard(run: function() -> {} / {| e}, timeout_ms: Int) -> Outcome / {Async | e}
-    = "./bindings/Test.js" guard
-  compare_snapshot(name: String, text: String, dir: String, update: Bool) -> Verdict / {
-    Fs,
-  }
-    = "./bindings/Test.js" compare_snapshot
+    = js "./bindings/Test.js" guard,
+      rs "test::guard"
+  compare_snapshot(name: String, text: String, dir: String) -> Verdict / {Async}
+    = js "./bindings/Test.js" compare_snapshot,
+      rs "test::compare_snapshot"
   capture_raw(run: function() -> a / {| e}) -> Captured<a> / {Async | e}
-    = "./bindings/Test.js" capture
-  clock() -> Float = "./bindings/Test.js" clock
-  finish() -> {} = "./bindings/Test.js" finish
-  serve_app(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {Async | e}
+    = js "./bindings/Test.js" capture,
+      rs "test::capture"
+  clock() -> Float
+    = js "./bindings/Test.js" clock,
+      rs "test::clock"
+  finish() -> {}
+    = js "./bindings/Test.js" finish,
+      rs "test::finish"
+  serve_app(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {Async, Net | e}
     = "./bindings/Test.js" with_app
-  run_browser(app: App, export_name: String) -> List<String> / {Async}
+  run_browser(app: App, export_name: String) -> List<String> / {Async, Net}
     = "./bindings/Test.js" run_browser
   mock_effect(name: String, ops: o, body: function() -> a / {| e}) -> a / {Async | e}
-    = "./bindings/Test.js" mock
-  log(app: App) -> List<String> / {Mut} = "./bindings/Test.js" log
+    = js "./bindings/Test.js" mock,
+      rs "test::mock"
+  log(app: App) -> List<String> / {Mut, Net} = "./bindings/Test.js" log
 
 binds
   Net in Node = "./bindings/Test.js"
 
 functions
-  assert_snapshot(name: String, text: String) -> {} / {Fs, Process, Throws<Failed>} {
+  assert_snapshot(name: String, text: String) -> {} / {Async, Throws<Failed>} {
     assert_snapshot_with(name, text, function(s) { s })
   }
 
@@ -92,15 +99,10 @@ functions
     name: String,
     text: String,
     normalise: function(String) -> String,
-  ) -> {} / {Fs, Process, Throws<Failed>} {
-    let update = match Process.env("POLAR_UPDATE") {
-      Some(value) -> value != "" && value != "0",
-      None -> false,
-    }
-
+  ) -> {} / {Async, Throws<Failed>} {
     let actual = normalise(text)
 
-    match compare_snapshot(name, actual, "snapshots", update) {
+    match compare_snapshot(name, actual, "snapshots") {
       Match -> {},
       Created -> {},
       Missing(path) -> throw Failed(
@@ -145,11 +147,15 @@ functions
     mock_effect(name, ops, body)
   }
 
-  with_app(body: function(App) -> a / {| e}) -> a / {Async | e} {
+  with_app(body: function(App) -> a / {| e}) -> a / {Async, Net | e} {
     serve_app([], body)
   }
 
-  with_app_env(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {Async | e} {
+  with_app_env(env: List<EnvVar>, body: function(App) -> a / {| e}) -> a / {
+    Async,
+    Net,
+    | e
+  } {
     serve_app(env, body)
   }
 
@@ -409,6 +415,7 @@ exports
   Visit
   App
   Node
+  Native
   Net
   run_all
   request_options

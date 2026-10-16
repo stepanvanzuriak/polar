@@ -1,11 +1,18 @@
 use crate::{
-  builtins::number,
+  builtins::{arg, number},
   interp::{Control, Interp, R},
   value::Value,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DAY: f64 = 86_400_000.0;
+const DAY: i64 = 86_400_000;
+const MAX_MS: f64 = 8.64e15;
+const PARTS: [&str; 7] =
+  ["year", "month", "day", "hour", "minute", "second", "milli"];
+
+fn parts(values: [f64; 7]) -> Value {
+  Value::record(PARTS.into_iter().zip(values.map(Value::Num)).collect())
+}
 
 pub fn now(_: &mut Interp, _: &[Value]) -> R {
   let ms = SystemTime::now()
@@ -45,42 +52,31 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
 pub fn to_parts(_: &mut Interp, a: &[Value]) -> R {
   let ms = number(a, 0)?;
 
-  if !ms.is_finite() || ms.abs() > 8.64e15 {
-    let nan = || Value::Num(f64::NAN);
-
-    return Ok(Value::record(vec![
-      ("year", nan()),
-      ("month", nan()),
-      ("day", nan()),
-      ("hour", nan()),
-      ("minute", nan()),
-      ("second", nan()),
-      ("milli", nan()),
-    ]));
+  if !ms.is_finite() || ms.abs() > MAX_MS {
+    return Ok(parts([f64::NAN; 7]));
   }
 
   let ms = ms.trunc() as i64;
-  let days = ms.div_euclid(86_400_000);
-  let rest = ms.rem_euclid(86_400_000);
-  let (y, m, d) = civil_from_days(days);
-  let n = |v: i64| Value::Num(v as f64);
+  let rest = ms.rem_euclid(DAY);
+  let (y, m, d) = civil_from_days(ms.div_euclid(DAY));
 
-  Ok(Value::record(vec![
-    ("year", n(y)),
-    ("month", n(m)),
-    ("day", n(d)),
-    ("hour", n(rest / 3_600_000)),
-    ("minute", n(rest / 60_000 % 60)),
-    ("second", n(rest / 1000 % 60)),
-    ("milli", n(rest % 1000)),
-  ]))
+  Ok(parts(
+    [
+      y,
+      m,
+      d,
+      rest / 3_600_000,
+      rest / 60_000 % 60,
+      rest / 1000 % 60,
+      rest % 1000,
+    ]
+    .map(|v| v as f64),
+  ))
 }
 
 #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 pub fn from_parts(_: &mut Interp, a: &[Value]) -> R {
-  let Some(parts) = a.first() else {
-    return Err(Control::fail("from_parts needs the parts record"));
-  };
+  let parts = arg(a, 0)?;
   let get = |name: &str| {
     parts
       .field(name)
@@ -102,11 +98,11 @@ pub fn from_parts(_: &mut Interp, a: &[Value]) -> R {
   let y = year.trunc() as i64 + month0.div_euclid(12);
   let m = month0.rem_euclid(12) + 1;
   let days = days_from_civil(y, m, 1) as f64 + day.trunc() - 1.0;
-  let ms = days * DAY
+  let ms = days * DAY as f64
     + hour.trunc() * 3_600_000.0
     + minute.trunc() * 60_000.0
     + second.trunc() * 1000.0
     + milli.trunc();
 
-  Ok(Value::Num(if ms.abs() > 8.64e15 { f64::NAN } else { ms + 0.0 }))
+  Ok(Value::Num(if ms.abs() > MAX_MS { f64::NAN } else { ms + 0.0 }))
 }

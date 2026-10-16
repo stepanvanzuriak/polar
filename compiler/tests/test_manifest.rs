@@ -41,3 +41,18 @@ fn only_test_files_have_tests() {
   assert!(out.tests.is_empty());
   assert!(out.diagnostics.is_empty());
 }
+
+#[test]
+fn test_file_lists_its_hosts() {
+  let source = "module PageTest\n\nhosts\n  Browser\n\nfunctions\n  test_ok() {\n    {}\n  }\n";
+  let file = polar_compiler::test_file(source, "src/page_test.px", &[]);
+
+  assert_eq!(file.hosts, ["Browser"]);
+  assert_eq!(file.module.as_deref(), Some("PageTest"));
+  assert_eq!(file.tests.len(), 1);
+
+  let file = polar_compiler::test_file(SOURCE, "src/money_test.px", &[]);
+
+  assert!(file.hosts.is_empty());
+  assert_eq!(file.tests.len(), 2);
+}

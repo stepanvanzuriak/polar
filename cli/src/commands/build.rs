@@ -41,12 +41,18 @@ pub(crate) fn build(
 }
 
 #[allow(clippy::too_many_lines)]
+pub(crate) struct Tests<'a> {
+  pub root: &'a Path,
+  pub skip: &'a [PathBuf],
+}
+
+#[allow(clippy::too_many_lines)]
 pub(crate) fn build_into(
   ctx: &mut Ctx<'_, '_>,
   targets: &[Target],
   host: Option<&str>,
   announce: bool,
-  manifest_root: Option<&Path>,
+  tests: Option<&Tests<'_>>,
 ) -> Result<Option<Vec<Written>>, CliError> {
   let start = Instant::now();
   let mut built = Vec::new();
@@ -64,8 +70,8 @@ pub(crate) fn build_into(
       &target.paths,
       &ctx.io.cwd,
     );
-    let inputs = if manifest_root.is_some() {
-      inputs
+    let inputs = if let Some(tests) = tests {
+      inputs.into_iter().filter(|i| !tests.skip.contains(&i.path)).collect()
     } else {
       without_tests(inputs, &target.paths, &ctx.io.cwd)
     };
@@ -131,8 +137,8 @@ pub(crate) fn build_into(
 
     write_bridges(&out_dir, compiled)?;
 
-    if let Some(root) = manifest_root {
-      entry.tests = write_test_manifest(ctx, &out_dir, root, compiled)?;
+    if let Some(tests) = tests {
+      entry.tests = write_test_manifest(ctx, &out_dir, tests.root, compiled)?;
     }
 
     if !announce {

@@ -14,7 +14,7 @@ use std::{
   process::Command,
 };
 
-fn runtime_binary(
+pub(crate) fn runtime_binary(
   ctx: &Ctx<'_, '_>,
   triple: Option<&str>,
 ) -> Result<PathBuf, CliError> {
@@ -66,15 +66,26 @@ fn compile(
     ));
   };
   let source = read_source(input)?;
-  let (modules, _) = super::read_imports(input, &source.text)?;
+  let host = host.map_or(HostOption::Auto, |h| HostOption::Flag(h.to_string()));
+
+  compile_source(ctx, input, &source.text, host)
+}
+
+pub(crate) fn compile_source(
+  ctx: &mut Ctx<'_, '_>,
+  input: &crate::files::Input,
+  text: &str,
+  host: HostOption,
+) -> Result<Option<polar_compiler::core::serial::Bundle>, CliError> {
+  let (modules, _) = super::read_imports(input, text)?;
   let options = CompileOptions {
     modules,
-    host: host.map_or(HostOption::Auto, |h| HostOption::Flag(h.to_string())),
+    host,
     plugins: input.plugins(),
     ..CompileOptions::default()
   };
   let out = guard(&input.display, || {
-    polar_compiler::compile_native(&source.text, &input.display, &options)
+    polar_compiler::compile_native(text, &input.display, &options)
   })
   .map_err(CliError::Ice)?;
 
@@ -83,7 +94,7 @@ fn compile(
   }
 
   let mut files =
-    vec![SourceFile::new(input.display.clone(), source.text.clone())];
+    vec![SourceFile::new(input.display.clone(), text.to_string())];
 
   for module in &options.modules {
     files.push(SourceFile::new(module.filename(), module.source.clone()));
@@ -132,7 +143,7 @@ fn compile(
   Ok(out.bundle)
 }
 
-fn write_executable(
+pub(crate) fn write_executable(
   runtime: &Path,
   bundle: &polar_compiler::core::serial::Bundle,
   output: &Path,

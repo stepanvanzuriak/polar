@@ -1,0 +1,16 @@
+module MainTest
+
+uses
+  Main
+  Std.Test
+
+hosts
+  Browser
+  Node
+
+functions
+  test_main_output() -> {} / {..} {
+    let ran = Test.capture(function() { Main.main() })
+
+    Test.assert_snapshot("main", ran.output)
+  }

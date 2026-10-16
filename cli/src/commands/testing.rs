@@ -1,11 +1,13 @@
 use super::{
-  Plan, TestCase, build::Written, build_into, compile_source, render,
-  write_output, write_std,
+  Plan, TestCase,
+  build::{Tests, Written},
+  build_into, compile_source, render, write_output, write_std,
 };
 use crate::{
   CliError, Ctx,
   files::{
-    Input, Source, discover, normalize, runtime_specifier, write_atomic,
+    Input, Source, discover, normalize, relative_path, runtime_specifier,
+    write_atomic,
   },
   project::{self, Contexts, Target},
   runtime::LAUNCHER_JS,
@@ -59,6 +61,31 @@ pub(crate) fn test(
   one(ctx, path, options)
 }
 
+const NATIVE: &str = "Native";
+
+struct TestFile {
+  input: Input,
+  hosts: Vec<Option<String>>,
+  file: polar_compiler::TestFile,
+}
+
+enum Build {
+  Js(Written),
+  Native,
+}
+
+struct Group {
+  host: Option<String>,
+  build: Build,
+  found: usize,
+  cases: Vec<Case>,
+}
+
+enum Runner {
+  Node(PathBuf),
+  Native(PathBuf),
+}
+
 #[allow(clippy::too_many_lines)]
 fn one(
   ctx: &mut Ctx<'_, '_>,
@@ -78,46 +105,92 @@ fn one(
     return Err(project::library(&project.name));
   }
 
-  let node = super::run::needs_node(ctx)?;
   let root = normalize(&cwd.join(&project.dir));
-  let out = root.join(crate::plugin::DIR).join("test").join("dist");
+  let default = default_host(&project.hosts);
+  let files = test_files(ctx, &project, default.as_ref())?;
+  let mut hosts: Vec<Option<String>> = vec![default.clone()];
 
-  match fs::remove_dir_all(&out) {
-    Err(e) if e.kind() != ErrorKind::NotFound => {
-      return Err(CliError::write(out.display().to_string(), &e));
+  for file in &files {
+    for host in &file.hosts {
+      if !hosts.contains(host) {
+        hosts.push(host.clone());
+      }
     }
-    _ => {}
   }
 
-  let target = Target {
-    paths: vec![project.src.clone()],
-    out,
-    project: Some(project.name.clone()),
-    hosts: project.hosts.clone(),
-    library: false,
-    start: None,
-    fmt_exclude: Vec::new(),
-  };
-  let host = (!project.hosts.is_empty()).then_some("Node");
   let browser = (project.hosts.iter().any(|h| h == "Browser")
     && project.hosts.iter().any(|h| h == "Node")
     && mentions_browser(&normalize(&cwd.join(&project.src))))
   .then(|| root.join(crate::plugin::DIR).join("test").join("browser"));
-  let Some(written) = build_into(ctx, &[target], host, false, Some(&root))?
-  else {
-    return Ok(1);
-  };
-  let Some(built) = written.first() else {
-    return Ok(1);
-  };
+  let wanted =
+    |name: &str| options.filter.is_none_or(|text| name.contains(text));
+  let multi: Vec<String> = files
+    .iter()
+    .filter(|f| f.hosts.len() > 1)
+    .map(|f| relative_path(&root, &normalize(&cwd.join(&f.input.path))))
+    .collect();
+  let mut groups = Vec::new();
+
+  for host in hosts {
+    let mine: Vec<&TestFile> =
+      files.iter().filter(|f| f.hosts.contains(&host)).collect();
+
+    if host.as_deref() == Some(NATIVE) {
+      if mine.is_empty() {
+        continue;
+      }
+
+      let tests: Vec<TestCase> =
+        mine.iter().flat_map(|f| native_cases(ctx, &root, f)).collect();
+      let cases: Vec<Case> = tests
+        .iter()
+        .map(|t| labelled(t, host.as_deref(), &multi))
+        .filter(|c| wanted(&c.name))
+        .collect();
+
+      groups.push(Group {
+        host,
+        found: tests.len(),
+        cases,
+        build: Build::Native,
+      });
+      continue;
+    }
+
+    let out = if host == default {
+      root.join(crate::plugin::DIR).join("test").join("dist")
+    } else {
+      let name = host.as_deref().unwrap_or_default();
+
+      root.join(crate::plugin::DIR).join("test").join("host").join(name)
+    };
+    let skip: Vec<PathBuf> = files
+      .iter()
+      .filter(|f| !f.hosts.contains(&host))
+      .map(|f| f.input.path.clone())
+      .collect();
+    let Some(built) =
+      build_group(ctx, &project, &root, &out, host.as_deref(), &skip)?
+    else {
+      return Ok(1);
+    };
+    let cases: Vec<Case> = built
+      .tests
+      .iter()
+      .map(|t| labelled(t, host.as_deref(), &multi))
+      .filter(|c| wanted(&c.name))
+      .collect();
+
+    groups.push(Group {
+      host,
+      found: built.tests.len(),
+      cases,
+      build: Build::Js(built),
+    });
+  }
 
   if let Some(dir) = &browser {
-    match fs::remove_dir_all(dir) {
-      Err(e) if e.kind() != ErrorKind::NotFound => {
-        return Err(CliError::write(dir.display().to_string(), &e));
-      }
-      _ => {}
-    }
+    remove_dir(dir)?;
 
     let target = Target {
       paths: vec![project.src.clone()],
@@ -135,26 +208,20 @@ fn one(
   }
 
   let failing = failing_files(ctx, &project)?;
-  let wanted =
-    |name: &str| options.filter.is_none_or(|text| name.contains(text));
   let chosen: Vec<&Failing> =
     failing.iter().filter(|f| wanted(&f.name)).collect();
+  let found: usize = groups.iter().map(|g| g.found).sum();
 
-  if built.tests.is_empty() && failing.is_empty() && !options.json {
+  if found == 0 && failing.is_empty() && !options.json {
     let _ =
       writeln!(ctx.io.out, "no tests found (looked for *_test.px under src)");
   }
 
-  let cases: Vec<Case> = built
-    .tests
-    .iter()
-    .map(Case::from)
-    .filter(|case| options.filter.is_none_or(|text| case.name.contains(text)))
-    .collect();
+  let cases: Vec<&Case> = groups.iter().flat_map(|g| &g.cases).collect();
   let mut report = Report {
     color: ctx.color && ctx.io.stdout_is_tty,
     timeout: options.timeout,
-    filtered: built.tests.len() - cases.len() + failing.len() - chosen.len(),
+    filtered: found - cases.len() + failing.len() - chosen.len(),
     json: options.json,
     places: cases
       .iter()
@@ -170,15 +237,46 @@ fn one(
   }
 
   let total = cases.len() + chosen.len();
-  let main = if cases.is_empty() {
-    None
-  } else {
-    let src = normalize(&cwd.join(&project.src));
+  let src = normalize(&cwd.join(&project.src));
+  let mut runners = Vec::new();
 
-    match compile_main(ctx, &src, built, &cases, options.timeout)? {
-      Some(main) => Some(main),
+  for group in &groups {
+    if group.cases.is_empty() {
+      continue;
+    }
+
+    let runner = match &group.build {
+      Build::Js(built) => {
+        compile_main(ctx, &src, built, &group.cases, options.timeout)?
+          .map(Runner::Node)
+      }
+      Build::Native => {
+        let dir = root.join(crate::plugin::DIR).join("test").join("host");
+        let skip: Vec<&Path> = files
+          .iter()
+          .filter(|f| !f.hosts.contains(&group.host))
+          .map(|f| f.input.path.as_path())
+          .collect();
+
+        if !native_sources_compile(ctx, &project, &skip)? {
+          return Ok(1);
+        }
+
+        compile_native_main(ctx, &src, &dir, &group.cases, options.timeout)?
+          .map(Runner::Native)
+      }
+    };
+
+    match runner {
+      Some(runner) => runners.push((group, runner)),
       None => return Ok(1),
     }
+  }
+
+  let node = if runners.iter().any(|(_, r)| matches!(r, Runner::Node(_))) {
+    Some(super::run::needs_node(ctx)?)
+  } else {
+    None
   };
 
   Report::running(ctx, options.json, total);
@@ -190,23 +288,223 @@ fn one(
     report.ended(ctx, ran);
   }
 
-  if let Some(main) = main {
-    let entry = project
-      .start()
-      .map_or_else(|| PathBuf::from("main.js"), |start| start.main);
+  let entry = project
+    .start()
+    .map_or_else(|| PathBuf::from("main.js"), |start| start.main);
 
-    run(
-      ctx,
-      &node,
-      &main,
-      options.args,
-      &cases,
-      &Env { browser: browser.as_deref(), main: &entry },
-      &mut report,
-    )?;
+  for (group, runner) in runners {
+    let mut command = match (&runner, &node) {
+      (Runner::Node(main), Some(node)) => {
+        let mut command = Command::new(node);
+        let dir = main.parent().unwrap_or(Path::new("."));
+
+        command.env("POLAR_TEST_MAIN", &entry);
+
+        if let Some(browser) =
+          browser.as_deref().filter(|_| group.host == default)
+        {
+          command.env("POLAR_TEST_BROWSER_DIST", browser);
+        }
+
+        command
+          .arg("--enable-source-maps")
+          .args(options.args)
+          .arg(launcher(dir))
+          .arg(main)
+          .arg(format!("{MAIN}.px"));
+        command
+      }
+      (Runner::Native(exe), _) | (Runner::Node(exe), None) => Command::new(exe),
+    };
+
+    if let Some(host) = &group.host {
+      command.env("POLAR_TEST_HOST", host);
+    }
+
+    if let Some(update) = (ctx.io.env)("POLAR_UPDATE") {
+      command.env("POLAR_UPDATE", update);
+    }
+
+    command.current_dir(&ctx.io.cwd);
+    run(ctx, &mut command, &group.cases, &mut report)?;
   }
 
   Ok(report.finish(ctx, total))
+}
+
+fn labelled(test: &TestCase, host: Option<&str>, multi: &[String]) -> Case {
+  let mut case = Case::from(test);
+
+  if let Some(host) = host.filter(|_| multi.contains(&case.file)) {
+    case.name = format!("{} ({host})", case.name);
+  }
+
+  case
+}
+
+fn default_host(hosts: &[String]) -> Option<String> {
+  match hosts {
+    [] => None,
+    _ if hosts.iter().any(|h| h == "Node") => Some("Node".to_string()),
+    [first, ..] => Some(first.clone()),
+  }
+}
+
+fn native_cases(
+  ctx: &Ctx<'_, '_>,
+  root: &Path,
+  file: &TestFile,
+) -> Vec<TestCase> {
+  let shown =
+    relative_path(root, &normalize(&ctx.io.cwd.join(&file.input.path)));
+
+  file
+    .file
+    .tests
+    .iter()
+    .map(|test| TestCase {
+      file: shown.clone(),
+      output: file.input.output.clone(),
+      module: file.file.module.clone(),
+      name: test.name.clone(),
+      line: test.line,
+      each: file.file.each,
+    })
+    .collect()
+}
+
+fn native_sources_compile(
+  ctx: &mut Ctx<'_, '_>,
+  project: &project::Project,
+  skip: &[&Path],
+) -> Result<bool, CliError> {
+  let inputs = discover(
+    std::slice::from_ref(&project.src),
+    &ctx.io.cwd,
+    Some(&project.out),
+  )?;
+  let host = polar_compiler::HostOption::Fixed(Some(NATIVE.to_string()));
+  let mut ok = true;
+
+  for input in inputs.iter().filter(|i| !skip.contains(&i.path.as_path())) {
+    let text = fs::read_to_string(&input.path)
+      .map_err(|e| CliError::read(&input.display, &e))?;
+
+    ok &=
+      super::native::compile_source(ctx, input, &text, host.clone())?.is_some();
+  }
+
+  Ok(ok)
+}
+
+fn compile_native_main(
+  ctx: &mut Ctx<'_, '_>,
+  src: &Path,
+  dir: &Path,
+  cases: &[Case],
+  timeout: u64,
+) -> Result<Option<PathBuf>, CliError> {
+  let path = src.join(format!("{MAIN}.px"));
+  let package = Contexts::default().of(&path, &ctx.io.cwd)?;
+  let input = Input {
+    display: format!("{MAIN}.px"),
+    path,
+    output: PathBuf::from(MAIN),
+    package,
+  };
+  let text = generate(cases, Some(NATIVE), timeout);
+  let host = polar_compiler::HostOption::Fixed(Some(NATIVE.to_string()));
+  let Some(bundle) = super::native::compile_source(ctx, &input, &text, host)?
+  else {
+    return Ok(None);
+  };
+  let runtime = super::native::runtime_binary(ctx, None)?;
+  let exe =
+    dir.join(NATIVE).join(if cfg!(windows) { "tests.exe" } else { "tests" });
+
+  super::native::write_executable(&runtime, &bundle, &exe)?;
+
+  Ok(Some(exe))
+}
+
+fn remove_dir(dir: &Path) -> Result<(), CliError> {
+  match fs::remove_dir_all(dir) {
+    Err(e) if e.kind() != ErrorKind::NotFound => {
+      Err(CliError::write(dir.display().to_string(), &e))
+    }
+    _ => Ok(()),
+  }
+}
+
+fn build_group(
+  ctx: &mut Ctx<'_, '_>,
+  project: &project::Project,
+  root: &Path,
+  out: &Path,
+  host: Option<&str>,
+  skip: &[PathBuf],
+) -> Result<Option<Written>, CliError> {
+  remove_dir(out)?;
+
+  let target = Target {
+    paths: vec![project.src.clone()],
+    out: out.to_path_buf(),
+    project: Some(project.name.clone()),
+    hosts: project.hosts.clone(),
+    library: false,
+    start: None,
+    fmt_exclude: Vec::new(),
+  };
+  let tests = Tests { root, skip };
+
+  Ok(
+    build_into(ctx, &[target], host, false, Some(&tests))?
+      .and_then(|written| written.into_iter().next()),
+  )
+}
+
+fn test_files(
+  ctx: &Ctx<'_, '_>,
+  project: &project::Project,
+  default: Option<&String>,
+) -> Result<Vec<TestFile>, CliError> {
+  let inputs = discover(
+    std::slice::from_ref(&project.src),
+    &ctx.io.cwd,
+    Some(&project.out),
+  )?;
+  let mut out = Vec::new();
+
+  for input in inputs {
+    if !input.path.to_string_lossy().ends_with("_test.px") {
+      continue;
+    }
+
+    let text = fs::read_to_string(&input.path)
+      .map_err(|e| CliError::read(&input.display, &e))?;
+    let file =
+      polar_compiler::test_file(&text, &input.display, &input.plugins());
+    let hosts: Vec<Option<String>> = if file.hosts.is_empty() {
+      vec![default.cloned()]
+    } else {
+      file.hosts.iter().cloned().map(Some).collect()
+    };
+
+    for host in hosts.iter().flatten() {
+      if !project.hosts.is_empty() && !project.hosts.contains(host) {
+        return Err(CliError::Message(format!(
+          "`{}` runs its tests on `{host}`, which is not in the project's \
+           `hosts` ({})",
+          input.display,
+          project.hosts.join(", ")
+        )));
+      }
+    }
+
+    out.push(TestFile { input, hosts, file });
+  }
+
+  Ok(out)
 }
 
 fn diagnostic_text(
@@ -361,11 +659,6 @@ fn mentions_browser(dir: &Path) -> bool {
   })
 }
 
-struct Env<'a> {
-  browser: Option<&'a Path>,
-  main: &'a Path,
-}
-
 struct Case {
   name: String,
   file: String,
@@ -396,7 +689,7 @@ impl From<&TestCase> for Case {
   }
 }
 
-fn misnamed(ctx: &mut Ctx<'_, '_>, cases: &[Case]) -> bool {
+fn misnamed(ctx: &mut Ctx<'_, '_>, cases: &[&Case]) -> bool {
   let mut seen: Vec<&str> = Vec::new();
 
   for case in cases {
@@ -552,37 +845,18 @@ struct Ran {
 
 fn run(
   ctx: &mut Ctx<'_, '_>,
-  node: &Path,
-  main: &Path,
-  args: &[String],
+  command: &mut Command,
   cases: &[Case],
-  env: &Env<'_>,
   report: &mut Report,
 ) -> Result<(), CliError> {
-  let dir = main.parent().unwrap_or(Path::new("."));
+  let program = command.get_program().to_string_lossy().into_owned();
 
   crate::watch::on_ctrl_c(|| {});
 
-  let mut command = Command::new(node);
-
-  command.env("POLAR_TEST_MAIN", env.main);
-
-  if let Some(browser) = env.browser {
-    command.env("POLAR_TEST_BROWSER_DIST", browser);
-  }
-
   let mut child = command
-    .arg("--enable-source-maps")
-    .args(args)
-    .arg(launcher(dir))
-    .arg(main)
-    .arg(format!("{MAIN}.px"))
-    .current_dir(&ctx.io.cwd)
     .stdout(Stdio::piped())
     .spawn()
-    .map_err(|e| {
-      CliError::Message(format!("cannot run {}: {e}", node.display()))
-    })?;
+    .map_err(|e| CliError::Message(format!("cannot run {program}: {e}")))?;
   let Some(stdout) = child.stdout.take() else {
     return Err(CliError::Message("cannot read the test output".to_string()));
   };
@@ -625,9 +899,9 @@ fn run(
     }
   }
 
-  let status = child.wait().map_err(|e| {
-    CliError::Message(format!("cannot run {}: {e}", node.display()))
-  })?;
+  let status = child
+    .wait()
+    .map_err(|e| CliError::Message(format!("cannot run {program}: {e}")))?;
 
   if let Some((name, output)) = current.take() {
     report.ended(ctx, unfinished(name, output, Some(status)));

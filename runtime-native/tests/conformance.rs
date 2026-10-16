@@ -227,12 +227,24 @@ fn run_project(dir: &Path) -> Result<String, String> {
   }
 }
 
+fn own_bindings(dir: &Path) -> bool {
+  fs::read_dir(dir).into_iter().flatten().flatten().any(|entry| {
+    let path = entry.path();
+
+    if path.is_dir() {
+      own_bindings(&path)
+    } else {
+      path.extension().is_some_and(|e| e == "js")
+    }
+  })
+}
+
 #[test]
 fn every_project_matches_on_native() {
   let mut projects: Vec<PathBuf> = fs::read_dir(repo().join("projects"))
     .unwrap()
     .map(|e| e.unwrap().path())
-    .filter(|p| p.join("main.expected.txt").is_file())
+    .filter(|p| p.join("snapshots/main.txt").is_file())
     .collect();
 
   projects.sort();
@@ -242,12 +254,14 @@ fn every_project_matches_on_native() {
   for dir in &projects {
     let name = dir.file_name().unwrap().to_string_lossy().into_owned();
 
-    if let Some(reason) = sidecar_reason(&dir.join("main.targets")) {
-      eprintln!("skipped on native: project {name} ({reason})");
+    if own_bindings(&dir.join("src")) {
+      eprintln!(
+        "skipped on native: project {name} (it has its own JavaScript bindings)"
+      );
       continue;
     }
 
-    let expected = fs::read_to_string(dir.join("main.expected.txt")).unwrap();
+    let expected = fs::read_to_string(dir.join("snapshots/main.txt")).unwrap();
 
     match run_project(dir) {
       Ok(stdout) if stdout == expected => {}
@@ -258,6 +272,7 @@ fn every_project_matches_on_native() {
     }
   }
 
+  assert!(projects.len() >= 3);
   assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
