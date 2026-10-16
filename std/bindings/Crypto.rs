@@ -12,20 +12,20 @@ fn to_hex(bytes: &[u8]) -> String {
   bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn from_hex(s: &str) -> Vec<u8> {
-  let bytes = s.as_bytes();
-  let mut out = Vec::new();
-
-  for pair in bytes.chunks_exact(2) {
-    let digit = |b: u8| char::from(b).to_digit(16);
-
-    match (digit(pair[0]), digit(pair[1])) {
-      (Some(h), Some(l)) => out.push(u8::try_from(h * 16 + l).unwrap_or(0)),
-      _ => break,
-    }
+fn digit(b: u8) -> Option<u8> {
+  match b {
+    b'0'..=b'9' => Some(b - b'0'),
+    b'a'..=b'f' => Some(b - b'a' + 10),
+    b'A'..=b'F' => Some(b - b'A' + 10),
+    _ => None,
   }
+}
 
-  out
+fn from_hex(s: &str) -> Vec<u8> {
+  s.as_bytes()
+    .chunks_exact(2)
+    .map_while(|pair| Some(digit(pair[0])? * 16 + digit(pair[1])?))
+    .collect()
 }
 
 pub fn bytes(_: &mut Interp, a: &[Value]) -> R {
@@ -63,28 +63,14 @@ pub fn base64url(_: &mut Interp, a: &[Value]) -> R {
 }
 
 pub fn from_base64url(_: &mut Interp, a: &[Value]) -> R {
-  let s = text(a, 0)?;
-  let valid =
-    s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+  let decoded = URL_SAFE_NO_PAD
+    .decode(text(a, 0)?)
+    .ok()
+    .and_then(|raw| String::from_utf8(raw).ok());
 
-  if !valid || s.len() % 4 == 1 {
-    return Ok(Value::none());
-  }
-
-  let Ok(raw) = URL_SAFE_NO_PAD.decode(s) else {
-    return Ok(Value::none());
-  };
-
-  if URL_SAFE_NO_PAD.encode(&raw) != s {
-    return Ok(Value::none());
-  }
-
-  Ok(match String::from_utf8(raw) {
-    Ok(decoded) => Value::some(Value::str(
-      decoded.strip_prefix('\u{feff}').unwrap_or(&decoded),
-    )),
-    Err(_) => Value::none(),
-  })
+  Ok(Value::maybe_str(
+    decoded.as_deref().map(|d| d.strip_prefix('\u{feff}').unwrap_or(d)),
+  ))
 }
 
 fn derive(a: &[Value]) -> Result<String, Control> {
@@ -107,5 +93,5 @@ pub fn scrypt(_: &mut Interp, a: &[Value]) -> R {
 }
 
 pub fn try_scrypt(_: &mut Interp, a: &[Value]) -> R {
-  Ok(derive(a).map_or_else(|_| Value::none(), |h| Value::some(Value::str(h))))
+  Ok(Value::maybe_str(derive(a).ok()))
 }

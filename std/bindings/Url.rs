@@ -3,6 +3,7 @@ use crate::{
   interp::{Interp, R},
   value::Value,
 };
+use std::fmt::Write;
 
 fn unreserved(b: u8) -> bool {
   b.is_ascii_alphanumeric() || b"-_.!~*'()".contains(&b)
@@ -15,7 +16,7 @@ pub fn encode(_: &mut Interp, a: &[Value]) -> R {
     if unreserved(b) {
       out.push(char::from(b));
     } else {
-      out.push_str(&format!("%{b:02X}"));
+      let _ = write!(out, "%{b:02X}");
     }
   }
 
@@ -23,7 +24,12 @@ pub fn encode(_: &mut Interp, a: &[Value]) -> R {
 }
 
 fn hex(b: u8) -> Option<u8> {
-  char::from(b).to_digit(16).map(|d| u8::try_from(d).unwrap_or(0))
+  match b {
+    b'0'..=b'9' => Some(b - b'0'),
+    b'a'..=b'f' => Some(b - b'a' + 10),
+    b'A'..=b'F' => Some(b - b'A' + 10),
+    _ => None,
+  }
 }
 
 fn decoded(s: &str) -> Option<String> {

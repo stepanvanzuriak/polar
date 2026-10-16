@@ -6,26 +6,23 @@ use crate::{
 use std::{
   fs,
   io::{self, Write},
-  path::Path,
 };
+use tempfile::TempDir;
+use walkdir::WalkDir;
 
 fn code_of(e: &io::Error) -> (&'static str, &'static str) {
-  match e.raw_os_error() {
-    Some(1) => ("EPERM", "operation not permitted"),
-    Some(2) => ("ENOENT", "no such file or directory"),
-    Some(13) => ("EACCES", "permission denied"),
-    Some(17) => ("EEXIST", "file already exists"),
-    Some(20) => ("ENOTDIR", "not a directory"),
-    Some(21) => ("EISDIR", "illegal operation on a directory"),
-    Some(22) => ("EINVAL", "invalid argument"),
-    Some(28) => ("ENOSPC", "no space left on device"),
-    Some(39) => ("ENOTEMPTY", "directory not empty"),
-    _ => match e.kind() {
-      io::ErrorKind::NotFound => ("ENOENT", "no such file or directory"),
-      io::ErrorKind::PermissionDenied => ("EACCES", "permission denied"),
-      io::ErrorKind::AlreadyExists => ("EEXIST", "file already exists"),
-      _ => ("EUNKNOWN", "unknown error"),
-    },
+  match e.kind() {
+    io::ErrorKind::NotFound => ("ENOENT", "no such file or directory"),
+    io::ErrorKind::PermissionDenied => ("EACCES", "permission denied"),
+    io::ErrorKind::AlreadyExists => ("EEXIST", "file already exists"),
+    io::ErrorKind::NotADirectory => ("ENOTDIR", "not a directory"),
+    io::ErrorKind::IsADirectory => {
+      ("EISDIR", "illegal operation on a directory")
+    }
+    io::ErrorKind::InvalidInput => ("EINVAL", "invalid argument"),
+    io::ErrorKind::StorageFull => ("ENOSPC", "no space left on device"),
+    io::ErrorKind::DirectoryNotEmpty => ("ENOTEMPTY", "directory not empty"),
+    _ => ("EUNKNOWN", "unknown error"),
   }
 }
 
@@ -54,13 +51,10 @@ fn attempt<T>(
   })
 }
 
-fn sorted(mut names: Vec<String>) -> Vec<String> {
+fn strings(mut names: Vec<String>) -> Value {
   names.sort_by_key(|n| n.encode_utf16().collect::<Vec<u16>>());
-  names
-}
 
-fn strings(names: Vec<String>) -> Value {
-  Value::list(sorted(names).into_iter().map(Value::str).collect())
+  Value::list(names.into_iter().map(Value::str).collect())
 }
 
 pub fn read(_: &mut Interp, a: &[Value]) -> R {
@@ -114,33 +108,28 @@ pub fn list(_: &mut Interp, a: &[Value]) -> R {
   attempt(names(path), "scandir", path, strings)
 }
 
-fn files(root: &Path, prefix: &str, out: &mut Vec<String>) -> io::Result<()> {
-  let dir =
-    if prefix.is_empty() { root.to_path_buf() } else { root.join(prefix) };
-
-  for entry in fs::read_dir(dir)? {
-    let entry = entry?;
-    let name = entry.file_name().to_string_lossy().into_owned();
-    let relative =
-      if prefix.is_empty() { name } else { format!("{prefix}/{name}") };
-
-    if entry.file_type()?.is_dir() {
-      files(root, &relative, out)?;
-    } else {
-      out.push(relative);
-    }
+fn files(root: &str) -> io::Result<Vec<String>> {
+  if !fs::metadata(root)?.is_dir() {
+    return Err(io::ErrorKind::NotADirectory.into());
   }
 
-  Ok(())
+  WalkDir::new(root)
+    .min_depth(1)
+    .into_iter()
+    .filter(|entry| !entry.as_ref().is_ok_and(|e| e.file_type().is_dir()))
+    .map(|entry| {
+      let entry = entry?;
+      let relative = entry.path().strip_prefix(root).unwrap_or(entry.path());
+
+      Ok(relative.to_string_lossy().replace('\\', "/"))
+    })
+    .collect()
 }
 
 pub fn walk(_: &mut Interp, a: &[Value]) -> R {
   let path = text(a, 0)?;
-  let mut out = Vec::new();
 
-  attempt(files(Path::new(path), "", &mut out), "scandir", path, |()| {
-    strings(out)
-  })
+  attempt(files(path), "scandir", path, strings)
 }
 
 pub fn remove(_: &mut Interp, a: &[Value]) -> R {
@@ -169,28 +158,22 @@ pub fn remove_all(_: &mut Interp, a: &[Value]) -> R {
   attempt(result, "rm", path, |()| Value::unit())
 }
 
-fn temp(prefix: &str) -> io::Result<String> {
-  let dir = tempfile::Builder::new()
-    .prefix(prefix)
-    .tempdir_in(std::env::temp_dir())?
-    .keep();
-
-  Ok(dir.to_string_lossy().into_owned())
+fn temp(prefix: &str) -> io::Result<TempDir> {
+  tempfile::Builder::new().prefix(prefix).tempdir()
 }
 
 pub fn mkdtemp(_: &mut Interp, a: &[Value]) -> R {
   let prefix = text(a, 0)?;
 
-  attempt(temp(prefix), "mkdtemp", prefix, Value::str)
+  attempt(temp(prefix), "mkdtemp", prefix, |dir| {
+    Value::str(dir.keep().to_string_lossy())
+  })
 }
 
 pub fn with_temp_dir(it: &mut Interp, a: &[Value]) -> R {
-  let prefix = text(a, 0)?;
-  let dir = temp(prefix).map_err(|e| {
+  let dir = temp(text(a, 0)?).map_err(|e| {
     Control::fail(format!("cannot create a temporary directory: {e}"))
   })?;
-  let result = it.apply(arg(a, 1)?, vec![Value::str(&dir)]);
-  let _ = fs::remove_dir_all(&dir);
 
-  result
+  it.apply(arg(a, 1)?, vec![Value::str(dir.path().to_string_lossy())])
 }

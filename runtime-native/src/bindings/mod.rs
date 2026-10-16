@@ -1,8 +1,16 @@
+#[path = "../../../std/bindings/Crypto.rs"]
 mod crypto;
+#[path = "../../../std/bindings/Fs.rs"]
 mod fs;
+#[path = "../../../std/bindings/Process.rs"]
 mod process;
+#[path = "../../../std/bindings/Regex.rs"]
 mod regex;
+#[path = "../../../std/bindings/Test.rs"]
+mod test;
+#[path = "../../../std/bindings/Time.rs"]
 mod time;
+#[path = "../../../std/bindings/Url.rs"]
 mod url;
 
 use crate::value::NativeFn;
@@ -48,6 +56,12 @@ pub fn lookup(key: &str) -> Option<NativeFn> {
     "process::run" => process::run,
     "process::output" => process::output,
     "process::scoped_env" => process::scoped_env,
+    "test::capture" => test::capture,
+    "test::guard" => test::guard,
+    "test::compare_snapshot" => test::compare_snapshot,
+    "test::clock" => test::clock,
+    "test::finish" => test::finish,
+    "test::mock" => test::mock,
     _ => return None,
   })
 }

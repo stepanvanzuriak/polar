@@ -2,9 +2,7 @@ module BridgeTest
 
 uses
   Std.Assert
-  Std.Fs
   Std.List
-  Std.Process
   Std.Test
 
 hosts
@@ -13,8 +11,7 @@ hosts
 functions
   test_browser_calls_the_server_through_the_bridge() -> {} / {
     Async,
-    Fs,
-    Process,
+    Net,
     Throws<Failed>,
   } {
     Test.with_app(

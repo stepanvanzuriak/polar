@@ -7,6 +7,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const TIMEOUT = Symbol("timeout");
 
+if (process.env.POLAR_TEST_HOST === "Browser" && globalThis.document === undefined) {
+  globalThis.document = fakeDocument({ push: (line) => console.log(line) });
+}
+
 export async function capture(run) {
   const lines = [];
   const { log, error } = console;
@@ -244,8 +248,12 @@ function restore(saved) {
 }
 
 
-export async function compare_snapshot(name, text, dir, update) {
-  const path = join(process.cwd(), dir, `${name}.txt`);
+export async function compare_snapshot(name, text, dir) {
+  const update = !["", "0", undefined].includes(process.env.POLAR_UPDATE);
+  const host = process.env.POLAR_TEST_HOST;
+  const shared = join(process.cwd(), dir, `${name}.txt`);
+  const own = host ? join(process.cwd(), dir, `${name}.${host}.txt`) : null;
+  const path = own && existsSync(own) ? own : shared;
   const shown = relative(process.cwd(), path);
   let expected = null;
 

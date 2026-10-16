@@ -448,7 +448,8 @@ fn node_project_with_hosts() {
   let ran = polar(dir.path(), &["test"]);
 
   assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
-  assert!(ran.out.contains("::test_args ... ok"), "{}", ran.out);
+  assert!(ran.out.contains("::test_args (Node) ... ok"), "{}", ran.out);
+  assert!(ran.out.contains("::test_args (Browser) ... ok"), "{}", ran.out);
 }
 
 #[test]
@@ -807,4 +808,218 @@ exports
   let ran = polar(dir.path(), &["test"]);
 
   assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+}
+
+const HOSTS: &str =
+  "[project]\nname = \"t\"\nhosts = [\"Browser\", \"Node\"]\n";
+
+const PAGE: &str = r#"module Page
+
+uses
+  Std.Dom
+  Std.Time
+
+hosts
+  Browser
+  Node
+
+effects
+  Where {
+    name() -> String
+  }
+
+binds
+  Where in Browser {
+    name() {
+      "browser"
+    }
+  }
+
+  Where in Node {
+    name() {
+      "node"
+    }
+  }
+
+functions
+  greet() -> {} / {Dom, Where} {
+    Dom.append_text("p", "hello from #{Where.name()}")
+  }
+
+  place() -> String / {Where} {
+    Where.name()
+  }
+
+exports
+  greet
+  place
+  Where
+"#;
+
+fn browser_test(module: &str) -> String {
+  format!(
+    r#"module {module}
+
+uses
+  Page
+  Std.Assert
+  Std.Test
+
+hosts
+  Browser
+
+functions
+  test_dom() -> {{}} / {{..}} {{
+    let ran = Test.capture(function() {{ Page.greet() }})
+
+    Assert.equal(ran.output, "p: hello from browser\n")
+  }}
+"#
+  )
+}
+
+const NODE_TEST: &str = r#"module NodeTest
+
+uses
+  Page
+  Std.Assert
+
+functions
+  test_place() -> {} / {Where, Throws<Failed>} {
+    Assert.equal(Page.place(), "node")
+  }
+"#;
+
+#[test]
+fn browser_test_host_runs_dom_code() {
+  let dir = project(
+    HOSTS,
+    &[("src/page.px", PAGE), ("src/dom_test.px", &browser_test("DomTest"))],
+  );
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+  assert!(ran.out.contains("test dom_test::test_dom ... ok"), "{}", ran.out);
+  assert!(dir.path().join(".polar/test/host/Browser/dom_test.js").is_file());
+  assert!(!dir.path().join(".polar/test/dist/dom_test.js").exists());
+}
+
+#[test]
+fn test_hosts_share_one_report() {
+  let dir = project(
+    HOSTS,
+    &[
+      ("src/page.px", PAGE),
+      ("src/dom_test.px", &browser_test("DomTest")),
+      ("src/node_test.px", NODE_TEST),
+    ],
+  );
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+  assert!(ran.out.contains("running 2 tests"), "{}", ran.out);
+  assert!(ran.out.contains("test node_test::test_place ... ok"), "{}", ran.out);
+  assert!(ran.out.contains("2 passed; 0 failed"), "{}", ran.out);
+}
+
+#[test]
+fn snapshot_prefers_the_host_file() {
+  let test = r#"module SnapTest
+
+uses
+  Std.Test
+
+hosts
+  Browser
+
+functions
+  test_snap() -> {} / {..} {
+    Test.assert_snapshot("out", "browser\n")
+  }
+"#;
+  let dir = project(
+    HOSTS,
+    &[
+      ("src/page.px", PAGE),
+      ("src/snap_test.px", test),
+      ("snapshots/out.txt", "shared\n"),
+      ("snapshots/out.Browser.txt", "browser\n"),
+    ],
+  );
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+
+  fs::remove_file(dir.path().join("snapshots/out.Browser.txt")).unwrap();
+
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1), "{}", ran.out);
+  assert!(ran.out.contains("snapshots/out.txt differs"), "{}", ran.out);
+}
+
+#[test]
+fn test_host_outside_the_project_hosts() {
+  let dir = project(
+    "[project]\nname = \"t\"\nhosts = [\"Node\"]\n",
+    &[("src/page.px", PAGE), ("src/dom_test.px", &browser_test("DomTest"))],
+  );
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(1));
+  assert!(
+    ran.err.contains("runs its tests on `Browser`, which is not in"),
+    "{}",
+    ran.err
+  );
+}
+
+#[test]
+fn multi_host_file_runs_on_each_host() {
+  let test = r#"module PlaceTest
+
+uses
+  Page
+  Std.Test
+
+hosts
+  Browser
+  Node
+
+functions
+  test_place() -> {} / {..} {
+    Test.assert_snapshot("place", Page.place())
+  }
+"#;
+  let dir = project(
+    HOSTS,
+    &[
+      ("src/page.px", PAGE),
+      ("src/place_test.px", test),
+      ("snapshots/place.Browser.txt", "browser"),
+      ("snapshots/place.Node.txt", "node"),
+    ],
+  );
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+  assert!(ran.out.contains("running 2 tests"), "{}", ran.out);
+  assert!(
+    ran.out.contains("place_test::test_place (Node) ... ok"),
+    "{}",
+    ran.out
+  );
+  assert!(
+    ran.out.contains("place_test::test_place (Browser) ... ok"),
+    "{}",
+    ran.out
+  );
+
+  let ran = polar(dir.path(), &["test", "--filter", "(Browser)"]);
+
+  assert!(
+    ran.out.contains("1 passed; 0 failed; 1 filtered out"),
+    "{}",
+    ran.out
+  );
 }

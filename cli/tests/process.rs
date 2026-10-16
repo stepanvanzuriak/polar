@@ -496,71 +496,43 @@ fn std_is_formatted() {
   );
 }
 
+fn workspace_members(root: &Path) -> Vec<String> {
+  let text = fs::read_to_string(root.join("polar.toml")).unwrap();
+  let config: toml::Table = text.parse().unwrap();
+
+  config["workspace"]["members"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .filter_map(|m| m.as_str().map(str::to_string))
+    .collect()
+}
+
 #[test]
 fn projects_run() {
-  let root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));
+  let root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../projects"));
+  let members = workspace_members(root);
   let mut checked = 0;
 
-  for entry in fs::read_dir(root.join("projects")).unwrap() {
+  for entry in fs::read_dir(root).unwrap() {
     let dir = entry.unwrap().path();
-
+    let name = dir.file_name().unwrap().to_string_lossy().into_owned();
     let manifest =
       fs::read_to_string(dir.join("polar.toml")).unwrap_or_default();
 
-    if !manifest.contains("[project]") || dir.join("snapshots").is_dir() {
+    if !manifest.contains("[project]") || members.contains(&name) {
       continue;
     }
 
-    let mut runs: Vec<(Option<String>, PathBuf)> = fs::read_dir(&dir)
-      .unwrap()
-      .filter_map(|entry| {
-        let path = entry.ok()?.path();
-        let file = path.file_name()?.to_str()?;
-        let host = file.strip_prefix("main.")?.strip_suffix(".expected.txt")?;
+    let tmp = tempfile::tempdir().unwrap();
+    let out = polar(&dir, tmp.path(), &["run"], &[]);
 
-        Some((Some(host.to_string()), path.clone()))
-      })
-      .collect();
-
-    if runs.is_empty() {
-      let shared = dir.join("main.expected.txt");
-      let hosts = project_hosts(&dir);
-
-      if hosts.is_empty() {
-        runs.push((None, shared));
-      } else {
-        runs.extend(hosts.into_iter().map(|h| (Some(h), shared.clone())));
-      }
-    }
-
-    for (host, expected) in runs {
-      let mut args = vec!["run"];
-
-      if let Some(host) = &host {
-        args.extend(["--host", host.as_str()]);
-      }
-
-      let tmp = tempfile::tempdir().unwrap();
-      let storage = tmp.path().join("storage.json");
-      let out = polar(
-        &dir,
-        tmp.path(),
-        &args,
-        &[("POLAR_STORAGE_FILE", storage.to_str().unwrap())],
-      );
-      let name = format!("{} {host:?}", dir.display());
-
-      assert_eq!(
-        out.status.code(),
-        Some(0),
-        "{name}: {}",
-        String::from_utf8_lossy(&out.stderr)
-      );
-
-      if let Ok(expected) = fs::read_to_string(expected) {
-        assert_eq!(String::from_utf8_lossy(&out.stdout), expected, "{name}");
-      }
-    }
+    assert_eq!(
+      out.status.code(),
+      Some(0),
+      "{name}: {}",
+      String::from_utf8_lossy(&out.stderr)
+    );
 
     checked += 1;
   }
@@ -733,20 +705,6 @@ fn bridge_posts_browser_bundle_holds_no_server_code() {
   assert!(browser.join("_polar/std/bindings/Dom.js").is_file());
   assert!(!dir.join("dist/Node/_polar/std/Dom.js").exists());
   assert!(!dir.join("dist/Node/_polar/std/bindings").exists());
-}
-
-fn project_hosts(dir: &Path) -> Vec<String> {
-  let text = fs::read_to_string(dir.join("polar.toml")).unwrap();
-  let config: toml::Table = text.parse().unwrap();
-
-  config
-    .get("project")
-    .and_then(|p| p.get("hosts"))
-    .and_then(toml::Value::as_array)
-    .into_iter()
-    .flatten()
-    .filter_map(|h| h.as_str().map(str::to_string))
-    .collect()
 }
 
 #[test]
@@ -1536,36 +1494,25 @@ fn projects_pass_polar_test() {
 
   copy_tree(root, work.path());
 
-  let mut checked = 0;
+  let tmp = tempfile::tempdir().unwrap();
+  let ran = polar(work.path(), tmp.path(), &["test"], &[]);
+  let out = String::from_utf8_lossy(&ran.stdout);
 
-  for entry in fs::read_dir(work.path()).unwrap() {
-    let dir = entry.unwrap().path();
+  assert_eq!(
+    ran.status.code(),
+    Some(0),
+    "{out}{}",
+    String::from_utf8_lossy(&ran.stderr)
+  );
 
-    if !dir.join("snapshots").is_dir() {
-      continue;
-    }
-
-    let tmp = tempfile::tempdir().unwrap();
-    let ran = polar(&dir, tmp.path(), &["test"], &[]);
-    let out = String::from_utf8_lossy(&ran.stdout);
-
-    assert_eq!(
-      ran.status.code(),
-      Some(0),
-      "{}: {out}{}",
-      dir.display(),
-      String::from_utf8_lossy(&ran.stderr)
-    );
-    assert!(out.contains("0 failed"), "{out}");
-    checked += 1;
+  for member in workspace_members(root) {
+    assert!(out.contains(&format!("project {member}\n")), "{member}: {out}");
   }
-
-  assert!(checked >= 2);
 }
 
 #[test]
 fn test_mock_replaces_a_bound_operation_and_restores_it() {
-  let src = r##"uses
+  let src = r#"uses
   Std.Process
   Std.Test
 
@@ -1589,7 +1536,7 @@ functions
 
 exports
   main
-"##;
+"#;
   let ran = run(&[("a.px", src)], "a.px", &[]);
 
   assert_eq!(ran.code, Some(0), "{}", ran.err);
@@ -1598,7 +1545,7 @@ exports
 
 #[test]
 fn test_mock_rejects_an_unknown_operation() {
-  let src = r##"uses
+  let src = r#"uses
   Std.Process
   Std.Test
 
@@ -1612,7 +1559,7 @@ functions
 
 exports
   main
-"##;
+"#;
   let ran = run(&[("a.px", src)], "a.px", &[]);
 
   assert_ne!(ran.code, Some(0));
@@ -1622,7 +1569,7 @@ exports
 
 #[test]
 fn test_mock_checks_the_operation_signature() {
-  let src = r##"uses
+  let src = r"uses
   Std.Process
   Std.Test
 
@@ -1636,7 +1583,7 @@ functions
 
 exports
   main
-"##;
+";
   let ran = run(&[("a.px", src)], "a.px", &[]);
 
   assert_ne!(ran.code, Some(0));

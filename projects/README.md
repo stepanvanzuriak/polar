@@ -35,22 +35,37 @@ cd projects/todo && polar run          # inside a project, no arguments needed
 ```
 
 A project may have a `src/main_test.px` that captures `Main.main()` with `Test.capture` and
-compares it with `snapshots/main.txt` (`POLAR_UPDATE=1 polar test` rewrites it); `cargo test` runs
-those with `polar test`. A project without `snapshots/` is run by `cargo test` and must exit 0.
-One with a `main.expected.txt` (the multi-host ones) has its output compared with it. A project that lists `hosts` is run once with each
-`--host`, all against `main.expected.txt`; give it a `main.<Host>.expected.txt`
-per host instead when the output differs between hosts.
+compares it with `snapshots/main.txt` (`POLAR_UPDATE=1 polar test` rewrites it). A test file runs
+on the host its `hosts` zone names:
 
-A project with an `e2e.mjs` is a full-stack one, so the `main.expected.txt`
-runs skip it. `cargo test` runs `polar build --out <temp>/dist` in place (so path
-dependencies resolve), then `node e2e.mjs <temp>/dist`, and compares stdout with
-`e2e.expected.txt`.
-`bridge_posts/` is the example: its `e2e.mjs` serves `dist/Node/_polar/bridges.js`
-over HTTP and runs the browser bundle's `start` against it.
+```polar
+hosts
+  Browser
+```
+
+A file that lists several hosts runs once on each, and its tests are named by host, like
+`main_test::test_main_output (Browser)`. Without a `hosts` zone it runs on `Node`, or on the first
+of the project's `hosts` when `Node` isn't listed. `polar test` builds the
+project once per test host and runs every group into one report:
+
+- `Node` and `Browser` builds run in Node; a `Browser` build gets the Browser bindings and a fake
+  `document`, so `Dom` writes show up in `Test.capture`;
+- a `Native` build is packed with `polar-rt` into `.polar/test/host/Native/tests` and run as is. The
+  native halves of `Std.Test` live in `std/bindings/Test.rs`, next to `Test.js`; `with_app`,
+  `run_browser` and `Net` need Node.
+
+A snapshot `snapshots/<name>.<Host>.txt` wins over `snapshots/<name>.txt` on that host, for output
+that differs between hosts. `hybrid_storage`'s one test file runs `main` on Node and Browser
+against one `snapshots/main.txt`.
 
 `polar.toml` here is a workspace listing the projects that have `*_test.px` files, so
-`cd projects && polar test` runs all of their tests in one go (`--project <name>` picks one).
-Add a project to `members` when it gets its first test.
+`cd projects && polar test` runs all of their tests in one go (`--project <name>` picks one), and
+`cargo test` runs it. Add a project to `members` when it gets its first test. A project that is
+not a member is run by `cargo test` and must exit 0.
+
+Every project with a `snapshots/main.txt` is also run natively (`polar run --target native`) by
+`runtime-native`'s conformance test and must print the same text, unless its `src` has JavaScript
+bindings of its own, which the native runtime can't load.
 
 To start a new one, copy `todo/`, rename it in `polar.toml`, and replace
 `src/main.px`.
@@ -213,11 +228,11 @@ and compared with the current time.
   matches on `Time.compare` and the hours left; `backup_name` stamps a file
   name with `Time.compact`. `Task` derives `Json`, so times travel as ISO text.
 - `main.px` binds `Clock` in Node to a fixed instant, so the output never
-  changes and `main.expected.txt` can check it.
+  changes and `snapshots/main.txt` can check it.
 
 ```sh
 cd projects/deadlines
-polar run      # compared with main.expected.txt
+polar test     # compares `main` with snapshots/main.txt
 ```
 
 ## `testing_project`
@@ -236,5 +251,5 @@ A small shop checkout with tests, run by `polar test`:
 cd projects/testing_project
 polar test     # 9 tests in 2 files
 polar test --filter discount   # the 5 discount tests
-polar run      # prints a checkout, compared with main.expected.txt
+polar run      # prints a checkout, the one in snapshots/main.txt
 ```

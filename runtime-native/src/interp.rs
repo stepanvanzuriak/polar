@@ -14,7 +14,7 @@ use polar_compiler::{
   },
   shared::source::SourceFile,
 };
-use std::{collections::HashMap, io::Write, rc::Rc};
+use std::{collections::HashMap, io::Write, rc::Rc, time::Instant};
 
 #[derive(Debug, Clone)]
 pub enum Control {
@@ -23,9 +23,24 @@ pub enum Control {
   MatchFail(String),
   Arithmetic(String),
   Fail(String),
+  Timeout,
 }
 
 impl Control {
+  #[must_use]
+  pub fn describe(&self) -> String {
+    match self {
+      Self::Throw { value, .. } => format!("uncaught error: {}", show(value)),
+      Self::MatchFail(m) => format!("error: uncaught PolarMatchError: {m}"),
+      Self::Arithmetic(m) => {
+        format!("error: uncaught PolarArithmeticError: {m}")
+      }
+      Self::Fail(m) => format!("error: {m}"),
+      Self::Return(_) => "error: stray return".to_string(),
+      Self::Timeout => "error: timed out".to_string(),
+    }
+  }
+
   #[must_use]
   pub fn fail(message: impl Into<String>) -> Self {
     Self::Fail(message.into())
@@ -66,9 +81,12 @@ pub struct Interp {
   main: usize,
   pub args: Vec<String>,
   pub exit_code: Option<i32>,
-  pub env_overlay: Vec<(String, Option<String>)>,
+  pub env_overlay: Vec<(String, String)>,
   pub out: Box<dyn Write>,
   pub err: Box<dyn Write>,
+  pub mocks: Vec<(String, Value)>,
+  pub deadline: Option<Instant>,
+  steps: u32,
 }
 
 fn rt_of(ir: &'static CModule) -> ModRt {
@@ -126,6 +144,9 @@ impl Interp {
       env_overlay: Vec::new(),
       out: Box::new(std::io::stdout()),
       err: Box::new(std::io::stderr()),
+      mocks: Vec::new(),
+      deadline: None,
+      steps: 0,
     }
   }
 
@@ -145,27 +166,20 @@ impl Interp {
   }
 
   fn report(&mut self, control: &Control) {
-    let message = match control {
-      Control::Throw { value, .. } => {
-        format!("uncaught error: {}", show(value))
-      }
-      Control::MatchFail(m) => format!("error: uncaught PolarMatchError: {m}"),
-      Control::Arithmetic(m) => {
-        format!("error: uncaught PolarArithmeticError: {m}")
-      }
-      Control::Fail(m) => format!("error: {m}"),
-      Control::Return(_) => "error: stray return".to_string(),
-    };
+    let message = control.describe();
 
     let _ = writeln!(self.err, "{message}");
   }
 
   #[must_use]
   pub fn env_var(&self, name: &str) -> Option<String> {
-    match self.env_overlay.iter().rev().find(|(k, _)| k == name) {
-      Some((_, value)) => value.clone(),
-      None => std::env::var(name).ok(),
-    }
+    self
+      .env_overlay
+      .iter()
+      .rev()
+      .find(|(k, _)| k == name)
+      .map(|(_, value)| value.clone())
+      .or_else(|| std::env::var(name).ok())
   }
 
   pub(crate) fn module_ir(&self, m: usize) -> &'static CModule {
@@ -259,6 +273,17 @@ impl Interp {
   }
 
   fn op(&mut self, m: usize, effect: &str, op: &str) -> R {
+    let mocked = self
+      .mocks
+      .iter()
+      .rev()
+      .find(|(name, _)| name == effect)
+      .and_then(|(_, ops)| ops.field(op));
+
+    if let Some(f) = mocked {
+      return Ok(f.clone());
+    }
+
     let host = self.mods[m].ir.host.as_deref();
 
     if self.mods[m]
@@ -348,6 +373,17 @@ impl Interp {
     match self.mods[m].by_id.get(&id).copied() {
       Some(idx) => self.global(m, idx),
       None => Err(Control::fail(format!("unbound symbol {id}"))),
+    }
+  }
+
+  fn tick(&mut self) -> Result<(), Control> {
+    self.steps = self.steps.wrapping_add(1);
+
+    match self.deadline {
+      Some(deadline) if self.steps % 4096 == 0 && Instant::now() > deadline => {
+        Err(Control::Timeout)
+      }
+      _ => Ok(()),
     }
   }
 
@@ -464,6 +500,8 @@ impl Interp {
           });
         }
         CExprKind::App { func, args } => {
+          self.tick()?;
+
           let f = self.eval(func, &env, m)?;
           let mut values = Vec::with_capacity(args.len());
 

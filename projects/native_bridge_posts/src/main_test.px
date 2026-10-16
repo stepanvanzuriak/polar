@@ -1,0 +1,15 @@
+module MainTest
+
+uses
+  Main
+  Std.Test
+
+functions
+  test_main_output() -> {} / {..} {
+    let ran = Test.capture(function() { Main.main() })
+
+    Test.assert_snapshot("main", ran.output)
+  }
+
+exports
+  test_main_output
