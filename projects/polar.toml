@@ -4,6 +4,7 @@ members = [
   "complex",
   "crypto_accounts",
   "deadlines",
+  "effect_op_modules",
   "framework_demo",
   "hybrid_storage",
   "native_bridge_client",

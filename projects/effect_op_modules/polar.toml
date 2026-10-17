@@ -1,0 +1,5 @@
+[project]
+name = "effect_op_modules"
+src = "src"
+out = "dist"
+main = "src/main.px"
