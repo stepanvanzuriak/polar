@@ -1,0 +1,28 @@
+module Store
+
+uses
+  Std.Json
+  Std.Option
+  Std.Result
+
+hosts
+  Node
+
+effects
+  Store in Node {
+    get(text: String) -> Option<a> where Json<a>
+  }
+
+binds
+  Store in Node {
+    get(text) {
+      match Json.decode(text) {
+        Ok(value) -> Some(value),
+        Err(_) -> None,
+      }
+    }
+  }
+
+exports
+  Store
+  Node
