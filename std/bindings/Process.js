@@ -113,6 +113,20 @@ export async function scoped_env(vars, body) {
 const children = new Map();
 let nextChild = 1;
 
+process.on("exit", () => {
+  for (const { child, closed } of children.values()) {
+    if (closed) {
+      continue;
+    }
+
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {
+      child.kill("SIGKILL");
+    }
+  }
+});
+
 export function spawn_child(command, args, options) {
   const lines = [];
   const waiting = [];
@@ -132,9 +146,12 @@ export function spawn_child(command, args, options) {
     }
   };
 
+  child.unref();
+
   for (const stream of [child.stdout, child.stderr]) {
     let rest = "";
 
+    stream.unref();
     stream.setEncoding("utf8");
     stream.on("data", (chunk) => {
       const parts = (rest + chunk).split("\n");
@@ -215,8 +232,10 @@ export async function stop(handle) {
 
   if (!entry.closed) {
     const exited = new Promise((resolve) => {
+      const keepAlive = setInterval(() => {}, 1000);
       const check = () => {
         if (entry.closed) {
+          clearInterval(keepAlive);
           entry.waiting.splice(entry.waiting.indexOf(check), 1);
           resolve();
         }

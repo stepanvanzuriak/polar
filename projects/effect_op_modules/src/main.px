@@ -1,0 +1,20 @@
+module Main
+
+uses
+  Std.Log
+  Std.Option
+  Store
+
+hosts
+  Node
+
+functions
+  main() {
+    let n: Option<Int> = Store.get("3")
+    let s: Option<String> = Store.get("\"x\"")
+
+    Log.info("#{n} #{s}")
+  }
+
+exports
+  main
