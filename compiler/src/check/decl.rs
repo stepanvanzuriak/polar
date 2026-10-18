@@ -184,8 +184,9 @@ impl<'a> Checker<'a> {
       op_schemes: self
         .op_schemes
         .iter()
-        .filter(|((effect, _), _)| {
-          self.effects.effects.get(effect).is_some_and(|e| e.local)
+        .filter(|((effect, _), scheme)| {
+          !scheme.preds.is_empty()
+            || self.effects.effects.get(effect).is_some_and(|e| e.local)
         })
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect(),
