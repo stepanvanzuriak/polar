@@ -59,6 +59,13 @@ pub fn text(args: &[Value], i: usize) -> Result<&str, Control> {
     .ok_or_else(|| Control::fail(format!("argument {i} should be a String")))
 }
 
+pub fn bytes(args: &[Value], i: usize) -> Result<&[u8], Control> {
+  args
+    .get(i)
+    .and_then(Value::as_bytes)
+    .ok_or_else(|| Control::fail(format!("argument {i} should be Bytes")))
+}
+
 pub fn number(args: &[Value], i: usize) -> Result<f64, Control> {
   args
     .get(i)

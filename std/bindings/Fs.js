@@ -7,6 +7,14 @@ export function read(path) {
   return attempt(path, () => fs.readFile(path, "utf8"));
 }
 
+export function read_bytes(path) {
+  return attempt(path, async () => new Uint8Array(await fs.readFile(path)));
+}
+
+export function write_bytes(path, bytes) {
+  return attempt(path, () => fs.writeFile(path, bytes));
+}
+
 export function write(path, text) {
   return attempt(path, () => fs.writeFile(path, text, "utf8"));
 }
@@ -62,6 +70,10 @@ export function remove_all(path) {
 
 export function mkdtemp(prefix) {
   return attempt(prefix, () => fs.mkdtemp(join(tmpdir(), prefix)));
+}
+
+export function temp_dir(prefix) {
+  return mkdtemp(prefix);
 }
 
 export async function with_temp_dir(prefix, body) {

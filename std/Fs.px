@@ -1,6 +1,7 @@
 module Fs
 
 uses
+  Std.Bytes
   Std.List
   Std.Result
 
@@ -13,7 +14,9 @@ types
 effects
   Fs in Node {
     read(path: String) -> Result<FsError, String>
+    read_bytes(path: String) -> Result<FsError, Bytes>
     write(path: String, text: String) -> Result<FsError, {}>
+    write_bytes(path: String, bytes: Bytes) -> Result<FsError, {}>
     append(path: String, text: String) -> Result<FsError, {}>
     exists(path: String) -> Bool
     is_dir(path: String) -> Bool
@@ -23,6 +26,7 @@ effects
     remove(path: String) -> Result<FsError, {}>
     remove_all(path: String) -> Result<FsError, {}>
     mkdtemp(prefix: String) -> Result<FsError, String>
+    temp_dir(prefix: String) -> Result<FsError, String>
   }
 
 externs

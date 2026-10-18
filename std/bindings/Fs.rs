@@ -1,5 +1,5 @@
 use crate::{
-  builtins::{arg, text},
+  builtins::{arg, bytes, text},
   interp::{Control, Interp, R},
   value::Value,
 };
@@ -63,6 +63,18 @@ pub fn read(_: &mut Interp, a: &[Value]) -> R {
   attempt(fs::read(path), "open", path, |bytes| {
     Value::str(String::from_utf8_lossy(&bytes))
   })
+}
+
+pub fn read_bytes(_: &mut Interp, a: &[Value]) -> R {
+  let path = text(a, 0)?;
+
+  attempt(fs::read(path), "open", path, Value::bytes)
+}
+
+pub fn write_bytes(_: &mut Interp, a: &[Value]) -> R {
+  let (path, data) = (text(a, 0)?, bytes(a, 1)?);
+
+  attempt(fs::write(path, data), "open", path, |()| Value::unit())
 }
 
 pub fn write(_: &mut Interp, a: &[Value]) -> R {

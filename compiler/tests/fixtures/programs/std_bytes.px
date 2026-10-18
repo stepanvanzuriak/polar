@@ -1,0 +1,28 @@
+module StdBytes
+
+uses
+  Std.Bytes
+  Std.List
+  Std.Option
+  Std.Result
+
+functions
+  main() {
+    let b = Bytes.from_list([255, 216, 255, 224])
+
+    Log.info("length: #{Bytes.length(b)}")
+    Log.info(
+      "list: #{List.join(List.map(Bytes.to_list(b), function(n) { Int.to_string(n) }), ",")}",
+    )
+    Log.info("slice_clamps: #{Bytes.length(Bytes.slice(b, 2, 99))}")
+    Log.info("index_of: #{Bytes.index_of(b, Bytes.from_list([255, 224]), 0)}")
+    Log.info("index_of_missing: #{Bytes.index_of(b, Bytes.from_list([1]), 0)}")
+    Log.info(
+      "invalid_utf8: #{match Bytes.to_string(b) { Ok(_) -> "ok", Err(_) -> "err" }}",
+    )
+    Log.info("text: #{Bytes.to_string(Bytes.of_string("hi"))}")
+    Log.info("equal: #{Bytes.of_string("a") == Bytes.of_string("a")}")
+  }
+
+exports
+  main

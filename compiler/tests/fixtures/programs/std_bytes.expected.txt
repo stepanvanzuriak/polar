@@ -1,0 +1,8 @@
+length: 4
+list: 255,216,255,224
+slice_clamps: 2
+index_of: Some(2)
+index_of_missing: None
+invalid_utf8: err
+text: Ok(hi)
+equal: true

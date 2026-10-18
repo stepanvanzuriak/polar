@@ -1,0 +1,63 @@
+module Bytes
+
+uses
+  Std.List
+  Std.Option
+  Std.Result
+
+types
+  Bytes
+
+externs
+  length(bytes: Bytes) -> Int
+    = js "./bindings/Bytes.js" length,
+      rs "bytes::length"
+  slice(bytes: Bytes, from: Int, to: Int) -> Bytes
+    = js "./bindings/Bytes.js" slice,
+      rs "bytes::slice"
+  index_of(bytes: Bytes, needle: Bytes, from: Int) -> Option<Int>
+    = js "./bindings/Bytes.js" index_of,
+      rs "bytes::index_of"
+  to_string(bytes: Bytes) -> Result<String, String>
+    = js "./bindings/Bytes.js" to_string,
+      rs "bytes::to_string"
+  of_string(text: String) -> Bytes
+    = js "./bindings/Bytes.js" of_string,
+      rs "bytes::of_string"
+  concat(a: Bytes, b: Bytes) -> Bytes
+    = js "./bindings/Bytes.js" concat,
+      rs "bytes::concat"
+  from_list(values: List<Int>) -> Bytes
+    = js "./bindings/Bytes.js" from_list,
+      rs "bytes::from_list"
+  to_list(bytes: Bytes) -> List<Int>
+    = js "./bindings/Bytes.js" to_list,
+      rs "bytes::to_list"
+  equal(a: Bytes, b: Bytes) -> Bool
+    = js "./bindings/Bytes.js" equal,
+      rs "bytes::equal"
+
+impls
+  Eq for Bytes {
+    eq(x, y) {
+      equal(x, y)
+    }
+  }
+
+  Show for Bytes {
+    show(bytes) {
+      "<bytes #{length(bytes)}>"
+    }
+  }
+
+exports
+  Bytes
+  length
+  slice
+  index_of
+  to_string
+  of_string
+  concat
+  from_list
+  to_list
+  equal

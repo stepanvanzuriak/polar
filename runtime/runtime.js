@@ -965,6 +965,18 @@ export const bridge = {
 };
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {string} the UTF-8 text, or "" when `bytes` is not valid UTF-8
+ */
+function decodeText(bytes) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+/**
  * A fetch `Request` as the Polar `Std.Http.Request` record.
  * @param {Request} request
  * @returns {Promise<object>}
@@ -976,12 +988,15 @@ async function toPolarRequest(request) {
     value,
   }));
 
+  const raw = new Uint8Array(await request.arrayBuffer());
+
   return {
     method: request.method,
     path: url.pathname,
     query: url.search.replace(/^\?/, ""),
     headers: list(headers),
-    body: await request.text(),
+    body: decodeText(raw),
+    raw,
   };
 }
 
