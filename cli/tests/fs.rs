@@ -4,6 +4,7 @@ use tempfile::TempDir;
 const POLAR: &str = env!("CARGO_BIN_EXE_polar");
 
 const PROGRAM: &str = "uses
+  Std.Bytes
   Std.Fs
   Std.List
   Std.Path
@@ -240,4 +241,25 @@ fn browser_rejected() {
 
   assert_eq!(out.status.code(), Some(1));
   assert!(err.contains("`main` can't run on `Browser`: it uses `Fs`"), "{err}");
+}
+
+#[test]
+fn write_bytes_roundtrip() {
+  let (out, dir) = lines(
+    "    let data = Bytes.from_list([0, 255, 16])\n    Log.info(done(Fs.write_bytes(\"f.bin\", data)))\n    match Fs.read_bytes(\"f.bin\") {\n      Ok(back) -> Log.info(\"same #{back == data}\"),\n      Err(e) -> Log.info(e.code),\n    }",
+    &[],
+  );
+
+  assert_eq!(out, "ok\nsame true\n");
+  assert_eq!(fs::read(dir.path().join("f.bin")).unwrap(), [0, 255, 16]);
+}
+
+#[test]
+fn temp_dirs_distinct() {
+  let (out, _) = lines(
+    "    match Fs.temp_dir(\"polar-\") {\n      Err(e) -> Log.info(e.code),\n      Ok(a) -> match Fs.temp_dir(\"polar-\") {\n        Err(e) -> Log.info(e.code),\n        Ok(b) -> {\n          Log.info(\"distinct #{a != b} #{Fs.is_dir(a)}\")\n          Log.info(done(Fs.remove_all(a)))\n          Log.info(done(Fs.remove_all(b)))\n        }\n      }\n    }",
+    &[],
+  );
+
+  assert_eq!(out, "distinct true true\nok\nok\n");
 }

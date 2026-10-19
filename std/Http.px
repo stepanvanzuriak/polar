@@ -1,7 +1,10 @@
 module Http
 
 uses
+  Std.Bytes
   Std.List
+  Std.Option
+  Std.Result
 
 types
   Header = { name: String, value: String }
@@ -12,7 +15,10 @@ types
     query: String,
     headers: List<Header>,
     body: String,
+    raw: Bytes,
   }
+
+  Part = { name: String, filename: Option<String>, content_type: String, data: Bytes }
 
   Response = { status: Int, headers: List<Header>, body: String }
 
@@ -28,8 +34,139 @@ functions
     }
   }
 
+  multipart(request: Request) -> Result<String, List<Part>> {
+    match boundary_of(header(request.headers, "content-type")) {
+      None -> Err("multipart body needs a content-type boundary"),
+      Some(boundary) -> parse_parts(request.raw, Bytes.of_string("--#{boundary}")),
+    }
+  }
+
+  boundary_of(content_type: String) -> Option<String> {
+    match String.split_once(content_type, "boundary=") {
+      None -> None,
+      Some(found) -> {
+        let value = match String.split_once(found.after, ";") {
+          None -> found.after,
+          Some(cut) -> cut.before,
+        }
+        let bare = unquote(String.trim(value))
+
+        if bare == "" { None } else { Some(bare) }
+      }
+    }
+  }
+
+  unquote(text: String) -> String {
+    if String.length(text) >= 2
+      && String.starts_with(text, "\"")
+      && String.ends_with(text, "\"") {
+      String.slice(text, 1, String.length(text) - 1)
+    } else {
+      text
+    }
+  }
+
+  parse_parts(raw: Bytes, delimiter: Bytes) -> Result<String, List<Part>> {
+    match Bytes.index_of(raw, delimiter, 0) {
+      None -> Err("multipart body has no boundary"),
+      Some(at) -> parts_from(raw, delimiter, at + Bytes.length(delimiter)),
+    }
+  }
+
+  parts_from(raw: Bytes, delimiter: Bytes, position: Int) -> Result<String, List<Part>> {
+    let marker = Bytes.to_string(Bytes.slice(raw, position, position + 2))
+
+    if marker == Ok("--") {
+      Ok([])
+    } else if marker == Ok("\r\n") {
+      part_at(raw, delimiter, position + 2)
+    } else {
+      Err("malformed multipart boundary line")
+    }
+  }
+
+  part_at(raw: Bytes, delimiter: Bytes, start: Int) -> Result<String, List<Part>> {
+    let blank = Bytes.of_string("\r\n\r\n")
+    let empty = Bytes.to_string(Bytes.slice(raw, start, start + 2)) == Ok("\r\n")
+    let head_end = if empty { Some(start - 2) } else { Bytes.index_of(raw, blank, start) }
+
+    match head_end {
+      None -> Err("unterminated multipart part headers"),
+      Some(end) -> {
+        let data_start = end + 4
+        let closing = Bytes.of_string("\r\n")
+        let next = Bytes.index_of(raw, Bytes.concat(closing, delimiter), data_start)
+
+        match next {
+          None -> Err("unterminated multipart part"),
+          Some(stop) -> match Bytes.to_string(Bytes.slice(raw, start, end)) {
+            Err(_) -> Err("multipart part headers are not valid text"),
+            Ok(head) -> {
+              let part = make_part(head, Bytes.slice(raw, data_start, stop))
+              let rest = parts_from(raw, delimiter, stop + 2 + Bytes.length(delimiter))
+
+              Result.map(rest, function(parts) { [part, ..parts] })
+            }
+          },
+        }
+      }
+    }
+  }
+
+  make_part(head: String, data: Bytes) -> Part {
+    let lines = String.split(head, "\r\n")
+    let disposition = part_header(lines, "content-disposition")
+
+    {
+      name: disposition_param(disposition, "name") |> Option.with_default(""),
+      filename: disposition_param(disposition, "filename"),
+      content_type: match part_header(lines, "content-type") {
+        "" -> "text/plain",
+        other -> other,
+      },
+      data: data,
+    }
+  }
+
+  part_header(lines: List<String>, name: String) -> String {
+    match lines {
+      [] -> "",
+      [line, ..rest] -> match String.split_once(line, ":") {
+        None -> part_header(rest, name),
+        Some(pair) -> if String.lowercase(String.trim(pair.before)) == name {
+          String.trim(pair.after)
+        } else {
+          part_header(rest, name)
+        },
+      },
+    }
+  }
+
+  disposition_param(disposition: String, key: String) -> Option<String> {
+    param_in(String.split(disposition, ";"), "#{key}=")
+  }
+
+  param_in(pieces: List<String>, prefix: String) -> Option<String> {
+    match pieces {
+      [] -> None,
+      [piece, ..rest] -> {
+        let trimmed = String.trim(piece)
+
+        if String.starts_with(trimmed, prefix) {
+          Some(
+            unquote(String.slice(trimmed, String.length(prefix), String.length(trimmed))),
+          )
+        } else {
+          param_in(rest, prefix)
+        }
+      }
+    }
+  }
+
 exports
   Header
+  Part
   Request
   Response
   header
+  multipart

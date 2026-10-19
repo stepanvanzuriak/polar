@@ -1,0 +1,73 @@
+module StdHttpMultipart
+
+uses
+  Std.Bytes
+  Std.Http
+  Std.List
+  Std.Option
+  Std.Result
+
+functions
+  request(boundary: String, body: Bytes) -> Request {
+    {
+      method: "POST",
+      path: "/upload",
+      query: "",
+      headers: [
+        { name: "content-type", value: "multipart/form-data; boundary=#{boundary}" },
+      ],
+      body: "",
+      raw: body,
+    }
+  }
+
+  text_body() -> Bytes {
+    Bytes.of_string(
+      "--XX\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n--XX\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.bin\"\r\nContent-Type: application/octet-stream\r\n\r\nDATA\r\n--XX--\r\n",
+    )
+  }
+
+  describe(part: Part) -> String {
+    "#{part.name}|#{Option.with_default(part.filename, "-")}|#{part.content_type}|#{Bytes.length(part.data)}"
+  }
+
+  show_parts(result: Result<String, List<Part>>) -> String {
+    match result {
+      Err(message) -> "Err(#{message})",
+      Ok(parts) -> List.join(List.map(parts, describe), "; "),
+    }
+  }
+
+  main() {
+    Log.info("field_and_file: #{show_parts(Http.multipart(request("XX", text_body())))}")
+
+    let binary = Bytes.concat(
+      Bytes.concat(
+        Bytes.of_string(
+          "--B\r\nContent-Disposition: form-data; name=\"f\"; filename=\"x\"\r\n\r\n",
+        ),
+        Bytes.from_list([0, 255, 16]),
+      ),
+      Bytes.of_string("\r\n--B--\r\n"),
+    )
+
+    match Http.multipart(request("B", binary)) {
+      Ok([part]) -> Log.info(
+        "binary_roundtrip: #{part.data == Bytes.from_list([0, 255, 16])}",
+      ),
+      _ -> Log.info("binary_roundtrip: failed"),
+    }
+
+    Log.info(
+      "unterminated: #{show_parts(Http.multipart(request("XX", Bytes.of_string("--XX\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\nhi"))))}",
+    )
+    Log.info(
+      "no_boundary_header: #{show_parts(Http.multipart({ ..request("XX", text_body()), headers: [] }))}",
+    )
+    Log.info(
+      "no_boundary_in_body: #{show_parts(Http.multipart(request("XX", Bytes.of_string("nothing"))))}",
+    )
+  }
+
+exports
+  main

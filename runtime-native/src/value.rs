@@ -15,6 +15,7 @@ pub enum Value {
   Native(Rc<Native>),
   CtorFn(Rc<CtorFnData>),
   Ref(Rc<RefCell<Value>>),
+  Bytes(Rc<[u8]>),
   Bridge(Rc<BridgeCall>),
 }
 
@@ -125,6 +126,19 @@ impl Value {
   }
 
   #[must_use]
+  pub fn bytes(data: impl Into<Rc<[u8]>>) -> Self {
+    Self::Bytes(data.into())
+  }
+
+  #[must_use]
+  pub fn as_bytes(&self) -> Option<&[u8]> {
+    match self {
+      Self::Bytes(b) => Some(b),
+      _ => None,
+    }
+  }
+
+  #[must_use]
   pub fn as_num(&self) -> Option<f64> {
     match self {
       Self::Num(n) => Some(*n),
@@ -180,6 +194,7 @@ impl Value {
       (Self::Closure(a), Self::Closure(b)) => Rc::ptr_eq(a, b),
       (Self::Native(a), Self::Native(b)) => Rc::ptr_eq(a, b),
       (Self::Ref(a), Self::Ref(b)) => Rc::ptr_eq(a, b),
+      (Self::Bytes(a), Self::Bytes(b)) => a == b,
       (Self::Bridge(a), Self::Bridge(b)) => Rc::ptr_eq(a, b),
       _ => false,
     }
@@ -299,6 +314,7 @@ pub fn show(value: &Value) -> String {
     Value::Record(fields) => record_show(
       &fields.iter().map(|(k, v)| ((*k).to_string(), v)).collect::<Vec<_>>(),
     ),
+    Value::Bytes(bytes) => format!("<bytes {}>", bytes.len()),
     Value::Ref(cell) => {
       record_show(&[("value".to_string(), &cell.borrow().clone())])
     }

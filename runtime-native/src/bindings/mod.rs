@@ -1,3 +1,5 @@
+#[path = "../../../std/bindings/Bytes.rs"]
+mod bytes;
 #[path = "../../../std/bindings/Crypto.rs"]
 mod crypto;
 #[path = "../../../std/bindings/Fs.rs"]
@@ -18,6 +20,15 @@ use crate::value::NativeFn;
 #[must_use]
 pub fn lookup(key: &str) -> Option<NativeFn> {
   Some(match key {
+    "bytes::length" => bytes::length,
+    "bytes::slice" => bytes::slice,
+    "bytes::index_of" => bytes::index_of,
+    "bytes::to_string" => bytes::to_string,
+    "bytes::of_string" => bytes::of_string,
+    "bytes::concat" => bytes::concat,
+    "bytes::from_list" => bytes::from_list,
+    "bytes::to_list" => bytes::to_list,
+    "bytes::equal" => bytes::equal,
     "url::decode" => url::decode,
     "url::encode" => url::encode,
     "time::now" => time::now,
@@ -38,6 +49,8 @@ pub fn lookup(key: &str) -> Option<NativeFn> {
     "regex::replace_all" => regex::replace_all,
     "regex::syntax_error" => regex::syntax_error,
     "fs::read" => fs::read,
+    "fs::read_bytes" => fs::read_bytes,
+    "fs::write_bytes" => fs::write_bytes,
     "fs::write" => fs::write,
     "fs::append" => fs::append,
     "fs::exists" => fs::exists,
@@ -47,7 +60,7 @@ pub fn lookup(key: &str) -> Option<NativeFn> {
     "fs::walk" => fs::walk,
     "fs::remove" => fs::remove,
     "fs::remove_all" => fs::remove_all,
-    "fs::mkdtemp" => fs::mkdtemp,
+    "fs::mkdtemp" | "fs::temp_dir" => fs::mkdtemp,
     "fs::with_temp_dir" => fs::with_temp_dir,
     "process::args" => process::args,
     "process::env" => process::env,

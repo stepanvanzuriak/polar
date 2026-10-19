@@ -36,6 +36,14 @@ pub const MODULES: &[StdModule] = &[
     files: &[],
   },
   StdModule {
+    name: "Bytes",
+    source: include_str!("../../std/Bytes.px"),
+    files: &[(
+      "bindings/Bytes.js",
+      include_str!("../../std/bindings/Bytes.js"),
+    )],
+  },
+  StdModule {
     name: "Crypto",
     source: include_str!("../../std/Crypto.px"),
     files: &[(

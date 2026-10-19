@@ -1,0 +1,5 @@
+field_and_file: title|-|text/plain|5; file|a.bin|application/octet-stream|4
+binary_roundtrip: true
+unterminated: Err(unterminated multipart part)
+no_boundary_header: Err(multipart body needs a content-type boundary)
+no_boundary_in_body: Err(multipart body has no boundary)
