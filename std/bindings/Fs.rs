@@ -1,11 +1,13 @@
 use crate::{
-  builtins::{arg, bytes, text},
+  builtins::{arg, bytes, number, text},
   interp::{Control, Interp, R},
   value::Value,
 };
 use std::{
   fs,
   io::{self, Write},
+  path::Path,
+  time::{Duration, UNIX_EPOCH},
 };
 use tempfile::TempDir;
 use walkdir::WalkDir;
@@ -21,6 +23,7 @@ fn code_of(e: &io::Error) -> (&'static str, &'static str) {
     }
     io::ErrorKind::InvalidInput => ("EINVAL", "invalid argument"),
     io::ErrorKind::StorageFull => ("ENOSPC", "no space left on device"),
+    io::ErrorKind::Unsupported => ("ENOTSUP", "operation not supported"),
     io::ErrorKind::DirectoryNotEmpty => ("ENOTEMPTY", "directory not empty"),
     _ => ("EUNKNOWN", "unknown error"),
   }
@@ -142,6 +145,92 @@ pub fn walk(_: &mut Interp, a: &[Value]) -> R {
   let path = text(a, 0)?;
 
   attempt(files(path), "scandir", path, strings)
+}
+
+fn copy_tree(from: &Path, to: &Path) -> io::Result<()> {
+  let meta = fs::symlink_metadata(from)?;
+
+  if meta.is_dir() {
+    fs::create_dir_all(to)?;
+
+    for entry in fs::read_dir(from)? {
+      let entry = entry?;
+
+      copy_tree(&entry.path(), &to.join(entry.file_name()))?;
+    }
+
+    fs::set_permissions(to, meta.permissions())
+  } else if meta.is_symlink() {
+    let _ = fs::remove_file(to);
+
+    link(&fs::read_link(from)?, to)
+  } else {
+    fs::copy(from, to).map(|_| ())
+  }
+}
+
+#[cfg(unix)]
+fn link(target: &Path, path: &Path) -> io::Result<()> {
+  std::os::unix::fs::symlink(target, path)
+}
+
+#[cfg(not(unix))]
+fn link(_: &Path, _: &Path) -> io::Result<()> {
+  Err(io::ErrorKind::Unsupported.into())
+}
+
+pub fn copy(_: &mut Interp, a: &[Value]) -> R {
+  let (from, to) = (text(a, 0)?, text(a, 1)?);
+
+  attempt(copy_tree(Path::new(from), Path::new(to)), "cp", from, |()| {
+    Value::unit()
+  })
+}
+
+pub fn symlink(_: &mut Interp, a: &[Value]) -> R {
+  let (target, path) = (text(a, 0)?, text(a, 1)?);
+
+  attempt(link(Path::new(target), Path::new(path)), "symlink", path, |()| {
+    Value::unit()
+  })
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn touch(path: &str, millis: f64) -> io::Result<()> {
+  let when = if millis >= 0.0 {
+    UNIX_EPOCH + Duration::from_millis(millis as u64)
+  } else {
+    UNIX_EPOCH - Duration::from_millis(-millis as u64)
+  };
+
+  fs::File::open(path)?.set_times(fs::FileTimes::new().set_modified(when))
+}
+
+pub fn set_mtime(_: &mut Interp, a: &[Value]) -> R {
+  let path = text(a, 0)?;
+
+  attempt(touch(path, number(a, 1)?), "utime", path, |()| Value::unit())
+}
+
+#[cfg(unix)]
+fn set_mode(path: &str, mode: u32) -> io::Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  fs::set_permissions(path, fs::Permissions::from_mode(mode))
+}
+
+#[cfg(not(unix))]
+fn set_mode(_: &str, _: u32) -> io::Result<()> {
+  Err(io::ErrorKind::Unsupported.into())
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+pub fn chmod(_: &mut Interp, a: &[Value]) -> R {
+  let path = text(a, 0)?;
+
+  attempt(set_mode(path, number(a, 1)? as u32), "chmod", path, |()| {
+    Value::unit()
+  })
 }
 
 pub fn remove(_: &mut Interp, a: &[Value]) -> R {

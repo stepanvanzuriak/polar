@@ -52,6 +52,29 @@ export function walk(path) {
   return attempt(path, async () => sorted(await files(path, "")));
 }
 
+export function copy(from, to) {
+  return attempt(from, () =>
+    fs.cp(from, to, {
+      recursive: true,
+      force: true,
+      verbatimSymlinks: true,
+      preserveTimestamps: true,
+    }),
+  );
+}
+
+export function symlink(target, path) {
+  return attempt(path, () => fs.symlink(target, path));
+}
+
+export function set_mtime(path, millis) {
+  return attempt(path, () => fs.utimes(path, millis / 1000, millis / 1000));
+}
+
+export function chmod(path, mode) {
+  return attempt(path, () => fs.chmod(path, mode));
+}
+
 export function remove(path) {
   return attempt(path, async () => {
     const stat = await fs.lstat(path);

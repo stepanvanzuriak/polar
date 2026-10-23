@@ -173,8 +173,8 @@ pub(crate) enum Command {
     path: Option<PathBuf>,
     #[arg(long, value_name = "TEXT")]
     filter: Option<String>,
-    #[arg(long, value_name = "MS", default_value_t = 5000)]
-    timeout: u64,
+    #[arg(long, value_name = "MS")]
+    timeout: Option<u64>,
     #[arg(long)]
     bless: bool,
     #[arg(long, value_enum, default_value_t = TestFormat::Text)]

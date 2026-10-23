@@ -19,8 +19,15 @@ struct ConfigFile {
   run: Option<RunSection>,
   workspace: Option<WorkspaceSection>,
   fmt: Option<FmtSection>,
+  test: Option<TestSection>,
   #[serde(default)]
   dependencies: BTreeMap<String, toml::Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TestSection {
+  timeout: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -160,6 +167,7 @@ pub struct Project {
   pub library: bool,
   pub launch: Option<Launch>,
   pub fmt_exclude: Vec<PathBuf>,
+  pub test_timeout: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -267,6 +275,7 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
         library: false,
         launch,
         fmt_exclude,
+        test_timeout: parsed.test.as_ref().and_then(|t| t.timeout),
       }))
     }
     (None, Some(section)) => {
@@ -299,6 +308,7 @@ pub fn load(dir: &Path, cwd: &Path) -> Result<Option<Project>, CliError> {
         library: true,
         launch: None,
         fmt_exclude,
+        test_timeout: None,
       }))
     }
   }

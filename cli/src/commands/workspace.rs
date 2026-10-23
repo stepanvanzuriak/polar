@@ -78,8 +78,11 @@ pub(crate) fn test(
     args.push("--offline".to_string());
   }
 
-  args.extend(["test".to_string(), "--timeout".to_string()]);
-  args.push(options.timeout.to_string());
+  args.push("test".to_string());
+
+  if let Some(timeout) = options.timeout {
+    args.extend(["--timeout".to_string(), timeout.to_string()]);
+  }
 
   if options.bless {
     args.push("--bless".to_string());

@@ -21,12 +21,21 @@ export function set_exit_code(code) {
 }
 
 export async function run(command, args, options) {
-  const { code } = await start(command, args, options, "inherit");
+  const { code } = await start(
+    command,
+    args,
+    options,
+    options.input === null ? "inherit" : ["pipe", "inherit", "inherit"],
+  );
   return code;
 }
 
 export function output(command, args, options) {
-  return start(command, args, options, ["inherit", "pipe", "pipe"]);
+  return start(command, args, options, [
+    options.input === null ? "inherit" : "pipe",
+    "pipe",
+    "pipe",
+  ]);
 }
 
 function start(command, args, options, stdio) {
@@ -61,6 +70,11 @@ function start(command, args, options, stdio) {
       },
       stdio,
     });
+
+    if (options.input !== null) {
+      child.stdin.on("error", () => {});
+      child.stdin.end(options.input);
+    }
 
     child.stdout?.on("data", (chunk) => stdout.push(chunk));
     child.stderr?.on("data", (chunk) => stderr.push(chunk));
@@ -139,7 +153,7 @@ export function spawn_child(command, args, options) {
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const entry = { child, lines, waiting, closed: false, code: null };
+  const entry = { child, lines, waiting, closed: false, code: null, cursor: 0 };
   const settle = () => {
     for (const waiter of [...waiting]) {
       waiter();
@@ -196,14 +210,16 @@ export async function wait_for_line(handle, pattern, timeoutMs) {
   }
 
   const re = new RegExp(pattern, "u");
-  let seen = 0;
+  let seen = entry.cursor;
 
   return new Promise((resolve) => {
     let timer;
     const check = () => {
       for (; seen < entry.lines.length; seen++) {
         if (re.test(entry.lines[seen])) {
-          return done(entry.lines[seen++]);
+          entry.cursor = seen + 1;
+
+          return done(entry.lines[seen]);
         }
       }
 
@@ -221,6 +237,14 @@ export async function wait_for_line(handle, pattern, timeoutMs) {
     entry.waiting.push(check);
     check();
   });
+}
+
+export function lines(handle) {
+  return [...(children.get(handle.id)?.lines ?? [])];
+}
+
+export function sleep(ms) {
+  return new Promise((resolve) => setTimeout(() => resolve({}), ms));
 }
 
 export async function stop(handle) {

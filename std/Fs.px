@@ -23,6 +23,10 @@ effects
     mkdir_all(path: String) -> Result<FsError, {}>
     list(path: String) -> Result<FsError, List<String>>
     walk(path: String) -> Result<FsError, List<String>>
+    copy(from: String, to: String) -> Result<FsError, {}>
+    symlink(target: String, path: String) -> Result<FsError, {}>
+    set_mtime(path: String, millis: Int) -> Result<FsError, {}>
+    chmod(path: String, mode: Int) -> Result<FsError, {}>
     remove(path: String) -> Result<FsError, {}>
     remove_all(path: String) -> Result<FsError, {}>
     mkdtemp(prefix: String) -> Result<FsError, String>

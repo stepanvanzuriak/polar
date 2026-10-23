@@ -27,7 +27,7 @@ use std::{
 
 pub(crate) struct Options<'a> {
   pub filter: Option<&'a str>,
-  pub timeout: u64,
+  pub timeout: Option<u64>,
   pub json: bool,
   pub bless: bool,
   pub projects: &'a [String],
@@ -61,6 +61,7 @@ pub(crate) fn test(
   one(ctx, path, options)
 }
 
+const DEFAULT_TIMEOUT: u64 = 5000;
 const NATIVE: &str = "Native";
 
 struct TestFile {
@@ -105,6 +106,8 @@ fn one(
     return Err(project::library(&project.name));
   }
 
+  let timeout =
+    options.timeout.or(project.test_timeout).unwrap_or(DEFAULT_TIMEOUT);
   let root = normalize(&cwd.join(&project.dir));
   let default = default_host(&project.hosts);
   let files = test_files(ctx, &project, default.as_ref())?;
@@ -220,7 +223,7 @@ fn one(
   let cases: Vec<&Case> = groups.iter().flat_map(|g| &g.cases).collect();
   let mut report = Report {
     color: ctx.color && ctx.io.stdout_is_tty,
-    timeout: options.timeout,
+    timeout,
     filtered: found - cases.len() + failing.len() - chosen.len(),
     json: options.json,
     places: cases
@@ -247,8 +250,7 @@ fn one(
 
     let runner = match &group.build {
       Build::Js(built) => {
-        compile_main(ctx, &src, built, &group.cases, options.timeout)?
-          .map(Runner::Node)
+        compile_main(ctx, &src, built, &group.cases, timeout)?.map(Runner::Node)
       }
       Build::Native => {
         let dir = root.join(crate::plugin::DIR).join("test").join("host");
@@ -262,7 +264,7 @@ fn one(
           return Ok(1);
         }
 
-        compile_native_main(ctx, &src, &dir, &group.cases, options.timeout)?
+        compile_native_main(ctx, &src, &dir, &group.cases, timeout)?
           .map(Runner::Native)
       }
     };
