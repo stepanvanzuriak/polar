@@ -3,7 +3,10 @@ use crate::{
   interp::{Control, Interp, R},
   value::Value,
 };
-use std::{io::Write, process::Command};
+use std::{
+  io::Write,
+  process::{Command, Stdio},
+};
 
 pub fn args(it: &mut Interp, _: &[Value]) -> R {
   Ok(Value::list(it.args.iter().map(Value::str).collect()))
@@ -57,9 +60,32 @@ fn env_pairs(vars: &Value) -> Vec<(String, String)> {
     .collect()
 }
 
-fn spawn(cmd: &mut Command, capture: bool) -> std::io::Result<Spawned> {
+fn feed(child: &mut std::process::Child, input: Option<String>) {
+  if let Some(input) = input
+    && let Some(mut stdin) = child.stdin.take()
+  {
+    std::thread::spawn(move || {
+      let _ = stdin.write_all(input.as_bytes());
+    });
+  }
+}
+
+fn spawn(
+  cmd: &mut Command,
+  capture: bool,
+  input: Option<String>,
+) -> std::io::Result<Spawned> {
+  if input.is_some() {
+    cmd.stdin(Stdio::piped());
+  }
+
   let (status, stdout, stderr) = if capture {
-    let out = cmd.output()?;
+    let mut child =
+      cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+
+    feed(&mut child, input);
+
+    let out = child.wait_with_output()?;
 
     (
       out.status,
@@ -67,7 +93,11 @@ fn spawn(cmd: &mut Command, capture: bool) -> std::io::Result<Spawned> {
       String::from_utf8_lossy(&out.stderr).into_owned(),
     )
   } else {
-    (cmd.status()?, String::new(), String::new())
+    let mut child = cmd.spawn()?;
+
+    feed(&mut child, input);
+
+    (child.wait()?, String::new(), String::new())
   };
 
   #[cfg(unix)]
@@ -111,9 +141,15 @@ fn start(
     cmd.envs(env_pairs(vars));
   }
 
+  let input = match options.field("input") {
+    Some(Value::Variant(v)) => v.fields.first().and_then(Value::as_str),
+    _ => None,
+  }
+  .map(str::to_string);
+
   let _ = it.out.flush();
 
-  match spawn(&mut cmd, capture) {
+  match spawn(&mut cmd, capture, input) {
     Ok(done) => Ok(done),
     Err(e) => {
       let _ = writeln!(it.err, "error: cannot run `{command}`: {}", reason(&e));

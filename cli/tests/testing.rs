@@ -810,6 +810,87 @@ exports
   assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
 }
 
+#[test]
+fn spawn_lines_sleep_and_free_port() {
+  let source = "module LinesTest
+
+uses
+  Std.Assert
+  Std.List
+  Std.Http
+  Std.Option
+  Std.Process
+
+hosts
+  Node
+
+functions
+  test_cursor() -> {} / {Async, Throws<Failed>} {
+    let child = Process.spawn(
+      \"sh\",
+      [\"-c\", \"echo up; sleep 0.3; echo up; sleep 30\"],
+      Process.inherit(),
+    )
+
+    Assert.equal(Option.with_default(Process.wait_for_line(child, \"up\", 3000), \"none\"), \"up\")
+    Assert.equal(List.length(Process.lines(child)) >= 1, true)
+    Assert.equal(Option.with_default(Process.wait_for_line(child, \"up\", 3000), \"none\"), \"up\")
+    Assert.equal(List.length(Process.lines(child)), 2)
+    Process.sleep(10)
+    Assert.equal(Process.stop(child), 130)
+  }
+
+  test_free_port() -> {} / {Async, Throws<Failed>} {
+    let port = Http.free_port()
+
+    Assert.equal(port > 0, true)
+  }
+
+exports
+  test_cursor
+  test_free_port
+";
+  let dir = project(CONFIG, &[("src/lines_test.px", source)]);
+  let ran = polar(dir.path(), &["test"]);
+
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+}
+
+#[test]
+fn project_test_timeout() {
+  let source = "module SlowTest
+
+uses
+  Std.Process
+
+hosts
+  Node
+
+functions
+  test_slow() -> {} / {Async} {
+    Process.sleep(300)
+  }
+
+exports
+  test_slow
+";
+  let files = [("src/slow_test.px", source)];
+  let short =
+    project("[project]\nname = \"t\"\n\n[test]\ntimeout = 50\n", &files);
+  let long =
+    project("[project]\nname = \"t\"\n\n[test]\ntimeout = 5000\n", &files);
+
+  let ran = polar(short.path(), &["test"]);
+  assert_eq!(ran.code, Some(1), "{}{}", ran.out, ran.err);
+  assert!(ran.out.contains("timed out after 50ms"), "{}", ran.out);
+
+  let ran = polar(long.path(), &["test", "--timeout", "50"]);
+  assert_eq!(ran.code, Some(1), "{}{}", ran.out, ran.err);
+
+  let ran = polar(long.path(), &["test"]);
+  assert_eq!(ran.code, Some(0), "{}{}", ran.out, ran.err);
+}
+
 const HOSTS: &str =
   "[project]\nname = \"t\"\nhosts = [\"Browser\", \"Node\"]\n";
 

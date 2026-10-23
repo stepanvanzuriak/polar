@@ -35,12 +35,6 @@ functions
     }
   }
 
-  copy(from: String, to: String) -> Result<FsError, {}> / {Fs} {
-    Fs.read(from) |> Result.and_then(function(text) {
-      Fs.mkdir_all(Path.dirname(to)) |> Result.and_then(function(_) { Fs.write(to, text) })
-    })
-  }
-
   main() -> {} / {Fs} {
 BODY
   }
@@ -214,18 +208,6 @@ fn remove_all_missing() {
 }
 
 #[test]
-fn copy_example() {
-  let (out, dir) = lines(
-    "    Log.info(done(copy(\"src/a.txt\", \"out/deep/b.txt\")))\n    Log.info(done(copy(\"src/none\", \"out/c.txt\")))",
-    &["src/a.txt"],
-  );
-
-  assert_eq!(out, "ok\nerr ENOENT\n");
-  assert!(dir.path().join("out/deep/b.txt").is_file());
-  assert!(!dir.path().join("out/c.txt").exists());
-}
-
-#[test]
 fn browser_rejected() {
   let dir = tempfile::tempdir().unwrap();
   let src = "uses\n  Std.Fs\n\nhosts\n  Browser\n\nfunctions\n  main() {\n    Log.info(\"#{Fs.exists(\"x\")}\")\n  }\n\nexports\n  main\n";
@@ -262,4 +244,95 @@ fn temp_dirs_distinct() {
   );
 
   assert_eq!(out, "distinct true true\nok\nok\n");
+}
+
+#[test]
+fn copy_file_and_tree() {
+  let (out, dir) = lines(
+    "    Log.info(done(Fs.copy(\"src\", \"out/tree\")))\n    Log.info(text(Fs.read(\"out/tree/d/b.txt\")))\n    Log.info(done(Fs.copy(\"src/a.txt\", \"one.txt\")))\n    Log.info(done(Fs.copy(\"none\", \"x\")))",
+    &["src/a.txt", "src/d/b.txt"],
+  );
+
+  assert_eq!(out, "ok\nok \nok\nerr ENOENT\n");
+  assert!(dir.path().join("out/tree/a.txt").is_file());
+  assert!(dir.path().join("one.txt").is_file());
+  assert!(!dir.path().join("x").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn copy_keeps_mode() {
+  use std::os::unix::fs::PermissionsExt;
+
+  let ran =
+    run("    Log.info(done(Fs.copy(\"src\", \"dst\")))", &["src/run.sh"]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  fs::set_permissions(
+    ran.dir.path().join("src/run.sh"),
+    fs::Permissions::from_mode(0o750),
+  )
+  .unwrap();
+
+  let tmp = tempfile::tempdir().unwrap();
+  Command::new(POLAR)
+    .args(["run", "a.px"])
+    .current_dir(ran.dir.path())
+    .env("TMPDIR", tmp.path())
+    .output()
+    .unwrap();
+
+  let mode = fs::metadata(ran.dir.path().join("dst/run.sh"))
+    .unwrap()
+    .permissions()
+    .mode();
+
+  assert_eq!(mode & 0o777, 0o750);
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink() {
+  let (out, dir) = lines(
+    "    Log.info(done(Fs.symlink(\"real.txt\", \"link\")))\n    Log.info(text(Fs.read(\"link\")))\n    Log.info(done(Fs.symlink(\"real.txt\", \"link\")))\n    Log.info(done(Fs.symlink(\"real.txt\", \"no/dir/link\")))",
+    &["real.txt"],
+  );
+
+  assert_eq!(out, "ok\nok \nerr EEXIST\nerr ENOENT\n");
+  assert_eq!(
+    fs::read_link(dir.path().join("link")).unwrap(),
+    Path::new("real.txt")
+  );
+}
+
+#[test]
+fn set_mtime() {
+  let (out, dir) = lines(
+    "    Log.info(done(Fs.set_mtime(\"f\", 1500000000000)))\n    Log.info(done(Fs.set_mtime(\"gone\", 1500000000000)))",
+    &["f"],
+  );
+  let modified = fs::metadata(dir.path().join("f"))
+    .unwrap()
+    .modified()
+    .unwrap()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap();
+
+  assert_eq!(out, "ok\nerr ENOENT\n");
+  assert_eq!(modified.as_secs(), 1_500_000_000);
+}
+
+#[cfg(unix)]
+#[test]
+fn chmod() {
+  use std::os::unix::fs::PermissionsExt;
+
+  let (out, dir) = lines(
+    "    Log.info(done(Fs.chmod(\"f\", 493)))\n    Log.info(done(Fs.chmod(\"gone\", 493)))",
+    &["f"],
+  );
+  let mode = fs::metadata(dir.path().join("f")).unwrap().permissions().mode();
+
+  assert_eq!(out, "ok\nerr ENOENT\n");
+  assert_eq!(mode & 0o777, 0o755);
 }

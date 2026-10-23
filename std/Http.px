@@ -22,6 +22,9 @@ types
 
   Response = { status: Int, headers: List<Header>, body: String }
 
+externs
+  free_port() -> Int / {Async} = "./bindings/Http.js" free_port
+
 functions
   header(headers: List<Header>, name: String) -> String {
     match headers {
@@ -168,5 +171,6 @@ exports
   Part
   Request
   Response
+  free_port
   header
   multipart

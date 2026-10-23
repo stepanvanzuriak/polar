@@ -10,7 +10,7 @@ hosts
 types
   EnvVar = { name: String, value: String }
 
-  RunOptions = { cwd: Option<String>, env: List<EnvVar> }
+  RunOptions = { cwd: Option<String>, env: List<EnvVar>, input: Option<String> }
 
   Output = { code: Int, stdout: String, stderr: String }
 
@@ -36,6 +36,8 @@ externs
     Async,
   }
     = "./bindings/Process.js" wait_for_line
+  lines(child: Child) -> List<String> = "./bindings/Process.js" lines
+  sleep(ms: Int) -> {} / {Async} = "./bindings/Process.js" sleep
   stop(child: Child) -> Int / {Async} = "./bindings/Process.js" stop
 
 binds
@@ -45,11 +47,15 @@ binds
 
 functions
   inherit() -> RunOptions {
-    { cwd: None, env: [] }
+    { cwd: None, env: [], input: None }
   }
 
   in_dir(options: RunOptions, dir: String) -> RunOptions {
     { ..options, cwd: Some(dir) }
+  }
+
+  with_input(options: RunOptions, input: String) -> RunOptions {
+    { ..options, input: Some(input) }
   }
 
   with_env(options: RunOptions, name: String, value: String) -> RunOptions {
@@ -66,7 +72,10 @@ exports
   inherit
   in_dir
   with_env
+  with_input
   scoped_env
   spawn
   wait_for_line
+  lines
+  sleep
   stop

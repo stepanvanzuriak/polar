@@ -1588,3 +1588,28 @@ exports
 
   assert_ne!(ran.code, Some(0));
 }
+
+#[test]
+fn input_reaches_child_stdin() {
+  let src = "uses
+  Std.List
+  Std.Process
+
+hosts
+  Node
+
+functions
+  main() -> {} / {Process} {
+    let out = Process.output(\"cat\", [], Process.with_input(Process.inherit(), \"one\\ntwo\\n\"))
+
+    Log.info(\"#{out.code} #{out.stdout}\")
+  }
+
+exports
+  main
+";
+  let ran = run(&[("a.px", src)], "a.px", &[]);
+
+  assert_eq!(ran.code, Some(0), "{}", ran.err);
+  assert_eq!(ran.out, "0 one\ntwo\n\n");
+}
